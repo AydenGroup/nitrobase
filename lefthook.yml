@@ -11,7 +11,7 @@ pre-commit:
 pre-push:
   commands:
     check:
-      run: tsc --noEmit
+      run: npx tsc --noEmit
 
 commit-msg:
   commands:
