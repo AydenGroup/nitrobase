@@ -8,6 +8,10 @@ pre-commit:
     lint-styles:
       glob: "*.{css,scss}"
       run: npx stylelint {staged_files} --fix
+pre-push:
+  commands:
+    check:
+      run: tsc --noEmit
 
 commit-msg:
   commands:
