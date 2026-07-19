@@ -1,0 +1,7 @@
+@import url("@mantine/core/styles.layer.css");
+@import url("@mantine/nprogress/styles.layer.css");
+
+
+body {
+  margin: 0;
+}
