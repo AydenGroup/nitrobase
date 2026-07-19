@@ -16,4 +16,4 @@ pre-push:
 commit-msg:
   commands:
     commitlint:
-      run: bunx commitlint --edit {1}
+      run: npx commitlint --edit {1}
