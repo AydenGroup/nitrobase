@@ -76,15 +76,21 @@ export function isNewerRelease(
 	return !!a && compareSemVer(b, a) > 0;
 }
 
-/** A release the instance may upgrade to (exact tag from the release list). */
+/**
+ * A release the instance may upgrade to (exact tag from the release list).
+ * Pre-releases only on the "prerelease" channel: the check never offers
+ * one on "stable", so a direct request for it is refused too.
+ */
 export function findRelease(
 	releases: RawRelease[],
 	version: string,
+	channel: ReleaseChannel,
 ): ReleaseInfo | null {
 	for (const raw of releases) {
 		if (raw.draft) continue;
 		const info = toReleaseInfo(raw);
-		if (info && info.version === version) return info;
+		if (!info || info.version !== version) continue;
+		return info.prerelease && channel === "stable" ? null : info;
 	}
 	return null;
 }

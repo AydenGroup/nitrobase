@@ -181,6 +181,8 @@ describe("installer arguments", () => {
 			image: "registry.example.com/me/nitrobase",
 			api_url: "https://git.example.com/api/v1",
 		});
+		// Pre-release tags (`v0.1.0-beta.0`) are image tags without the "v".
+		expect(config(["--version", "v0.1.0-beta.0"]).version).toBe("0.1.0-beta.0");
 		expect(
 			config(["--domain", "p.example.com", "--panel-bind", "0.0.0.0:8080"])
 				.panel_bind,

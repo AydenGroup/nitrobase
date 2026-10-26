@@ -37,6 +37,14 @@ describe("parseVersion", () => {
 		expect(parseVersion("8.4.11-alpine")?.prerelease).toEqual([]);
 		expect(parseVersion("1.0.0+build.5")?.prerelease).toEqual([]);
 		expect(isPrerelease("v2.0.0-beta.2")).toBe(true);
+		// package.json and release tags (`v0.1.0-beta.0`).
+		expect(parseVersion("0.1.0-beta.0")).toMatchObject({
+			major: 0,
+			minor: 1,
+			patch: 0,
+			prerelease: ["beta", "0"],
+		});
+		expect(isPrerelease("v0.1.0-beta.0")).toBe(true);
 	});
 
 	it("refuses non-versions", () => {
@@ -52,6 +60,9 @@ describe("compareSemVer", () => {
 		expect(compare("1.0.0-rc.1", "1.0.0")).toBeLessThan(0);
 		expect(compare("1.0.0-rc.2", "1.0.0-rc.10")).toBeLessThan(0);
 		expect(compare("1.0.0-alpha", "1.0.0-beta")).toBeLessThan(0);
+		expect(compare("0.1.0-beta.0", "0.1.0-beta.1")).toBeLessThan(0);
+		expect(compare("0.1.0-beta.9", "0.1.0-beta.10")).toBeLessThan(0);
+		expect(compare("0.1.0-beta.1", "0.1.0")).toBeLessThan(0);
 		expect(compare("1.2", "1.2.0")).toBe(0);
 		expect(compare("main", "1.0.0")).toBeNull();
 	});

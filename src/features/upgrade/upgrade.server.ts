@@ -269,7 +269,11 @@ export async function startPanelUpgrade(
 	assertCanAccess(actor, "instance.manage");
 	if (instancePauseReason()) throw new AppError("INSTANCE_PAUSED");
 	if (instanceUpgrading()) throw new AppError("INSTANCE_UPGRADING");
-	const release = findRelease(await fetchReleases(), input.version);
+	const release = findRelease(
+		await fetchReleases(),
+		input.version,
+		getConfig().RELEASE_CHANNEL,
+	);
 	if (!release) {
 		throw new AppError("UPGRADE_RELEASE_NOT_FOUND", { version: input.version });
 	}

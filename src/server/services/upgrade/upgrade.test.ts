@@ -11,6 +11,7 @@ import {
 import { detectInstall, envVersion, splitImage } from "./install";
 import {
 	findRelease,
+	IMAGE_TAG,
 	imageTagOf,
 	isNewerRelease,
 	pickLatestRelease,
@@ -74,14 +75,68 @@ describe("release selection", () => {
 		// A dev build never gets an upgrade offer.
 		expect(isNewerRelease("dev", latest)).toBe(false);
 		expect(isNewerRelease("0.1.0.beta", latest)).toBe(true);
+		expect(isNewerRelease("0.1.0-beta.0", latest)).toBe(true);
+	});
+
+	it("handles prerelease versions such as 0.1.0-beta.0", () => {
+		const betas = [
+			release("v0.1.0-beta.0", { prerelease: true }),
+			// Not flagged on the host: the version still says pre-release.
+			release("v0.1.0-beta.1"),
+		];
+		// Stable never offers a pre-release, not even to a beta build.
+		expect(pickLatestRelease(betas, "stable")).toBeNull();
+		const latest = pickLatestRelease(betas, "prerelease");
+		expect(latest).toMatchObject({
+			tag: "v0.1.0-beta.1",
+			version: "0.1.0-beta.1",
+			prerelease: true,
+		});
+		expect(isNewerRelease("0.1.0-beta.0", latest)).toBe(true);
+		expect(isNewerRelease("0.1.0-beta.1", latest)).toBe(false);
+		expect(
+			isNewerRelease(
+				"0.1.0-beta.1",
+				pickLatestRelease([release("v0.1.0")], "stable"),
+			),
+		).toBe(true);
+		expect(IMAGE_TAG.test(imageTagOf("v0.1.0-beta.0"))).toBe(true);
+		expect(findRelease(betas, "0.1.0-beta.1", "prerelease")?.tag).toBe(
+			"v0.1.0-beta.1",
+		);
+		expect(findRelease(betas, "0.1.0-beta.1", "stable")).toBeNull();
+		expect(
+			detectInstall({
+				inspect: JSON.stringify([
+					{
+						Id: "abc123",
+						Config: {
+							Image: "ghcr.io/aydengroup/nitrobase:0.1.0-beta.0",
+							Hostname: "abc123",
+							Labels: {
+								"com.docker.compose.project": "nitrobase",
+								"com.docker.compose.service": "app",
+								"com.docker.compose.project.working_dir": "/opt/nitrobase",
+								"com.docker.compose.project.config_files":
+									"/opt/nitrobase/docker-compose.yml",
+							},
+							Healthcheck: { Test: ["CMD-SHELL", "true"] },
+						},
+					},
+				]),
+				hostname: "abc123",
+				inContainer: true,
+			}),
+		).toMatchObject({ install: { imageTag: "0.1.0-beta.0" } });
+		expect(envVersion("NITROBASE_VERSION=0.1.0-beta.0\n")).toBe("0.1.0-beta.0");
 	});
 
 	it("maps release tags to image tags and finds exact releases", () => {
 		expect(imageTagOf("v1.2.3")).toBe("1.2.3");
 		expect(imageTagOf("1.2.3")).toBe("1.2.3");
 		expect(imageTagOf("version-1")).toBe("version-1");
-		expect(findRelease(releases, "1.2.0")?.tag).toBe("v1.2.0");
-		expect(findRelease(releases, "1.10.0")).toBeNull(); // draft
+		expect(findRelease(releases, "1.2.0", "stable")?.tag).toBe("v1.2.0");
+		expect(findRelease(releases, "1.10.0", "stable")).toBeNull(); // draft
 	});
 
 	it("drops non-https release links", () => {
