@@ -28,7 +28,7 @@ function setup(options: { env?: string; accounts?: boolean } = {}) {
 			state.stored = null;
 		},
 		panelUrl: () => "http://203.0.113.7:3000",
-		log: (line) => state.logs.push(line),
+		print: (line) => state.logs.push(line),
 	});
 	return { state, tokens };
 }
@@ -142,7 +142,7 @@ describe("setup token", () => {
 			},
 			clear: async () => {},
 			panelUrl: () => "http://x",
-			log: () => {},
+			print: () => {},
 		});
 		await expect(flaky.current()).rejects.toThrow(/starting/);
 		fail = false;

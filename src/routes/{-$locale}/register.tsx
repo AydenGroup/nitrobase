@@ -38,7 +38,7 @@ function RouteComponent() {
 				<Stack gap="lg">
 					<Alert color="blue" variant="light">
 						{i18n._(
-							"Setting up needs the one-time setup token. The installer printed it (SETUP_TOKEN in the install's .env); otherwise the panel printed it in its logs: run docker compose logs app on the server.",
+							"Setting up needs the one-time setup token. The installer printed it (SETUP_TOKEN in the install's .env); otherwise the panel printed it in its logs: run `docker compose logs app` on the server.",
 						)}
 					</Alert>
 					<SegmentedControl

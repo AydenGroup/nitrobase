@@ -146,7 +146,7 @@ export const RestoreSelfBackupForm: React.FC = () => {
 			<TextInput
 				label={i18n._("Setup token")}
 				description={i18n._(
-					"Printed by the installer, or in the panel logs (docker compose logs app). Needed until the first account exists.",
+					"Printed by the installer, or in the panel logs (`docker compose logs app`). Needed until the first account exists.",
 				)}
 				value={setupToken}
 				onChange={(event) => setSetupToken(event.currentTarget.value)}

@@ -28,7 +28,8 @@ export interface SetupTokenDeps {
 	clear: () => Promise<void>;
 	/** Where to create the first account (shown in the log line). */
 	panelUrl: () => string;
-	log: (line: string) => void;
+	/** Writes one line to the panel logs. */
+	print: (line: string) => void;
 }
 
 export function generateSetupToken(): string {
@@ -54,7 +55,7 @@ export function createSetupTokens(deps: SetupTokenDeps) {
 	function announce(token: string): void {
 		if (announced) return;
 		announced = true;
-		deps.log(
+		deps.print(
 			`${SETUP_TOKEN_LOG_LABEL}: ${token} (open ${deps.panelUrl()} to create the first account)`,
 		);
 	}
@@ -105,7 +106,7 @@ export function createSetupTokens(deps: SetupTokenDeps) {
 			if (deps.envToken()) {
 				if (announced) return;
 				announced = true;
-				deps.log(
+				deps.print(
 					`${SETUP_TOKEN_LOG_LABEL}: SETUP_TOKEN of the install's .env (open ${deps.panelUrl()} to create the first account)`,
 				);
 				return;

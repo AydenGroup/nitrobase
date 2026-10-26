@@ -63,7 +63,7 @@ export const setupTokens = createSetupTokens({
 	save,
 	clear: () => clearSetupToken(),
 	panelUrl,
-	log: (line) => console.info(`[setup] ${line}`),
+	print: (line) => console.info(`[setup] ${line}`),
 });
 
 /** Whether `given` is the setup token (false once an account exists). */

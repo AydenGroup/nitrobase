@@ -1001,7 +1001,7 @@ export const errorCodes = {
 		id: "A restore is already running. Wait for it to finish.",
 	}),
 	SETUP_TOKEN_INVALID: msg({
-		id: "The setup token is missing or wrong. The installer printed it (SETUP_TOKEN in the install's .env); otherwise find it in the panel logs (docker compose logs app).",
+		id: "The setup token is missing or wrong. The installer printed it (SETUP_TOKEN in the install's .env); otherwise find it in the panel logs (`docker compose logs app`).",
 	}),
 	RESTORE_CHECKSUM_MISMATCH: msg({
 		id: "The file's sha256 does not match the checksum you entered. Download the backup again and compare the checksum.",

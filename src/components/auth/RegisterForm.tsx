@@ -121,7 +121,7 @@ export const RegisterForm: React.FC<{
 						<TextInput
 							label={i18n._("Setup token")}
 							description={i18n._(
-								"Printed by the installer, or in the panel logs (docker compose logs app). Needed until the first account exists.",
+								"Printed by the installer, or in the panel logs (`docker compose logs app`). Needed until the first account exists.",
 							)}
 							autoComplete="off"
 							spellCheck={false}
