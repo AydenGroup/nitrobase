@@ -67,7 +67,55 @@ Templates are plain folders (`template.toml` + `docker-compose.yml`) under [`tem
 
 ## Install
 
-Releases are published on [GitHub](https://github.com/AydenGroup/nitrobase/releases), with multi-arch images (amd64 and arm64) at `ghcr.io/aydengroup/nitrobase`. There are two ways to install, and both produce the same layout: a `.env` and a compose file in one folder, with the compose project `nitrobase`.
+Releases are published on [GitHub](https://github.com/AydenGroup/nitrobase/releases), with multi-arch images (amd64 and arm64) at `ghcr.io/aydengroup/nitrobase` and the installer image at `ghcr.io/aydengroup/nitrobase-installer`. Every method below produces the same layout: a `.env` and a compose file in one folder, with the compose project `nitrobase` and the container `nitrobase_app`, so the in-panel upgrade works the same way for each.
+
+### With Docker (any OS with Docker)
+
+On any machine with [Docker](https://docs.docker.com/get-docker/) (amd64 or arm64, 2 GB RAM recommended), one command installs Nitrobase:
+
+```bash
+docker run --rm -it \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /opt/nitrobase:/opt/nitrobase \
+  ghcr.io/aydengroup/nitrobase-installer
+```
+
+The image runs the [install script](#with-the-install-script-ubuntu-or-debian-vps) below, through your Docker instead of the host's package manager. It skips the OS check and the Docker install, writes the same `/opt/nitrobase/.env` with generated secrets and a one-time setup token, starts Nitrobase, waits until it is healthy, and prints the panel URL, the setup token and the reminder to **back up the secrets**. Any [installer option](#installer-options) can follow the image name.
+
+The two mounts:
+
+- `-v /var/run/docker.sock:/var/run/docker.sock` lets the installer drive your Docker. Without it, the installer stops with an error that names this flag.
+- `-v /opt/nitrobase:/opt/nitrobase` is the install folder. It **must be the same path on both sides**: Docker resolves the compose project folder on the host, and the in-panel upgrade mounts that folder again later. The installer checks this and prints the exact `-v` to use if it is missing or different. For another folder, change both sides and pass `--dir`: `-v /srv/nitrobase:/srv/nitrobase ... --dir /srv/nitrobase`.
+
+**Version.** `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.0`) installs exactly that release. `:latest` installs the latest stable release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
+
+**Upgrade and uninstall** use the same image and mounts:
+
+```bash
+docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v /opt/nitrobase:/opt/nitrobase \
+  ghcr.io/aydengroup/nitrobase-installer --version <v>        # upgrade (or Settings → Instance)
+docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v /opt/nitrobase:/opt/nitrobase \
+  ghcr.io/aydengroup/nitrobase-installer --uninstall          # stop; data and .env stay
+docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v /opt/nitrobase:/opt/nitrobase \
+  ghcr.io/aydengroup/nitrobase-installer --uninstall --purge  # also delete the data
+```
+
+`--purge` empties the install folder. The empty folder itself stays on the host, because it is the mount point (`rmdir /opt/nitrobase` removes it).
+
+**`-it` or not.** With `-it` the installer can ask questions: `--purge` asks you to type `purge <dir>`. Without a terminal (CI, scripts), drop `-it`. Nothing else asks, so `--yes` is implied, and `--purge` needs `-e NITROBASE_PURGE_CONFIRM="purge /opt/nitrobase"` instead.
+
+**Ports.** A container cannot see the host's sockets, so the installer only checks the ports that other containers publish. If another program on the host uses port 3000, `docker compose up` fails and the installer tells you to pick another port with `--panel-bind 0.0.0.0:<port>`. The installer cannot know the host's address, so it prints `http://<server-ip>:3000`: use your server's address, or `http://localhost:3000` on the machine itself.
+
+**Docker Desktop (macOS, Windows).** The panel's *Localhost* server is Docker's Linux VM, not your computer: apps deployed to it run inside that VM. Docker Desktop only mounts folders it shares, and `/opt` is not one of them on macOS. Install under your home folder instead, which is shared by default:
+
+```bash
+docker run --rm -it \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$HOME/nitrobase:$HOME/nitrobase" \
+  ghcr.io/aydengroup/nitrobase-installer --dir "$HOME/nitrobase"
+```
+
+The path may only contain letters, digits, `.`, `_`, `-` and `/`. Then open `http://localhost:3000`. On Windows, run the command from a WSL 2 shell.
 
 ### With the install script (Ubuntu or Debian VPS)
 
@@ -88,7 +136,7 @@ The installer is idempotent. It:
 
 Without `--version` it installs the latest release. Until the first stable release exists, it installs the newest pre-release. When it installs a pre-release and `.env` has no `RELEASE_CHANNEL`, it sets `RELEASE_CHANNEL=prerelease` so the panel offers the next pre-releases. A later stable install removes that setting again, but only if the installer wrote it; a channel you set yourself is kept. A re-run keeps the `--repo`, `--image` and `--api-url` of the existing install (`RELEASE_REPO`, `NITROBASE_IMAGE` and `RELEASE_API_URL` in `.env`).
 
-<details>
+<details id="installer-options">
 <summary>Installer options</summary>
 
 | Option | Meaning |
@@ -105,7 +153,7 @@ Without `--version` it installs the latest release. Until the first stable relea
 
 </details>
 
-### With Docker Compose (any OS with Docker)
+### By hand with Docker Compose
 
 In an empty folder, with [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2. Pick `VERSION` from the [releases](https://github.com/AydenGroup/nitrobase/releases); the compose file and `.env` must come from the same release.
 
@@ -193,7 +241,7 @@ flowchart LR
 
 The database is not rolled back automatically: if a new version migrated it and then failed, restore the self-backup from step 2.
 
-**From the shell:** re-run the installer with `--version <v>`. Or, in the install folder, download the new release's compose file, set `NITROBASE_VERSION` in `.env` and run `docker compose up -d`.
+**From the shell:** re-run the installer (the script or the installer image) with `--version <v>`. Or, in the install folder, download the new release's compose file, set `NITROBASE_VERSION` in `.env` and run `docker compose up -d`.
 
 ### Backups and disaster recovery
 
