@@ -1,0 +1,134 @@
+name: Release
+
+# Push a tag `v<package.json version>` (e.g. v0.1.0-beta.0) to publish:
+#   - ghcr.io/<owner>/<repo>:<version> for linux/amd64 and linux/arm64
+#     (plus :latest for versions without a pre-release suffix);
+#   - a GitHub Release with docker-compose.prod.yml, install.sh and
+#     env.example attached (marked pre-release for `-` versions).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Checks
+    uses: ./.github/workflows/ci.yml
+
+  version:
+    name: Tag matches package.json
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      image: ${{ steps.version.outputs.image }}
+      license: ${{ steps.version.outputs.license }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: version
+        name: Compare the tag with package.json
+        run: |
+          version="$(jq -r .version package.json)"
+          tag="${GITHUB_REF_NAME}"
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::tag $tag does not match package.json version $version (expected v$version)"
+            exit 1
+          fi
+          case "$version" in
+            *-*) prerelease=true ;;
+            *) prerelease=false ;;
+          esac
+          {
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+            # The image is named after the repository (lowercase for OCI).
+            echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
+            echo "license=$(jq -r .license package.json)"
+          } >> "$GITHUB_OUTPUT"
+
+  image:
+    name: Image (amd64 + arm64)
+    needs: [checks, version]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ needs.version.outputs.image }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ needs.version.outputs.version }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.prerelease == 'false' }}
+          labels: |
+            org.opencontainers.image.title=Nitrobase
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.url=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=${{ needs.version.outputs.license }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: GitHub Release
+    needs: [version, image]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect the release assets
+        run: |
+          mkdir -p dist
+          cp docker-compose.prod.yml dist/docker-compose.prod.yml
+          cp scripts/install.sh dist/install.sh
+          # No leading dot: download it as .env (README, Install).
+          cp .env.example dist/env.example
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Nitrobase ${{ needs.version.outputs.version }}
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/docker-compose.prod.yml
+            dist/install.sh
+            dist/env.example

@@ -21,6 +21,7 @@
     "check": "biome check",
     "i18n:compile": "lingui compile --typescript && biome format --write src/locales",
     "i18n:extract": "lingui extract --clean && biome format --write src/locales",
+    "i18n:check": "bun scripts/lingui/check-catalogs.ts",
     "i18n:translate": "jsontt ./src/locales/en.json --module google --from en --to",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
