@@ -327,6 +327,50 @@ describe("installer run (mocked system)", () => {
 		expect(api.err).toMatch(/invalid version from the latest release/);
 	});
 
+	it("installs the newest pre-release while no stable release exists", () => {
+		mock(
+			"curl",
+			[
+				`echo "$(basename "$0") $*" >> ${JSON.stringify(callLog)}`,
+				'out=""; url=""',
+				'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2;; -H) shift 2;; -*) shift;; *) url="$1"; shift;; esac; done',
+				'case "$url" in',
+				`  *docker-compose.prod.yml) cp ${JSON.stringify(COMPOSE)} "$out";;`,
+				"  */releases/latest) exit 22;;",
+				'  */releases?per_page=*) echo \'[{"url":"x","tag_name":"v0.1.0-beta.1","prerelease":true},{"tag_name":"v0.1.0-beta.0"}]\';;',
+				"  *) exit 22;;",
+				"esac",
+			].join("\n"),
+		);
+		const result = run(base());
+		expect(result.code).toBe(0);
+		expect(result.err).toMatch(/no stable release yet.*v0\.1\.0-beta\.1/);
+		expect(envOf()).toMatchObject({
+			NITROBASE_VERSION: "0.1.0-beta.1",
+			// Offered the next pre-releases in the panel.
+			RELEASE_CHANNEL: "prerelease",
+		});
+		expect(result.calls).toMatch(
+			/\/v0\.1\.0-beta\.1\/docker-compose\.prod\.yml/,
+		);
+		// An explicit channel is kept.
+		const envFile = path.join(dir(), ".env");
+		writeFileSync(
+			envFile,
+			readFileSync(envFile, "utf8").replace(
+				/^RELEASE_CHANNEL=.*$/m,
+				"RELEASE_CHANNEL=stable",
+			),
+		);
+		expect(run(base()).code).toBe(0);
+		expect(envOf().RELEASE_CHANNEL).toBe("stable");
+	});
+
+	it("keeps the stable channel for a stable release", () => {
+		expect(run(base()).code).toBe(0);
+		expect(envOf().RELEASE_CHANNEL).toBeUndefined();
+	});
+
 	it("never purges a folder that is not a panel install", () => {
 		mkdirSync(dir(), { recursive: true });
 		writeFileSync(path.join(dir(), "docker-compose.yml"), "services: {}\n");

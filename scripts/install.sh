@@ -60,6 +60,7 @@ readonly MIN_DISK_MB=5000                                      # refused below
 readonly HEALTH_TIMEOUT="${NITROBASE_HEALTH_TIMEOUT:-300}"     # seconds
 readonly HEALTH_POLL_SECONDS=3
 readonly SETUP_TOKEN_LENGTH=32                                 # hex characters
+readonly RELEASES_PAGE_SIZE=10                                 # releases read when none is stable
 # Overridable for tests only.
 readonly OS_RELEASE_FILE="${NITROBASE_OS_RELEASE:-/etc/os-release}"
 readonly MEMINFO_FILE="${NITROBASE_MEMINFO:-/proc/meminfo}"
@@ -339,13 +340,26 @@ install_docker() {
 
 # --- release & files ----------------------------------------------------------
 
+# First "tag_name" of a releases API answer (newest first for a list).
+first_tag() {
+	tr ',' '\n' | sed -n 's/^[[:space:]{[]*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+}
+
 latest_version() {
 	[ -n "$REPO" ] || die "no --version given and no --repo to look up the latest release"
 	local json tag
-	json="$(curl -fsSL -H 'Accept: application/json' "$API_URL/repos/$REPO/releases/latest")" ||
-		die "could not read the latest release of $REPO from $API_URL"
-	tag="$(printf '%s' "$json" | tr ',' '\n' | sed -n 's/^[[:space:]{]*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
-	[ -n "$tag" ] || die "the latest release of $REPO has no tag"
+	if json="$(curl -fsSL -H 'Accept: application/json' "$API_URL/repos/$REPO/releases/latest" 2>/dev/null)"; then
+		tag="$(printf '%s' "$json" | first_tag)"
+		[ -n "$tag" ] || die "the latest release of $REPO has no tag"
+	else
+		# "latest" skips pre-releases: before the first stable release, the
+		# newest pre-release is installed.
+		json="$(curl -fsSL -H 'Accept: application/json' "$API_URL/repos/$REPO/releases?per_page=$RELEASES_PAGE_SIZE")" ||
+			die "could not read the releases of $REPO from $API_URL"
+		tag="$(printf '%s' "$json" | first_tag)"
+		[ -n "$tag" ] || die "$REPO has no release yet"
+		warn "$REPO has no stable release yet: installing the pre-release $tag"
+	fi
 	printf '%s' "${tag#v}"
 }
 
@@ -390,6 +404,9 @@ write_env() {
 	# The panel checks the official releases (DEFAULT_REPO) by default.
 	if [ -n "$REPO" ] && [ "$REPO" != "$DEFAULT_REPO" ]; then env_set RELEASE_REPO "$REPO"; fi
 	if [ "$API_URL" != "$DEFAULT_API_URL" ]; then env_set RELEASE_API_URL "$API_URL"; fi
+	# A pre-release (1.0.0-rc.1) is only upgraded to newer pre-releases on
+	# the pre-release channel; an explicit RELEASE_CHANNEL is kept.
+	case "$VERSION" in *-*) if [ -z "$(env_get RELEASE_CHANNEL)" ]; then env_set RELEASE_CHANNEL prerelease; fi ;; esac
 	if [ -n "$DOMAIN" ]; then
 		env_set PANEL_DOMAIN "$DOMAIN"
 		env_set APP_URL "https://$DOMAIN"
