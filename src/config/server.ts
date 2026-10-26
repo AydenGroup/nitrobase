@@ -4,7 +4,7 @@ import {
 	NO_DEFAULT_RESTART,
 	RESTART_POLICIES,
 } from "#/config/restart-policies.ts";
-import { APP_NAME } from "#/config/shared.ts";
+import { APP_NAME, RELEASE_REPO_DEFAULT } from "#/config/shared.ts";
 import { TASK_LOCK_POLICIES } from "#/features/tasks/schema.ts";
 import { emailSchema } from "#/libs/email.ts";
 import { defaultLocale, type Locale, locales } from "#/libs/i18n.ts";
@@ -816,15 +816,20 @@ const ConfigSchema = z.object({
 	// Releases and in-panel upgrade (R4 M3)
 	/**
 	 * `owner/name` of the Nitrobase repository whose releases are checked
-	 * (GitHub, or a Gitea/Forgejo host with RELEASE_API_URL). Empty: no
-	 * update check (forks and private builds set their own).
+	 * (GitHub, or a Gitea/Forgejo host with RELEASE_API_URL). Unset or
+	 * empty: the official releases (RELEASE_REPO_DEFAULT), so installs made
+	 * by the script and by hand both see updates; forks set their own.
+	 * UPDATE_CHECK_ENABLED=false turns the check off.
 	 */
-	RELEASE_REPO: z
-		.string()
-		.trim()
-		.regex(/^[\w.-]+\/[\w.-]+$/, "must be owner/name")
-		.optional()
-		.or(z.literal("").transform(() => undefined)),
+	RELEASE_REPO: z.preprocess(
+		(value) =>
+			typeof value === "string" && value.trim() === "" ? undefined : value,
+		z
+			.string()
+			.trim()
+			.regex(/^[\w.-]+\/[\w.-]+$/, "must be owner/name")
+			.default(RELEASE_REPO_DEFAULT),
+	),
 	/** Releases API base (GitHub API by default; Gitea: https://host/api/v1). */
 	RELEASE_API_URL: z
 		.url()

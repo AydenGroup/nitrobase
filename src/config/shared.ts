@@ -10,6 +10,12 @@ export const APP_NAME = "Nitrobase";
  * `#/config/identifiers.ts`).
  */
 export const APP_ID = "nitrobase";
+/**
+ * GitHub repository (`owner/name`) of the official releases: the panel's
+ * update check (RELEASE_REPO default) and scripts/install.sh (--repo
+ * default) use it; release images are `ghcr.io/<repo lowercased>`.
+ */
+export const RELEASE_REPO_DEFAULT = "AydenGroup/nitrobase";
 /** Image tag variable of the panel install's `.env` (installer, updater). */
 export const VERSION_ENV_NAME = "NITROBASE_VERSION";
 

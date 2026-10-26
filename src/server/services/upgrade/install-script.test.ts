@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { APP_NAME } from "#/config/shared.ts";
+import { APP_NAME, RELEASE_REPO_DEFAULT } from "#/config/shared.ts";
 
 // Each case runs bash with a few dozen subprocesses.
 vi.setConfig({ testTimeout: 60_000 });
@@ -154,6 +154,17 @@ describe("installer arguments", () => {
 			raw_url: "https://raw.githubusercontent.com/Acme/Nitrobase",
 			uninstall: "0",
 		});
+	});
+
+	it("installs the official releases without --repo", () => {
+		expect(config([])).toMatchObject({
+			repo: RELEASE_REPO_DEFAULT,
+			image: `ghcr.io/${RELEASE_REPO_DEFAULT.toLowerCase()}`,
+			raw_url: `https://raw.githubusercontent.com/${RELEASE_REPO_DEFAULT}`,
+		});
+		expect(config([], { NITROBASE_REPO: "Me/Fork" }).image).toBe(
+			"ghcr.io/me/fork",
+		);
 	});
 
 	it("reads every option", () => {
@@ -391,6 +402,20 @@ describe("installer and src/config", () => {
 	it("names the product after APP_NAME", () => {
 		expect(readFileSync(SCRIPT, "utf8")).toContain(
 			`readonly PRODUCT_NAME="${APP_NAME}"`,
+		);
+	});
+
+	it("defaults to the same release repository as the panel", () => {
+		expect(readFileSync(SCRIPT, "utf8")).toContain(
+			`readonly DEFAULT_REPO="${RELEASE_REPO_DEFAULT}"`,
+		);
+	});
+
+	it("leaves RELEASE_REPO to the panel default for the official releases", () => {
+		expect(run(["--dir", dir(), "--yes"]).code).toBe(0);
+		expect(envOf().RELEASE_REPO).toBeUndefined();
+		expect(envOf().NITROBASE_IMAGE).toBe(
+			`ghcr.io/${RELEASE_REPO_DEFAULT.toLowerCase()}`,
 		);
 	});
 

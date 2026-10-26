@@ -44,7 +44,6 @@ function prefixedCache(prefix: string): CacheStore {
 export async function fetchReleases(refresh = false): Promise<RawRelease[]> {
 	const config = getConfig();
 	const repo = config.RELEASE_REPO;
-	if (!repo) return [];
 	const { apiUrl, github } = releaseApi();
 	const client = createGitHubClient({
 		apiUrl,
@@ -65,13 +64,12 @@ export async function getInstanceUpdate(
 	const base = {
 		current: APP_VERSION,
 		channel: config.RELEASE_CHANNEL,
-		repo: config.RELEASE_REPO ?? null,
+		repo: config.RELEASE_REPO,
 		latest: null,
 		available: false,
 		error: null,
 	};
 	if (!config.UPDATE_CHECK_ENABLED) return { ...base, check: "disabled" };
-	if (!config.RELEASE_REPO) return { ...base, check: "not_configured" };
 	try {
 		const releases = await fetchReleases(options.refresh);
 		const latest = pickLatestRelease(releases, config.RELEASE_CHANNEL);
@@ -93,7 +91,7 @@ export async function getInstanceUpdate(
 /** Refresh the release list periodically (the banner then reads the cache). */
 export function registerUpdateCheck(): void {
 	const config = getConfig();
-	if (!config.UPDATE_CHECK_ENABLED || !config.RELEASE_REPO) return;
+	if (!config.UPDATE_CHECK_ENABLED) return;
 	schedule("instance-update-check", config.UPDATE_CHECK_CRON, async () => {
 		const status = await getInstanceUpdate({ refresh: true });
 		if (status.available && status.latest) {

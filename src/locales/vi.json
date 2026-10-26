@@ -2554,7 +2554,6 @@
 	"Stable releases": "Bản ổn định",
 	"Stable and pre-releases": "Bản ổn định và bản thử nghiệm",
 	"Installed in": "Cài tại",
-	"No release repository is set: set RELEASE_REPO (owner/name) in the install's .env to check for new versions.": "Chưa đặt kho phát hành: đặt RELEASE_REPO (owner/name) trong .env của bản cài đặt để kiểm tra phiên bản mới.",
 	"The update check is turned off (UPDATE_CHECK_ENABLED=false).": "Kiểm tra cập nhật đang tắt (UPDATE_CHECK_ENABLED=false).",
 	"The release check is rate limited. Add a GitHub token in Settings → GitHub token.": "Kiểm tra bản phát hành bị giới hạn tần suất. Hãy thêm GitHub token ở Cài đặt → GitHub token.",
 	"The release check failed: {error}": "Kiểm tra bản phát hành thất bại: {error}",

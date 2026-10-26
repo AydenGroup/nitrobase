@@ -17,9 +17,9 @@ export interface InstanceUpdateStatus {
 	/** This build's version. */
 	current: string;
 	channel: ReleaseChannel;
-	/** Repository checked (RELEASE_REPO), null when not configured. */
-	repo: string | null;
-	check: "ok" | "disabled" | "not_configured" | "error";
+	/** Repository checked (RELEASE_REPO). */
+	repo: string;
+	check: "ok" | "disabled" | "error";
 	latest: ReleaseInfo | null;
 	available: boolean;
 	/** Why the check failed (coded; GitHub rate limit included). */

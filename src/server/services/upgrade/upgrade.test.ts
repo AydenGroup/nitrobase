@@ -3,6 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { loadConfig } from "#/config/server.ts";
+import { RELEASE_REPO_DEFAULT } from "#/config/shared.ts";
 import {
 	type CacheEntry,
 	createGitHubClient,
@@ -159,6 +161,19 @@ describe("release selection", () => {
 				"https://api.github.com",
 			),
 		).toBe(false);
+	});
+});
+
+describe("release repository setting", () => {
+	const repo = (RELEASE_REPO?: string) =>
+		loadConfig({ ...process.env, RELEASE_REPO }).RELEASE_REPO;
+
+	it("defaults to the official releases, overridable per install", () => {
+		expect(repo(undefined)).toBe(RELEASE_REPO_DEFAULT);
+		// `.env.example` copied as is leaves it empty.
+		expect(repo("")).toBe(RELEASE_REPO_DEFAULT);
+		expect(repo(" me/fork ")).toBe("me/fork");
+		expect(() => repo("no-slash")).toThrow();
 	});
 });
 

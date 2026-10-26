@@ -140,9 +140,7 @@ export const UpgradeCard: React.FC = () => {
 						variant="default"
 						leftSection={<RefreshCw size={14} />}
 						loading={refresh.isPending || isFetching}
-						disabled={
-							update.check === "disabled" || update.check === "not_configured"
-						}
+						disabled={update.check === "disabled"}
 						onClick={() => refresh.mutate()}
 					>
 						{i18n._("Check now")}
@@ -206,13 +204,6 @@ export const UpgradeCard: React.FC = () => {
 							: []),
 					]}
 				/>
-				{update.check === "not_configured" && (
-					<Text size="sm" c="dimmed">
-						{i18n._(
-							"No release repository is set: set RELEASE_REPO (owner/name) in the install's .env to check for new versions.",
-						)}
-					</Text>
-				)}
 				{update.check === "disabled" && (
 					<Text size="sm" c="dimmed">
 						{i18n._(

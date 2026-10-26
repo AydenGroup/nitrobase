@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Nitrobase installer for a fresh Ubuntu/Debian VPS (idempotent).
 #
-#   curl -fsSL <installer-url> | sudo bash -s -- --repo <owner>/<name>
+#   curl -fsSL https://nitrobase.app/install.sh | sudo bash
+#   curl -fsSL https://nitrobase.app/install.sh | sudo bash -s -- --domain panel.example.com
 #
 # What it does: checks the machine (root, OS, CPU, RAM, disk, ports),
 # installs Docker from Docker's official apt repository when missing,
@@ -12,7 +13,7 @@
 # Running it again keeps the secrets and data: it updates the compose file
 # and the options you pass (e.g. --version to move to another release).
 #
-# Options (all optional except --repo when no release source is known):
+# Options (all optional):
 #   --version <v>       Release to install (default: latest release, or the
 #                       version already installed).
 #   --dir <path>        Install folder (default /opt/nitrobase).
@@ -20,9 +21,10 @@
 #                       0.0.0.0:3000; 127.0.0.1:3000 with --domain).
 #   --domain <host>     Panel domain: HTTPS through Traefik + Let's Encrypt,
 #                       applied once you bootstrap Localhost in the panel.
-#   --repo <o/n>        Repository whose releases are installed (env
-#                       NITROBASE_REPO).
-#   --image <name>      Panel image without tag (default ghcr.io/<repo>).
+#   --repo <o/n>        Repository whose releases are installed (default
+#                       AydenGroup/nitrobase; env NITROBASE_REPO).
+#   --image <name>      Panel image without tag (default ghcr.io/<repo>,
+#                       lowercased).
 #   --api-url <url>     Releases API (default https://api.github.com; Gitea or
 #                       Forgejo: https://host/api/v1).
 #   --raw-url <url>     Base URL of raw files at a tag (default
@@ -38,6 +40,7 @@ set -Eeuo pipefail
 
 # --- Defaults (the only place installer settings live) -------------------------
 readonly PRODUCT_NAME="Nitrobase"                              # = APP_NAME (src/config/shared.ts)
+readonly DEFAULT_REPO="AydenGroup/nitrobase"                   # --repo (= RELEASE_REPO_DEFAULT, src/config/shared.ts)
 # Each setting below can be overridden by the option shown, or by the
 # NITROBASE_* variable.
 readonly DEFAULT_DIR="${NITROBASE_INSTALL_PARENT:-/opt}/nitrobase" # --dir (parent: tests only)
@@ -67,7 +70,7 @@ VERSION=""
 DIR=""
 PANEL_BIND=""
 DOMAIN=""
-REPO="${NITROBASE_REPO:-}"
+REPO="${NITROBASE_REPO:-$DEFAULT_REPO}"
 IMAGE="${NITROBASE_IMAGE:-}"
 API_URL="${NITROBASE_API_URL:-$DEFAULT_API_URL}"
 RAW_URL="${NITROBASE_RAW_URL:-}"
@@ -384,7 +387,8 @@ write_env() {
 	env_set NITROBASE_IMAGE "$IMAGE"
 	env_set NITROBASE_VERSION "$VERSION"
 	env_set PANEL_BIND "$PANEL_BIND"
-	if [ -n "$REPO" ]; then env_set RELEASE_REPO "$REPO"; fi
+	# The panel checks the official releases (DEFAULT_REPO) by default.
+	if [ -n "$REPO" ] && [ "$REPO" != "$DEFAULT_REPO" ]; then env_set RELEASE_REPO "$REPO"; fi
 	if [ "$API_URL" != "$DEFAULT_API_URL" ]; then env_set RELEASE_API_URL "$API_URL"; fi
 	if [ -n "$DOMAIN" ]; then
 		env_set PANEL_DOMAIN "$DOMAIN"

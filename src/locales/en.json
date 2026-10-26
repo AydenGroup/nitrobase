@@ -2554,7 +2554,6 @@
 	"Stable releases": "Stable releases",
 	"Stable and pre-releases": "Stable and pre-releases",
 	"Installed in": "Installed in",
-	"No release repository is set: set RELEASE_REPO (owner/name) in the install's .env to check for new versions.": "No release repository is set: set RELEASE_REPO (owner/name) in the install's .env to check for new versions.",
 	"The update check is turned off (UPDATE_CHECK_ENABLED=false).": "The update check is turned off (UPDATE_CHECK_ENABLED=false).",
 	"The release check is rate limited. Add a GitHub token in Settings → GitHub token.": "The release check is rate limited. Add a GitHub token in Settings → GitHub token.",
 	"The release check failed: {error}": "The release check failed: {error}",
