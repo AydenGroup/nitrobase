@@ -1,0 +1,21 @@
+services:
+  app:
+    image: git-0123abcd:0123456789abcdef0123456789abcdef01234567
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+    volumes:
+      - data:/app/data
+    container_name: git-0123abcd-app
+    networks:
+      default: {}
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: app
+      nitrobase.routed: "true"
+volumes:
+  data:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+name: git-0123abcd

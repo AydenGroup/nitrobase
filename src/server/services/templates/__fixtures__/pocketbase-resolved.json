@@ -1,0 +1,45 @@
+{
+	"name": "pocketbase-0123abcd",
+	"networks": {
+		"default": {
+			"name": "pocketbase-0123abcd_default",
+			"ipam": {}
+		}
+	},
+	"services": {
+		"pocketbase": {
+			"build": {
+				"context": "/etc/nitrobase/apps/pocketbase-0123abcd",
+				"dockerfile_inline": "FROM alpine:3.22\nARG PB_VERSION\nARG TARGETARCH\nRUN apk add --no-cache ca-certificates unzip wget \\\n  && cd /tmp \\\n  && wget -q \"https://github.com/pocketbase/pocketbase/releases/download/v$${PB_VERSION}/pocketbase_$${PB_VERSION}_linux_$${TARGETARCH}.zip\" \\\n  && wget -q \"https://github.com/pocketbase/pocketbase/releases/download/v$${PB_VERSION}/checksums.txt\" \\\n  && grep \" pocketbase_$${PB_VERSION}_linux_$${TARGETARCH}.zip$$\" checksums.txt | sha256sum -c - \\\n  && mkdir -p /pb && unzip -q \"pocketbase_$${PB_VERSION}_linux_$${TARGETARCH}.zip\" -d /pb \\\n  && rm -f /tmp/*.zip /tmp/checksums.txt\nEXPOSE 8090\n",
+				"args": {
+					"PB_VERSION": "0.40.4"
+				}
+			},
+			"container_name": "pocketbase-0123abcd-pocketbase",
+			"environment": {
+				"PB_ADMIN_EMAIL": "<redacted>",
+				"PB_ADMIN_PASSWORD": "<redacted>",
+				"PB_ENCRYPTION_KEY": "<redacted>"
+			},
+			"expose": ["8090"],
+			"image": "nitrobase/pocketbase:0.40.4",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "pocketbase",
+				"nitrobase.routed": "true"
+			},
+			"networks": {
+				"default": {}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/pocketbase-0123abcd/pb_data",
+					"target": "/pb/pb_data",
+					"bind": {}
+				}
+			]
+		}
+	}
+}

@@ -1,0 +1,19 @@
+id = "database"
+name = "Database"
+description = "A standalone PostgreSQL, MySQL, MariaDB, Valkey (Redis-compatible) or MongoDB server with backups, a console and links to your apps."
+category = "databases"
+tags = ["database", "postgres", "mysql", "mariadb", "valkey", "redis", "mongodb"]
+notes = "Link the database to an app (Database → Overview → Linked apps) to give the app its connection URL and a private network to it."
+
+# The engine and its pinned image tag are chosen per app (Databases → New
+# database) and stored as the app's version (`<engine>@<tag>`). The compose
+# file, variables, health check, backup strategy and published port come
+# from the engine registry (src/config/database-engines.ts and
+# src/server/services/databases/engines.ts) and go through the same
+# transform and policy as every template: [security] stays empty. Nothing
+# is routed: no domain, the default network is internal.
+[source]
+type = "database"
+
+[requirements]
+disk_mb = 1024

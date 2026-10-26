@@ -1,0 +1,33 @@
+services:
+  web:
+    image: nginx:1.27-alpine
+    volumes:
+      - site:/usr/share/nginx/html
+      - /etc/nitrobase/apps/custom-compose-0123abcd/conf:/etc/nginx/conf.d:ro
+    environment:
+      GREETING: ${GREETING}
+    container_name: custom-compose-0123abcd-web
+    networks:
+      default: {}
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: web
+      nitrobase.routed: "true"
+  cache:
+    image: redis:7-alpine
+    volumes:
+      - cache-data:/data
+    container_name: custom-compose-0123abcd-cache
+    networks:
+      default: {}
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: cache
+volumes:
+  site:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  cache-data:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+name: custom-compose-0123abcd

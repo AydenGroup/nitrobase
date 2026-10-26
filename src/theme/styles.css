@@ -1,6 +1,979 @@
+/* Layered Mantine styles (@layer mantine), so unlayered rules here win. */
 @import url("@mantine/core/styles.layer.css");
 @import url("@mantine/nprogress/styles.layer.css");
+@import url("@mantine/notifications/styles.layer.css");
+@import url("@mantine/spotlight/styles.layer.css");
+@import url("@mantine/charts/styles.layer.css");
+@import url("./fonts.css");
 
-body {
-	margin: 0;
+/*
+ * Colors come from two token families, never from raw values:
+ *   --sb-*      surfaces, borders, text (src/theme/surfaces.ts, per color scheme)
+ *   --accent-*  the user's accent color (src/theme/accents.ts, per html[data-accent])
+ * src/theme/theme-guard.test.ts fails on gray/dark/brand palette steps and old hexes.
+ */
+
+/* App frame: the content lives in a panel that sinks the sidebar into the canvas (from `sm`, 48em) */
+:root {
+	--app-bar-height: 0px;
+	--app-panel-gap: 8px;
+	--app-panel-radius: 14px;
+}
+
+@media (width >= 48em) {
+	:root {
+		--app-bar-height: 44px;
+	}
+}
+
+.app-panel {
+	min-height: 100dvh;
+	background: var(--sb-panel);
+}
+
+.app-panel-body {
+	padding: var(--mantine-spacing-md);
+}
+
+.app-panel-bar {
+	display: none;
+}
+
+@media (width >= 48em) {
+	.app-panel {
+		margin: var(--app-panel-gap) var(--app-panel-gap) var(--app-panel-gap) 0;
+		min-height: calc(100dvh - 2 * var(--app-panel-gap));
+		border: 1px solid var(--sb-border-panel);
+		border-radius: var(--app-panel-radius);
+	}
+
+	.app-panel-bar {
+		display: flex;
+		position: sticky;
+		top: 0;
+		z-index: 5;
+		height: var(--app-bar-height);
+		padding-inline: var(--mantine-spacing-lg);
+		background: var(--sb-panel);
+		border-bottom: 1px solid var(--sb-border-panel);
+		border-radius: var(--app-panel-radius) var(--app-panel-radius) 0 0;
+	}
+
+	.app-panel-body {
+		padding: 22px var(--mantine-spacing-xl);
+	}
+}
+
+/* Breadcrumb shrinks with ellipsis; the palette button keeps its size */
+.app-panel-crumbs {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* Global smooth scrollbar & focus ring */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--sb-border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--sb-border-strong);
+	border-radius: 9999px;
+	transition: background 150ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--sb-text-3);
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent-border);
+	outline-offset: 2px;
+	transition: outline-offset 120ms var(--mantine-ease-smooth);
+}
+
+/* Control scale (compact density): override Mantine's size variables on the elements that define them */
+.mantine-Button-root {
+	--button-height-xs: 24px;
+	--button-height-sm: 28px;
+	--button-height-md: 32px;
+	--button-height-lg: 36px;
+	--button-height-xl: 40px;
+	--button-padding-x-xs: 8px;
+	--button-padding-x-sm: 12px;
+	--button-padding-x-md: 14px;
+	--button-padding-x-lg: 16px;
+	--button-padding-x-xl: 20px;
+}
+
+.mantine-Input-wrapper {
+	--input-height-xs: 28px;
+	--input-height-sm: 32px;
+	--input-height-md: 36px;
+	--input-height-lg: 40px;
+	--input-height-xl: 44px;
+}
+
+.mantine-ActionIcon-root {
+	--ai-size-xs: 20px;
+	--ai-size-sm: 24px;
+	--ai-size-md: 28px;
+	--ai-size-lg: 32px;
+	--ai-size-xl: 40px;
+}
+
+/* Inputs: flat input surface, strong hairline, accent border and soft ring on focus */
+.mantine-Input-input:not([data-disabled], :disabled),
+.mantine-TextInput-input:not([data-disabled], :disabled),
+.mantine-PasswordInput-input:not([data-disabled], :disabled),
+.mantine-Select-input:not([data-disabled], :disabled),
+.mantine-MultiSelect-input:not([data-disabled], :disabled),
+.mantine-NumberInput-input:not([data-disabled], :disabled),
+.mantine-Textarea-input:not([data-disabled], :disabled),
+input:not(
+		[type="checkbox"],
+		[type="radio"],
+		[type="button"],
+		[type="submit"],
+		[type="reset"],
+		[type="range"],
+		[type="file"],
+		[data-disabled],
+		:disabled
+	),
+textarea:not([data-disabled], :disabled),
+select:not([data-disabled], :disabled) {
+	background-color: var(--sb-input);
+	border-color: var(--sb-border-strong);
+	transition:
+		border-color 150ms var(--mantine-ease-smooth),
+		box-shadow 150ms var(--mantine-ease-smooth),
+		background-color 150ms var(--mantine-ease-smooth);
+
+	&:focus,
+	&:focus-visible {
+		outline: none;
+		outline-offset: 0;
+		border-color: var(--accent-border);
+		box-shadow: 0 0 0 3px var(--accent-soft);
+	}
+}
+
+.mantine-PasswordInput-innerInput {
+	background-color: transparent;
+}
+
+.mantine-PasswordInput-input:focus-within {
+	outline: none;
+	outline-offset: 0;
+	border-color: var(--accent-border);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.mantine-PasswordInput-innerInput:focus,
+.mantine-PasswordInput-innerInput:focus-visible {
+	outline: none;
+	outline-offset: 0;
+	box-shadow: none;
+}
+
+/* Buttons: filled uses the accent, everything else stays neutral */
+.mantine-Button-root:not([data-variant]),
+.mantine-Button-root[data-variant="filled"] {
+	background-color: var(--accent-fill);
+	color: var(--accent-on-fill);
+	border: 1px solid var(--accent-fill);
+
+	.mantine-Button-label,
+	.mantine-Button-section {
+		color: var(--accent-on-fill);
+	}
+
+	&:hover {
+		background-color: var(--accent-fill-hover);
+		border-color: var(--accent-fill-hover);
+	}
+}
+
+.mantine-Button-root[data-variant="light"] {
+	background-color: var(--sb-control);
+	color: var(--sb-text-1);
+	border: 1px solid var(--sb-border-strong);
+
+	.mantine-Button-label,
+	.mantine-Button-section {
+		color: var(--sb-text-1);
+	}
+
+	&:hover {
+		background-color: var(--sb-hover);
+		border-color: var(--sb-text-3);
+	}
+}
+
+.mantine-Button-root[data-variant="default"] {
+	background-color: var(--sb-control);
+	color: var(--sb-text-1);
+	border: 1px solid var(--sb-border-strong);
+
+	.mantine-Button-label,
+	.mantine-Button-section {
+		color: var(--sb-text-1);
+	}
+
+	&:hover {
+		background-color: var(--sb-hover);
+	}
+}
+
+.mantine-Button-root[data-variant="subtle"] {
+	color: var(--sb-text-1);
+
+	.mantine-Button-label,
+	.mantine-Button-section {
+		color: var(--sb-text-1);
+	}
+
+	&:hover {
+		background-color: var(--sb-hover);
+	}
+}
+
+.mantine-Button-root:active:not([data-disabled]) {
+	transform: scale(0.985);
+}
+
+/* Red / Danger buttons */
+.mantine-Button-root[style*="--button-color: var(--mantine-color-red"][data-variant="light"],
+.mantine-Button-root[style*="--button-bg: var(--mantine-color-red"][data-variant="light"],
+.mantine-Card-root[data-tone="danger"]
+	.mantine-Button-root[data-variant="light"] {
+	background-color: light-dark(
+		rgb(240 62 62 / 8%),
+		rgb(240 62 62 / 12%)
+	) !important;
+	border: 1px solid light-dark(rgb(240 62 62 / 28%), rgb(240 62 62 / 38%)) !important;
+	color: light-dark(
+		var(--mantine-color-red-7),
+		var(--mantine-color-red-5)
+	) !important;
+
+	.mantine-Button-label,
+	.mantine-Button-section {
+		color: light-dark(
+			var(--mantine-color-red-7),
+			var(--mantine-color-red-5)
+		) !important;
+	}
+
+	&:hover {
+		background-color: light-dark(
+			rgb(240 62 62 / 16%),
+			rgb(240 62 62 / 22%)
+		) !important;
+		border-color: light-dark(
+			rgb(240 62 62 / 45%),
+			rgb(240 62 62 / 55%)
+		) !important;
+		color: light-dark(
+			var(--mantine-color-red-8),
+			var(--mantine-color-red-4)
+		) !important;
+
+		.mantine-Button-label,
+		.mantine-Button-section {
+			color: light-dark(
+				var(--mantine-color-red-8),
+				var(--mantine-color-red-4)
+			) !important;
+		}
+	}
+}
+
+.mantine-Button-root[style*="--button-color: var(--mantine-color-red"][data-variant="subtle"],
+.mantine-Button-root[style*="--button-bg: var(--mantine-color-red"][data-variant="subtle"],
+.mantine-Card-root[data-tone="danger"]
+	.mantine-Button-root[data-variant="subtle"] {
+	color: light-dark(
+		var(--mantine-color-red-7),
+		var(--mantine-color-red-5)
+	) !important;
+
+	.mantine-Button-label,
+	.mantine-Button-section {
+		color: light-dark(
+			var(--mantine-color-red-7),
+			var(--mantine-color-red-5)
+		) !important;
+	}
+
+	&:hover {
+		background-color: light-dark(
+			rgb(240 62 62 / 10%),
+			rgb(240 62 62 / 16%)
+		) !important;
+	}
+}
+
+.mantine-Button-root[style*="--button-bg: var(--mantine-color-red"]:not(
+		[data-variant]
+	),
+.mantine-Button-root[style*="--button-bg: var(--mantine-color-red"][data-variant="filled"],
+.mantine-Card-root[data-tone="danger"]
+	.mantine-Button-root[data-variant="filled"] {
+	background-color: light-dark(
+		var(--mantine-color-red-7),
+		var(--mantine-color-red-8)
+	) !important;
+	border: 1px solid
+		light-dark(var(--mantine-color-red-7), var(--mantine-color-red-8)) !important;
+	color: #fff !important;
+
+	.mantine-Button-label,
+	.mantine-Button-section {
+		color: #fff !important;
+	}
+
+	&:hover {
+		background-color: light-dark(
+			var(--mantine-color-red-8),
+			var(--mantine-color-red-9)
+		) !important;
+		border-color: light-dark(
+			var(--mantine-color-red-8),
+			var(--mantine-color-red-9)
+		) !important;
+	}
+}
+
+.mantine-ActionIcon-root[style*="--ai-color: var(--mantine-color-red"],
+.mantine-ActionIcon-root[style*="--ai-bg: var(--mantine-color-red"] {
+	color: light-dark(
+		var(--mantine-color-red-7),
+		var(--mantine-color-red-5)
+	) !important;
+
+	&:hover {
+		background-color: light-dark(
+			rgb(240 62 62 / 10%),
+			rgb(240 62 62 / 16%)
+		) !important;
+	}
+}
+
+.mantine-ActionIcon-root:not([data-variant]),
+.mantine-ActionIcon-root[data-variant="filled"] {
+	background-color: var(--accent-fill);
+	color: var(--accent-on-fill);
+	border: 1px solid var(--accent-fill);
+
+	&:hover {
+		background-color: var(--accent-fill-hover);
+	}
+}
+
+.mantine-ActionIcon-root[data-variant="light"],
+.mantine-ActionIcon-root[data-variant="default"] {
+	background-color: var(--sb-control);
+	color: var(--sb-text-1);
+	border: 1px solid var(--sb-border-strong);
+
+	&:hover {
+		background-color: var(--sb-hover);
+	}
+}
+
+.mantine-ActionIcon-root:active:not([data-disabled]) {
+	transform: scale(0.96);
+}
+
+/* Tabs: the accent only marks the selected tab (bar), never fills it */
+.mantine-Tabs-root {
+	--tabs-color: var(--accent-border);
+}
+
+.mantine-Tabs-tab {
+	color: var(--sb-text-2);
+}
+
+.mantine-Tabs-tab[data-active="true"] {
+	color: var(--sb-text-1);
+
+	.mantine-Tabs-tabLabel,
+	.mantine-Tabs-tabSection {
+		color: var(--sb-text-1);
+	}
+}
+
+.mantine-Tabs-tab:hover:not([data-active="true"]) {
+	background-color: var(--sb-hover);
+	color: var(--sb-text-1);
+}
+
+/* Vertical resource tabs (pills): selected = soft surface + accent bar on the leading edge */
+.mantine-Tabs-root[data-variant="pills"] .mantine-Tabs-tab[data-active="true"] {
+	background-color: var(--sb-active);
+	border-color: transparent;
+	box-shadow: inset 2px 0 0 var(--accent-border);
+
+	&:dir(rtl) {
+		box-shadow: inset -2px 0 0 var(--accent-border);
+	}
+}
+
+.mantine-NavLink-root {
+	color: var(--sb-text-2);
+}
+
+.mantine-NavLink-root[data-active="true"] {
+	background-color: var(--sb-active);
+	color: var(--sb-text-1);
+
+	.mantine-NavLink-label {
+		color: var(--sb-text-1);
+	}
+
+	.mantine-NavLink-section[data-position="left"] {
+		color: var(--accent-text);
+	}
+}
+
+.mantine-NavLink-root:hover:not([data-active="true"]) {
+	background-color: var(--sb-hover);
+	color: var(--sb-text-1);
+}
+
+/* Group label in the sidebar and in vertical resource tabs */
+.nav-group-label {
+	font-family: var(--mantine-font-family-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--sb-text-3);
+}
+
+/* Chip: selected = soft surface, unselected = control surface */
+.mantine-Chip-label[data-checked="true"] {
+	background-color: var(--sb-active);
+	border-color: var(--sb-border-strong);
+	color: var(--sb-text-1);
+
+	.mantine-Chip-iconWrapper,
+	.mantine-Chip-checkIcon,
+	svg,
+	path {
+		color: var(--accent-text);
+		fill: var(--accent-text);
+	}
+
+	&:hover {
+		background-color: var(--sb-hover);
+	}
+}
+
+.mantine-Chip-label:not([data-checked="true"]) {
+	background-color: var(--sb-control);
+	border: 1px solid var(--sb-border-strong);
+	color: var(--sb-text-1);
+
+	&:hover {
+		background-color: var(--sb-hover);
+		border-color: var(--sb-text-3);
+	}
+}
+
+.mantine-Table-table {
+	--table-border-color: var(--mantine-color-default-border);
+}
+
+.mantine-Table-tr {
+	border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.mantine-Table-th,
+.mantine-Table-td {
+	border-color: var(--mantine-color-default-border);
+}
+
+.mantine-Divider-root {
+	--divider-color: var(--mantine-color-default-border) !important;
+
+	border-color: var(--mantine-color-default-border) !important;
+}
+
+.mantine-Divider-label::before,
+.mantine-Divider-label::after {
+	border-color: var(--mantine-color-default-border) !important;
+}
+
+.mantine-Menu-divider {
+	border-color: var(--mantine-color-default-border) !important;
+}
+
+.mantine-Menu-item {
+	--menu-item-hover: var(--sb-hover);
+}
+
+.mantine-Menu-item:hover:not(
+		:disabled,
+		[data-disabled],
+		[style*="--menu-item-hover"]
+	),
+.mantine-Menu-item:focus:not(
+		:disabled,
+		[data-disabled],
+		[style*="--menu-item-hover"]
+	),
+.mantine-Menu-item[data-menu-active]:not(
+		:disabled,
+		[data-disabled],
+		[style*="--menu-item-hover"]
+	),
+.mantine-Menu-item[data-hovered]:not(
+		:disabled,
+		[data-disabled],
+		[style*="--menu-item-hover"]
+	) {
+	background-color: var(--sb-hover);
+}
+
+/* Selected option in Select/Combobox lists: soft surface, not a solid accent block */
+.mantine-Combobox-option[data-combobox-selected],
+.mantine-Combobox-option[data-combobox-active] {
+	background-color: var(--sb-active);
+	color: var(--sb-text-1);
+}
+
+/* Floating surfaces get a soft shadow; everything in the page stays flat */
+.mantine-Menu-dropdown,
+.mantine-Popover-dropdown,
+.mantine-Modal-content,
+.mantine-Drawer-content {
+	box-shadow: var(--sb-shadow-pop);
+}
+
+.mantine-Switch-track {
+	border: 1px solid var(--sb-border-strong);
+	background-color: var(--sb-control) !important;
+	transition:
+		background-color 150ms var(--mantine-ease-smooth),
+		border-color 150ms var(--mantine-ease-smooth) !important;
+}
+
+.mantine-Switch-thumb {
+	background-color: var(--sb-text-3) !important;
+	transition:
+		background-color 150ms var(--mantine-ease-smooth),
+		inset-inline-start 150ms ease !important;
+}
+
+.mantine-Switch-input:checked + .mantine-Switch-track {
+	background-color: var(--accent-fill) !important;
+	border-color: var(--accent-fill) !important;
+}
+
+.mantine-Switch-input:checked + .mantine-Switch-track > .mantine-Switch-thumb {
+	background-color: var(--accent-on-fill) !important;
+}
+
+/* Accordion card alignment */
+.mantine-Accordion-item {
+	background-color: var(--sb-card) !important;
+	border: 1px solid var(--mantine-color-default-border) !important;
+	border-radius: var(--mantine-radius-lg) !important;
+	overflow: hidden;
+	transition:
+		border-color 160ms var(--mantine-ease-smooth),
+		background-color 160ms var(--mantine-ease-smooth);
+}
+
+.mantine-Accordion-control {
+	border-radius: 0;
+	padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+	transition: background-color 140ms var(--mantine-ease-smooth);
+
+	&:hover {
+		background-color: var(--sb-hover);
+	}
+}
+
+.mantine-Accordion-item[data-active] > .mantine-Accordion-control,
+.mantine-Accordion-item[data-active] > div > .mantine-Accordion-control {
+	border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.mantine-Accordion-chevron {
+	color: var(--mantine-color-dimmed);
+}
+
+/* Danger card styling */
+.mantine-Card-root[data-tone="danger"] {
+	border-color: var(--mantine-color-red-7) !important;
+
+	.mantine-Title-root {
+		color: light-dark(
+			var(--mantine-color-red-7),
+			var(--mantine-color-red-5)
+		) !important;
+		font-weight: 600;
+	}
+}
+
+.mantine-Stepper-stepIcon[data-completed="true"] {
+	background-color: var(--accent-fill);
+	border-color: var(--accent-fill);
+	color: var(--accent-on-fill);
+
+	svg {
+		color: var(--accent-on-fill);
+		fill: var(--accent-on-fill);
+	}
+
+	path {
+		fill: var(--accent-on-fill);
+	}
+}
+
+.mantine-Stepper-stepIcon[data-progress="true"] {
+	background-color: var(--sb-card);
+	border-color: var(--accent-border);
+	color: var(--accent-text);
+	font-weight: 600;
+
+	.mantine-Stepper-stepIconContent {
+		color: var(--accent-text);
+	}
+}
+
+.mantine-Stepper-stepIcon:not([data-progress="true"], [data-completed="true"]) {
+	background-color: var(--sb-card);
+	border-color: var(--sb-border-strong);
+	color: var(--sb-text-3);
+
+	.mantine-Stepper-stepIconContent {
+		color: var(--sb-text-3);
+	}
+}
+
+/* Status badges: mono, uppercase, tone-tinted hairline (font settings live in the theme) */
+.mantine-Badge-root[data-variant="light"] {
+	border: 1px solid color-mix(in srgb, var(--badge-color) 35%, transparent);
+}
+
+/* Notification */
+.mantine-Notifications-root {
+	width: auto;
+	max-width: rem(380);
+}
+
+.mantine-Notification-root {
+	padding: rem(6) var(--mantine-spacing-sm) rem(6) var(--mantine-spacing-sm);
+	border-radius: var(--mantine-radius-md);
+	border: 1px solid var(--sb-border-strong);
+	background: color-mix(in srgb, var(--sb-card) 94%, transparent);
+	backdrop-filter: blur(12px);
+	box-shadow: var(--sb-shadow-pop);
+	transition: transform 160ms var(--mantine-ease-smooth);
+
+	.mantine-Notification-icon {
+		width: rem(20);
+		height: rem(20);
+		margin-inline-end: var(--mantine-spacing-xs);
+	}
+
+	&[style*="--notification-color: var(--mantine-color-yellow"]
+		.mantine-Notification-icon {
+		color: #111;
+
+		svg {
+			stroke: #111;
+		}
+	}
+}
+
+/* Progress */
+.mantine-Progress-root {
+	background-color: var(--sb-active);
+}
+
+.mantine-Progress-section[data-color="brand"],
+.mantine-Progress-section[style*="--mantine-color-brand-filled"] {
+	background-color: var(--accent-fill);
+}
+
+/* Auth brand panel: always dark, whatever the color scheme */
+.auth-hero {
+	overflow: hidden;
+	background:
+		radial-gradient(
+			900px 500px at 20% 110%,
+			rgb(59 130 246 / 35%),
+			transparent 60%
+		),
+		radial-gradient(
+			700px 400px at 90% -10%,
+			rgb(249 115 22 / 18%),
+			transparent 60%
+		),
+		linear-gradient(180deg, #0f1729, #0b0d12);
+}
+
+.auth-hero-grid {
+	position: absolute;
+	inset: 0;
+	background-image:
+		linear-gradient(rgb(148 163 184 / 7%) 1px, transparent 1px),
+		linear-gradient(90deg, rgb(148 163 184 / 7%) 1px, transparent 1px);
+	background-size: 48px 48px;
+	mask-image: radial-gradient(ellipse at 40% 60%, #000 30%, transparent 75%);
+}
+
+.auth-hero-chip {
+	display: inline-flex;
+	padding: 6px 12px;
+	border-radius: 999px;
+	border: 1px solid rgb(148 163 184 / 20%);
+	background: rgb(15 23 42 / 60%);
+	color: #cbd5e1;
+	font-size: 12.5px;
+}
+
+.auth-hero-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: #22c55e;
+	box-shadow: 0 0 8px #22c55e;
+}
+
+.auth-hero-log {
+	max-width: 560px;
+	border-radius: 12px;
+	border: 1px solid rgb(148 163 184 / 18%);
+	background: rgb(15 23 42 / 85%);
+	box-shadow: 0 30px 80px rgb(0 0 0 / 50%);
+	font-family: var(--mantine-font-family-monospace);
+	color: #cbd5e1;
+	white-space: pre;
+	overflow: hidden;
+
+	.mantine-Text-root {
+		font-family: inherit;
+		color: inherit;
+	}
+}
+
+.auth-hero-log-bar {
+	padding: 12px 14px;
+	border-bottom: 1px solid rgb(148 163 184 / 12%);
+	color: #64748b;
+
+	i {
+		display: block;
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: #334155;
+	}
+}
+
+.auth-hero-log-dim {
+	color: #64748b;
+}
+
+.auth-hero-log-step,
+.auth-hero-log-detail {
+	color: #60a5fa;
+}
+
+.auth-hero-log-ok {
+	color: #22c55e;
+}
+
+/* Busy status dot */
+.status-dot-busy {
+	animation: status-pulse 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes status-pulse {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	50% {
+		opacity: 0.35;
+		transform: scale(0.85);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.status-dot-busy {
+		animation: none;
+	}
+}
+
+.stat-card {
+	color: inherit;
+	text-decoration: none;
+	transition:
+		border-color 160ms var(--mantine-ease-smooth),
+		background-color 160ms var(--mantine-ease-smooth),
+		transform 160ms var(--mantine-ease-smooth);
+
+	.stat-card-chevron {
+		color: var(--mantine-color-dimmed);
+		opacity: 0;
+		transition: opacity 140ms var(--mantine-ease-smooth);
+	}
+
+	&:hover {
+		background-color: var(--sb-hover);
+		transform: translateY(-2px);
+
+		.stat-card-chevron {
+			opacity: 1;
+		}
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--accent-border);
+		outline-offset: 2px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stat-card {
+		transition: none;
+
+		&:hover {
+			transform: none;
+		}
+	}
+}
+
+.navbar-account {
+	border-top: 1px solid var(--mantine-color-default-border);
+	padding-top: var(--mantine-spacing-sm);
+}
+
+/* ScrollArea thumb inside navbar matching navbar button colors */
+.mantine-AppShell-navbar .mantine-ScrollArea-thumb {
+	background-color: var(--sb-active);
+	transition: background-color 140ms var(--mantine-ease-smooth);
+
+	&:hover {
+		background-color: var(--sb-border-strong);
+	}
+}
+
+.user-button {
+	border-radius: var(--mantine-radius-md);
+	color: var(--mantine-color-text);
+	transition:
+		background-color 140ms var(--mantine-ease-smooth),
+		color 140ms var(--mantine-ease-smooth);
+
+	&:hover,
+	&[data-expanded] {
+		background-color: var(--sb-hover);
+	}
+}
+
+/* Card opened by its title link (stretched over the card); controls marked
+   .link-card-actions stay clickable above it. */
+.link-card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	transition:
+		border-color 160ms var(--mantine-ease-smooth),
+		background-color 160ms var(--mantine-ease-smooth);
+
+	.link-card-link::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+
+	.link-card-link:focus-visible {
+		outline: none;
+	}
+
+	&:has(.link-card-link:focus-visible) {
+		outline: 2px solid var(--accent-border);
+		outline-offset: 2px;
+	}
+
+	.link-card-actions {
+		position: relative;
+		z-index: 1;
+	}
+
+	&:hover {
+		background-color: var(--sb-hover);
+	}
+}
+
+/* Log viewer (job logs, service logs, task output): fixed-height rows of
+   time, level badge and message. Level tints come from the log level
+   registry as --log-tint / --log-text. */
+.log-viewer {
+	border-radius: var(--mantine-radius-md);
+	border: 1px solid var(--mantine-color-default-border);
+	background: var(--sb-input);
+	color: var(--mantine-color-text);
+	font-family: var(--mantine-font-family-monospace);
+	font-size: var(--mantine-font-size-xs);
+}
+
+.log-row {
+	display: flex;
+	align-items: center;
+	gap: var(--mantine-spacing-xs);
+	padding: 0 var(--mantine-spacing-xs);
+	white-space: pre;
+	overflow: hidden;
+	transition: background-color 120ms var(--mantine-ease-smooth);
+
+	&:hover {
+		background: var(--sb-hover);
+	}
+
+	&[data-emphasis] {
+		background: color-mix(in srgb, var(--log-tint) 55%, transparent);
+		color: var(--log-text);
+	}
+}
+
+.log-time,
+.log-source {
+	flex-shrink: 0;
+	color: var(--mantine-color-dimmed);
+}
+
+.log-badge-slot {
+	display: inline-flex;
+	flex-shrink: 0;
+}
+
+.log-message {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }

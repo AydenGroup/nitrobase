@@ -1,5 +1,5 @@
 {
-  "projectName": "sassbase",
+  "projectName": "nitrobase",
   "mode": "file-router",
   "typescript": true,
   "packageManager": "npm",

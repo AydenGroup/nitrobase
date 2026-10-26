@@ -1,0 +1,104 @@
+id = "n8n"
+name = "n8n"
+description = "Workflow automation with 400+ integrations, code steps and AI agents, on Postgres."
+category = "automation"
+color = "red"
+website = "https://n8n.io"
+docs = "https://docs.n8n.io/hosting/installation/docker/"
+tags = ["automation", "workflows", "postgres", "ai"]
+min_docker_version = "20.10"
+
+# Versions = GitHub releases named "n8n@X.Y.Z". n8n ships 1.x maintenance and
+# 2.x releases side by side, so they are ordered by version, not date. Only
+# 2.x+ is offered: the owner account is managed from env vars (2.x feature).
+# The image is the official one, pinned to the release.
+[source]
+repo = "n8n-io/n8n"
+versions = "releases"
+version_prefix = "n8n@"
+version_filter = '^n8n@([2-9]|[1-9][0-9])\.[0-9]+\.[0-9]+$'
+sort = "version"
+
+[variables.N8N_VERSION]
+value = "${version_number}"
+description = "n8n release (image tag)"
+
+[variables.N8N_ENCRYPTION_KEY]
+value = "${hex:32}"
+description = "Encrypts stored credentials. Losing it makes every saved credential unreadable: keep it with your backups."
+secret = true
+credential = true
+
+[variables.DB_PASSWORD]
+value = "${password:32}"
+description = "Password of the n8n Postgres user"
+secret = true
+
+[variables.N8N_OWNER_EMAIL]
+label = "Owner email"
+value = "admin@${domain}"
+description = "Sign-in email of the n8n owner account"
+editable = true
+credential = true
+type = "email"
+group = "Owner"
+prefill = "account_email"
+
+[variables.N8N_OWNER_PASSWORD]
+label = "Owner password"
+value = "${password:24}"
+description = "Owner password. n8n manages the owner from these settings: change it here (Environment) and redeploy, not in n8n."
+secret = true
+editable = true
+credential = true
+min_length = 12
+group = "Owner"
+
+[variables.N8N_OWNER_PASSWORD_HASH]
+value = "${bcrypt:N8N_OWNER_PASSWORD}"
+description = "bcrypt hash of the owner password (what n8n reads)"
+secret = true
+
+[variables.N8N_HOST]
+value = "${domain}"
+
+[variables.WEBHOOK_URL]
+value = "${url}/"
+
+[variables.GENERIC_TIMEZONE]
+label = "Time zone"
+value = "UTC"
+description = "Time zone of schedule triggers (IANA name, e.g. Asia/Ho_Chi_Minh)"
+editable = true
+pattern = '^[A-Za-z_]+(/[A-Za-z0-9_+-]+){0,2}$'
+
+[[domains]]
+service = "n8n"
+port = 5678
+primary = true
+
+# Measured on a test box: ~610 MiB idle (n8n + Postgres), images ~2 GB.
+[requirements]
+memory_mb = 1024
+disk_mb = 3072
+
+[health]
+service = "n8n"
+path = "/healthz"
+port = 5678
+timeout_seconds = 300
+
+# n8n is stopped first, then Postgres (still running) is dumped (n8n
+# database only), so the dump and the n8n data folder (instance settings,
+# archived next) hold the same writes. n8n starts again after the copy.
+[backup]
+volumes = ["n8n-data"]
+stop = ["n8n"]
+reset_volumes = ["db-data"]
+
+[backup.database]
+type = "postgres"
+service = "postgres"
+mode = "database"
+user = "n8n"
+database = "n8n"

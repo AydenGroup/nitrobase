@@ -1,0 +1,21 @@
+# New API keys and asymmetric JWT signing (upstream v1.26.04+): upstream
+# ships these service settings commented out and enables them with
+# utils/add-new-auth-keys.sh once the keys exist. The keys are generated in
+# template.toml, so they are always enabled here. Kong (and Studio, and the
+# functions' SUPABASE_PUBLISHABLE_KEYS / SUPABASE_SECRET_KEYS) already read
+# the keys from .env; PostgREST already uses JWT_JWKS when it is set.
+# https://supabase.com/docs/guides/self-hosting/self-hosted-auth-keys
+services:
+  auth:
+    environment:
+      # Signing JWKs (EC private + legacy symmetric): new sessions are ES256.
+      GOTRUE_JWT_KEYS: ${JWT_KEYS}
+  realtime:
+    environment:
+      API_JWT_JWKS: ${JWT_JWKS}
+  storage:
+    environment:
+      JWT_JWKS: ${JWT_JWKS}
+  functions:
+    environment:
+      SUPABASE_JWKS: ${JWT_JWKS}

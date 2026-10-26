@@ -1,0 +1,16 @@
+id = "git"
+name = "From Git repository"
+description = "Build and run your own code from a Git branch: Dockerfile, Railpack or a static site, redeployed on every push."
+category = "custom"
+tags = ["git", "dockerfile", "railpack", "static-site", "advanced"]
+advanced = true
+docs = "https://railpack.com"
+notes = "Pushes to the branch redeploy the app when the push webhook (App → Settings → Webhook) is added to your repository."
+limitation = "Builds run as root in a privileged BuildKit container on your server, with network access: only build repositories you trust."
+
+# The repository, build and runtime settings are stored per app. The
+# compose file is generated from them (one `app` service running the image
+# built on the server) and goes through the same transform and policy as
+# every template: [security] stays empty.
+[source]
+type = "git"

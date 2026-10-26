@@ -1,0 +1,32 @@
+{
+	"cases": [
+		{
+			"name": "Ứng dụng Đẹp",
+			"label": "ung-dung-dep"
+		},
+		{
+			"name": "Smørrebrød Café",
+			"label": "smorrebrod-cafe"
+		},
+		{
+			"name": "Straße Łódź",
+			"label": "strasse-lodz"
+		},
+		{
+			"name": "Ærø Œuvre Þing",
+			"label": "aero-oeuvre-thing"
+		},
+		{
+			"name": "Ångström Ñandú",
+			"label": "angstrom-nandu"
+		},
+		{
+			"name": "Привет мир",
+			"label": ""
+		},
+		{
+			"name": "東京 Tokyo",
+			"label": "tokyo"
+		}
+	]
+}

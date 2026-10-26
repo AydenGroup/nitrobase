@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!--
+    Retention for ClickHouse's own system log tables.
+    (Test fixture: abbreviated stand-in for appwrite/appwrite@2.4.0
+    clickhouse-config.xml; only its presence matters to the render tests.)
+-->
+<clickhouse>
+    <text_log remove="1"/>
+    <trace_log remove="1"/>
+    <query_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </query_log>
+</clickhouse>

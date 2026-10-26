@@ -1,0 +1,336 @@
+id = "appwrite"
+name = "Appwrite"
+description = "Open-source backend: auth, databases, storage, messaging and realtime, with the Appwrite console."
+category = "backend"
+color = "pink"
+website = "https://appwrite.io"
+docs = "https://appwrite.io/docs/advanced/self-hosting"
+tags = ["backend", "auth", "database", "storage", "realtime"]
+min_docker_version = "24.0"
+limitation = "Functions are disabled in this template (Functions and Sites need the Docker socket, i.e. root on the server)."
+notes = "Open the console and create your account right away: only the first sign-up is allowed (root)."
+
+# Versions = GitHub releases (X.Y.Z, 2.x+). Appwrite's installer renders
+# the repo's own docker-compose.yml at the release tag (with the images of
+# that release) and filters it; Nitrobase fetches the same file and applies
+# overlay.yml instead (no Traefik, no Docker-socket services, PostgreSQL).
+# Defaults come from the repo's .env (development values); every value
+# that differs in production (app/config/variables.php) is set below.
+[source]
+repo = "appwrite/appwrite"
+versions = "releases"
+path = "."
+# Every file the compose bind-mounts must be fetched (Docker would mount an
+# empty folder in its place): ClickHouse's config and init script exist,
+# and are mounted, from 2.4.0 on.
+include = [
+  "docker-compose.yml",
+  ".env",
+  "mongo-init.js",
+  "mongo-entrypoint.sh",
+  { path = "clickhouse-config.xml", min_version = "2.4.0" },
+  { path = "clickhouse-init.sh", min_version = "2.4.0" },
+]
+env_defaults = ".env"
+version_filter = '^([2-9]|[1-9][0-9])\.[0-9]+\.[0-9]+$'
+
+[variables._APP_VERSION]
+value = "${version}"
+description = "Appwrite release (image tag)"
+
+[variables._APP_ENV]
+value = "production"
+
+[variables._APP_OPENSSL_KEY_V1]
+value = "${password:64}"
+description = "Encrypts sensitive data stored by Appwrite: keep it with your backups"
+secret = true
+credential = true
+
+[variables._APP_NOTIFICATIONS_TRACKING_SECRET]
+value = "${hex:32}"
+secret = true
+
+[variables._APP_EXECUTOR_SECRET]
+value = "${hex:32}"
+secret = true
+
+[variables._APP_JOBS_SECRET]
+value = "${hex:32}"
+secret = true
+
+[variables._APP_GEO_SECRET]
+value = "${hex:32}"
+secret = true
+
+[variables._APP_DB_USER]
+value = "appwrite"
+
+[variables._APP_DB_PASS]
+value = "${password:32}"
+secret = true
+
+[variables._APP_DB_ROOT_PASS]
+value = "${password:32}"
+secret = true
+
+[variables._APP_USAGE_PASS]
+value = "${password:32}"
+secret = true
+
+[variables._APP_CONNECTIONS_DB_USAGE]
+value = "http://appwrite:${_APP_USAGE_PASS}@clickhouse:8123/appwrite"
+secret = true
+
+[variables._APP_CONNECTIONS_DB_EXECUTIONS]
+value = "http://appwrite:${_APP_USAGE_PASS}@clickhouse:8123/appwrite"
+secret = true
+
+[variables._APP_DOMAIN]
+value = "${domain}"
+
+[variables._APP_CONSOLE_DOMAIN]
+value = "${domain}"
+
+[variables._APP_CONSOLE_HOSTNAMES]
+value = "${domain}"
+
+[variables._APP_DOMAIN_TARGET_CNAME]
+value = "${domain}"
+
+[variables._APP_DOMAIN_TARGET_A]
+value = ""
+
+[variables._APP_DOMAIN_TARGET_AAAA]
+value = ""
+
+[variables._APP_DOMAIN_TARGET_CAA]
+value = ""
+
+[variables._APP_DOMAIN_FUNCTIONS]
+value = "functions.${domain}"
+
+[variables._APP_DOMAIN_SITES]
+value = "sites.${domain}"
+
+[variables._APP_CONSOLE_TRUSTED_PROJECTS]
+value = ""
+
+[variables._APP_CONSOLE_COUNTRIES_DENYLIST]
+value = ""
+
+[variables._APP_CONSOLE_SESSION_ALERTS]
+value = "disabled"
+
+[variables._APP_CONSOLE_WHITELIST_ROOT]
+label = "Only the first account may sign up"
+value = "enabled"
+description = "enabled: after the first (root) account, console sign-ups are closed"
+editable = true
+pattern = '^(enabled|disabled)$'
+
+[variables._APP_CUSTOM_DOMAIN_DENY_LIST]
+value = "example.com,test.com,app.example.com"
+
+[variables._APP_DNS]
+value = "8.8.8.8"
+
+[variables._APP_OPTIONS_ABUSE]
+value = "enabled"
+
+[variables._APP_OPTIONS_ABUSE_INCREASED_LIMIT_PROJECTS]
+value = ""
+
+[variables._APP_PWNED_PASSWORDS_DSN]
+value = "none://localhost"
+
+[variables._APP_EMBEDDING]
+value = "disabled"
+
+[variables._APP_STORAGE_DEVICE]
+value = "local"
+
+[variables._APP_GRAPHQL_MAX_DEPTH]
+value = "3"
+
+[variables._APP_MAINTENANCE_START_TIME]
+value = "00:00"
+
+[variables._APP_SMS_PROVIDER]
+value = ""
+
+[variables._APP_SMS_FROM]
+value = ""
+
+[variables._APP_SYSTEM_EMAIL_ADDRESS]
+label = "Sender email"
+group = "Email"
+value = "noreply@${domain}"
+editable = true
+type = "email"
+
+[variables._APP_EMAIL_SECURITY]
+value = ""
+
+[variables._APP_EMAIL_CERTIFICATES]
+value = ""
+
+[variables._APP_SMTP_HOST]
+label = "SMTP host"
+group = "Email"
+value = ""
+description = "Leave empty without SMTP (verification and recovery emails are not sent)"
+editable = true
+type = "hostname"
+
+[variables._APP_SMTP_PORT]
+label = "SMTP port"
+group = "Email"
+value = "587"
+editable = true
+type = "integer"
+
+[variables._APP_SMTP_SECURE]
+label = "SMTP security (tls or empty)"
+group = "Email"
+value = "tls"
+editable = true
+pattern = '^(tls|ssl|)$'
+
+[variables._APP_SMTP_USERNAME]
+label = "SMTP username"
+group = "Email"
+value = ""
+editable = true
+
+[variables._APP_SMTP_PASSWORD]
+label = "SMTP password"
+group = "Email"
+value = ""
+secret = true
+editable = true
+
+[variables._APP_VCS_GITEA_ENDPOINT]
+value = ""
+
+[variables._APP_VCS_GITEA_BROWSER_ENDPOINT]
+value = ""
+
+[variables._APP_VCS_GITEA_WEBHOOK_SECRET]
+value = ""
+
+[variables._APP_VCS_GITHUB_PRIVATE_KEY]
+value = ""
+
+[variables._APP_VCS_WEBHOOK_URL]
+value = ""
+
+# Migrations (combined appwrite-worker, "migrations" queue) write to the
+# destination through the API: its container name on the app network, so
+# it never resolves to another app's "appwrite" service.
+[variables._APP_MIGRATION_HOST]
+value = "${folder}-appwrite"
+
+# Console admin an import from Appwrite Cloud creates (Apps → New app →
+# Import from Appwrite Cloud). Unused otherwise: sign up in the console.
+[variables.CONSOLE_ADMIN_EMAIL]
+label = "Console admin email"
+group = "Console"
+value = ""
+description = "Set by an import from Appwrite Cloud: only this email may sign up to the console (the import creates the account). Leave empty for a plain deploy; clear it to let invited members sign up."
+editable = true
+credential = true
+
+# Console sign-ups: only CONSOLE_ADMIN_EMAIL when an import set it, so the
+# console cannot be claimed by someone else before the import job signs
+# up; empty (any email, first account only) for a plain deploy.
+[variables._APP_CONSOLE_WHITELIST_EMAILS]
+value = "${CONSOLE_ADMIN_EMAIL}"
+
+[variables.CONSOLE_ADMIN_PASSWORD]
+label = "Console admin password"
+value = "${password:32}"
+description = "Password of the console admin an import from Appwrite Cloud creates"
+secret = true
+credential = true
+# The import signs the account up once; later changes are made in the console.
+initial_only = true
+
+# One host: the console UI on "/", the API under /v1 (and ACME challenges
+# under /.well-known), realtime websockets under /v1/realtime (same split as
+# Appwrite's own Traefik labels).
+[[domains]]
+service = "appwrite-console"
+port = 3000
+primary = true
+paths = [
+  { prefix = "/v1", service = "appwrite", port = 80 },
+  { prefix = "/.well-known", service = "appwrite", port = 80 },
+  { prefix = "/v1/realtime", service = "appwrite-realtime", port = 80 },
+]
+
+# Server-side features (cloud sync import): the API service and its path,
+# the console admin variables, the migration resources each import part
+# copies (utopia-php/migration resource names) and the scopes of the
+# temporary key the import creates in the new project.
+[plugin]
+api_service = "appwrite"
+api_port = 80
+api_path = "/v1"
+console_project = "console"
+console_email = "CONSOLE_ADMIN_EMAIL"
+console_password = "CONSOLE_ADMIN_PASSWORD"
+sync_key_scopes = ["migrations.read", "migrations.write"]
+# Export (this app → an empty Appwrite Cloud project): the cloud pulls from
+# this app with a temporary read-only key of these scopes (what Appwrite's
+# migration source reads, utopia-php/migration Sources/Appwrite.php), and
+# the connection's cloud key needs the migration scopes.
+sync_export_key_scopes = [
+  "users.read", "teams.read", "databases.read", "tables.read",
+  "columns.read", "indexes.read", "rows.read", "collections.read",
+  "attributes.read", "documents.read", "buckets.read", "files.read",
+  "functions.read", "execution.read", "platforms.read", "project.read",
+  "policies.read", "project.policies.read", "health.read",
+]
+sync_cloud_key_scopes = ["migrations.read", "migrations.write"]
+
+[plugin.sync_resources]
+auth = ["user", "team", "membership"]
+databases = ["database", "table", "column", "index", "row"]
+storage = ["bucket", "file"]
+# Deployments (function code) are not copied: creating one needs the
+# Functions runtime (orchestrator), which this template does not ship.
+function_settings = ["function", "environment-variable"]
+platforms = ["platform"]
+
+[requirements]
+memory_mb = 4096
+disk_mb = 15360
+
+[health]
+service = "appwrite"
+path = "/v1/health/version"
+port = 80
+timeout_seconds = 1200
+
+# Every service except PostgreSQL is stopped first, so no write lands
+# after the dump starts; PostgreSQL is then dumped, stopped too, and the
+# other data (MongoDB, ClickHouse usage stats, uploads, config,
+# certificates) is copied from the volumes with the whole app stopped. The
+# dump and the volumes hold the same writes.
+[backup]
+volumes = [
+  "appwrite-mongodb", "appwrite-mongodb-keyfile", "appwrite-clickhouse",
+  "appwrite-uploads", "appwrite-imports", "appwrite-config",
+  "appwrite-certificates", "appwrite-functions", "appwrite-sites",
+  "appwrite-builds", "appwrite-cache",
+]
+stop = true
+reset_volumes = ["appwrite-postgresql"]
+
+[backup.database]
+type = "postgres"
+service = "postgresql"
+mode = "cluster"
+user = "appwrite"
+database = "appwrite"

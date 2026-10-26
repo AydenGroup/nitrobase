@@ -1,0 +1,849 @@
+x-logging:
+  logging:
+    driver: json-file
+    options:
+      max-file: "5"
+      max-size: 10m
+services:
+  appwrite:
+    container_name: appwrite-0123abcd-appwrite
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    image: ${_APP_IMAGE:-appwrite/appwrite}:${_APP_VERSION:-latest}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'curl -fsS -o /dev/null -H "Host: $${_APP_DOMAIN:-localhost}" http://localhost/v1/health/version'
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+    networks:
+      appwrite: {}
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite
+      nitrobase.routed: "true"
+    volumes:
+      - appwrite-uploads:/storage/uploads:rw
+      - appwrite-imports:/storage/imports:rw
+      - appwrite-cache:/storage/cache:rw
+      - appwrite-config:/storage/config:rw
+      - appwrite-certificates:/storage/certificates:rw
+      - appwrite-functions:/storage/functions:rw
+      - appwrite-sites:/storage/sites:rw
+      - appwrite-builds:/storage/builds:rw
+    depends_on:
+      - redis
+      - ${_APP_DB_HOST:-postgresql}
+      - appwrite-geo
+      - appwrite-autogravity
+    environment:
+      - _APP_ENV
+      - _APP_USAGE_STATS
+      - _APP_USAGE_PASS
+      - _APP_CONNECTIONS_DB_USAGE
+      - _APP_POOL_SIZE_USAGE
+      - _APP_CONNECTIONS_DB_EXECUTIONS
+      - _APP_POOL_SIZE_EXECUTIONS
+      - _APP_MAINTENANCE_RETENTION_USAGE_TTL
+      - _APP_STATS_USAGE_QUEUE_NAME
+      - _APP_STATS_RESOURCES_QUEUE_NAME
+      - _APP_STATS_RESOURCES_INTERVAL
+      - _APP_EDITION
+      - _APP_WORKER_PER_CORE
+      - _APP_LOCALE
+      - _APP_COMPRESSION_ENABLED
+      - _APP_COMPRESSION_MIN_SIZE_BYTES
+      - _APP_CONSOLE_WHITELIST_ROOT
+      - _APP_CONSOLE_WHITELIST_EMAILS
+      - _APP_CONSOLE_SESSION_ALERTS
+      - _APP_CONSOLE_WHITELIST_IPS
+      - _APP_CONSOLE_HOSTNAMES
+      - _APP_CONSOLE_SCHEMA
+      - _APP_CONSOLE_GITHUB_APP_ID
+      - _APP_CONSOLE_GITHUB_SECRET
+      - _APP_CONSOLE_GITLAB_APP_ID
+      - _APP_CONSOLE_GITLAB_SECRET
+      - _APP_CONSOLE_GITLAB_ENDPOINT
+      - _APP_CONSOLE_BITBUCKET_APP_ID
+      - _APP_CONSOLE_BITBUCKET_SECRET
+      - _APP_CONSOLE_GOOGLE_APP_ID
+      - _APP_CONSOLE_GOOGLE_SECRET
+      - _APP_SYSTEM_EMAIL_NAME
+      - _APP_SYSTEM_EMAIL_ADDRESS
+      - _APP_SYSTEM_TEAM_EMAIL
+      - _APP_EMAIL_SECURITY
+      - _APP_SYSTEM_RESPONSE_FORMAT
+      - _APP_OPTIONS_ABUSE
+      - _APP_OPTIONS_ABUSE_INCREASED_LIMIT_PROJECTS
+      - _APP_OPTIONS_ROUTER_PROTECTION
+      - _APP_OPTIONS_FORCE_HTTPS
+      - _APP_OPTIONS_ROUTER_FORCE_HTTPS
+      - _APP_ROUTER_AUTO_CERTIFICATES
+      - _APP_OPENSSL_KEY_V1
+      - _APP_NOTIFICATIONS_TRACKING_SECRET
+      - _APP_DOMAIN
+      - _APP_CONSOLE_DOMAIN
+      - _APP_CONSOLE_URL
+      - _APP_CONSOLE_TRUSTED_PROJECTS
+      - _APP_DOMAIN_TARGET_CNAME
+      - _APP_DOMAIN_TARGET_AAAA
+      - _APP_DOMAIN_TARGET_A
+      - _APP_DOMAIN_TARGET_CAA
+      - _APP_DNS
+      - _APP_DOMAIN_FUNCTIONS
+      - _APP_REDIS_HOST
+      - _APP_REDIS_PORT
+      - _APP_REDIS_USER
+      - _APP_REDIS_PASS
+      - _APP_DB_ADAPTER
+      - _APP_DB_HOST
+      - _APP_DB_PORT
+      - _APP_DB_SCHEMA
+      - _APP_DB_USER
+      - _APP_DB_PASS
+      - _APP_DB_ADAPTER_VECTORSDB
+      - _APP_DB_HOST_VECTORSDB
+      - _APP_DB_PORT_VECTORSDB
+      - _APP_DB_SCHEMA_VECTORSDB
+      - _APP_DB_USER_VECTORSDB
+      - _APP_DB_PASS_VECTORSDB
+      - _APP_DB_ADAPTER_DOCUMENTSDB
+      - _APP_DB_HOST_DOCUMENTSDB
+      - _APP_DB_PORT_DOCUMENTSDB
+      - _APP_DB_SCHEMA_DOCUMENTSDB
+      - _APP_DB_USER_DOCUMENTSDB
+      - _APP_DB_PASS_DOCUMENTSDB
+      - _APP_CONNECTIONS_DATABASE_DOCUMENTSDB
+      - _APP_CONNECTIONS_DATABASE_VECTORSDB
+      - _APP_SMTP_HOST
+      - _APP_SMTP_PORT
+      - _APP_SMTP_SECURE
+      - _APP_SMTP_USERNAME
+      - _APP_SMTP_PASSWORD
+      - _APP_STORAGE_LIMIT
+      - _APP_STORAGE_PREVIEW_LIMIT
+      - _APP_AUTOGRAVITY_HOST
+      - _APP_STORAGE_ANTIVIRUS
+      - _APP_STORAGE_ANTIVIRUS_HOST
+      - _APP_STORAGE_ANTIVIRUS_PORT
+      - _APP_STORAGE_DEVICE
+      - _APP_STORAGE_S3_ACCESS_KEY
+      - _APP_STORAGE_S3_SECRET
+      - _APP_STORAGE_S3_REGION
+      - _APP_STORAGE_S3_BUCKET
+      - _APP_STORAGE_S3_ENDPOINT
+      - _APP_STORAGE_DO_SPACES_ACCESS_KEY
+      - _APP_STORAGE_DO_SPACES_SECRET
+      - _APP_STORAGE_DO_SPACES_REGION
+      - _APP_STORAGE_DO_SPACES_BUCKET
+      - _APP_STORAGE_BACKBLAZE_ACCESS_KEY
+      - _APP_STORAGE_BACKBLAZE_SECRET
+      - _APP_STORAGE_BACKBLAZE_REGION
+      - _APP_STORAGE_BACKBLAZE_BUCKET
+      - _APP_STORAGE_LINODE_ACCESS_KEY
+      - _APP_STORAGE_LINODE_SECRET
+      - _APP_STORAGE_LINODE_REGION
+      - _APP_STORAGE_LINODE_BUCKET
+      - _APP_STORAGE_WASABI_ACCESS_KEY
+      - _APP_STORAGE_WASABI_SECRET
+      - _APP_STORAGE_WASABI_REGION
+      - _APP_STORAGE_WASABI_BUCKET
+      - _APP_COMPUTE_SIZE_LIMIT
+      - _APP_COMPUTE_BUILD_SIZE_LIMIT
+      - _APP_FUNCTIONS_TIMEOUT
+      - _APP_SITES_TIMEOUT
+      - _APP_COMPUTE_BUILD_TIMEOUT
+      - _APP_COMPUTE_CPUS
+      - _APP_COMPUTE_MEMORY
+      - _APP_FUNCTIONS_RUNTIMES
+      - _APP_SITES_RUNTIMES
+      - _APP_DOMAIN_SITES
+      - _APP_EXECUTOR_SECRET
+      - _APP_EXECUTOR_HOST
+      - _APP_BUILDS_VOLUME
+      - _APP_JOBS_HOST
+      - _APP_JOBS_SECRET
+      - _APP_JOBS_ENDPOINT
+      - _APP_LOGGING_CONFIG
+      - _APP_LOGGING_FORMAT
+      - _APP_LOCKING_ENABLED
+      - _APP_MAINTENANCE_INTERVAL
+      - _APP_MAINTENANCE_RETENTION_EXECUTION
+      - _APP_MAINTENANCE_RETENTION_CACHE
+      - _APP_MAINTENANCE_RETENTION_ABUSE
+      - _APP_MAINTENANCE_RETENTION_AUDIT
+      - _APP_MAINTENANCE_RETENTION_AUDIT_CONSOLE
+      - _APP_MAINTENANCE_RETENTION_SCHEDULES
+      - _APP_SMS_PROVIDER
+      - _APP_SMS_FROM
+      - _APP_GRAPHQL_INTROSPECTION
+      - _APP_GRAPHQL_MAX_BATCH_SIZE
+      - _APP_GRAPHQL_MAX_COMPLEXITY
+      - _APP_GRAPHQL_MAX_DEPTH
+      - _APP_VCS_GITHUB_APP_NAME
+      - _APP_VCS_GITHUB_PRIVATE_KEY
+      - _APP_VCS_GITHUB_APP_ID
+      - _APP_VCS_GITHUB_WEBHOOK_SECRET
+      - _APP_VCS_GITHUB_CLIENT_SECRET
+      - _APP_VCS_GITHUB_CLIENT_ID
+      - _APP_VCS_GITEA_ENDPOINT
+      - _APP_VCS_GITEA_BROWSER_ENDPOINT
+      - _APP_VCS_GITEA_CLIENT_ID
+      - _APP_VCS_GITEA_CLIENT_SECRET
+      - _APP_VCS_GITEA_WEBHOOK_SECRET
+      - _APP_VCS_GITLAB_ENDPOINT
+      - _APP_VCS_GITLAB_CLIENT_ID
+      - _APP_VCS_GITLAB_CLIENT_SECRET
+      - _APP_VCS_GITLAB_WEBHOOK_SECRET
+      - _APP_VCS_BITBUCKET_CLIENT_ID
+      - _APP_VCS_BITBUCKET_CLIENT_SECRET
+      - _APP_VCS_BITBUCKET_WEBHOOK_SECRET
+      - _APP_VCS_ORIGIN_CLIENT_ID
+      - _APP_VCS_ORIGIN_PRIVATE_KEY
+      - _APP_VCS_WEBHOOK_URL
+      - _APP_MIGRATIONS_FIREBASE_CLIENT_ID
+      - _APP_MIGRATIONS_FIREBASE_CLIENT_SECRET
+      - _APP_ASSISTANT_OPENAI_API_KEY
+      - _APP_CONSOLE_COUNTRIES_DENYLIST
+      - _APP_DATABASE_SHARED_TABLES
+      - _APP_DATABASE_SHARED_NAMESPACE
+      - _APP_FUNCTIONS_CREATION_ABUSE_LIMIT
+      - _APP_CUSTOM_DOMAIN_DENY_LIST
+      - _APP_TRUSTED_HEADERS
+      - _APP_MIGRATION_HOST
+      - _APP_GEO_SECRET
+      - _APP_GEO_ENDPOINT
+      - _APP_PWNED_PASSWORDS_DSN
+      - _APP_LIMIT_DATABASE_BATCH
+      - _APP_DOCUMENTSDB
+      - _APP_VECTORSDB
+      - _APP_EMBEDDING
+  appwrite-console:
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    container_name: appwrite-0123abcd-appwrite-console
+    image: appwrite/new:1.1.159-self-hosted
+    restart: unless-stopped
+    networks:
+      appwrite: {}
+    environment:
+      - VITE_CONSOLE_PROFILE=self-hosted
+      - APPWRITE_ENDPOINT_SAME_ORIGIN=true
+      - VITE_GROWTH_ENDPOINT=https://growth.appwrite.io/v1
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-console
+      nitrobase.routed: "true"
+  appwrite-realtime:
+    entrypoint: realtime
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    container_name: appwrite-0123abcd-appwrite-realtime
+    image: ${_APP_IMAGE:-appwrite/appwrite}:${_APP_VERSION:-latest}
+    restart: unless-stopped
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-realtime
+      nitrobase.routed: "true"
+    networks:
+      appwrite: {}
+    depends_on:
+      - ${_APP_DB_HOST:-postgresql}
+      - redis
+    environment:
+      - _APP_ENV
+      - _APP_USAGE_STATS
+      - _APP_STATS_USAGE_QUEUE_NAME
+      - _APP_WORKER_PER_CORE
+      - _APP_OPTIONS_ABUSE
+      - _APP_OPTIONS_ROUTER_PROTECTION
+      - _APP_CONSOLE_HOSTNAMES
+      - _APP_REALTIME_TAIL_RATE
+      - _APP_OPENSSL_KEY_V1
+      - _APP_REDIS_HOST
+      - _APP_REDIS_PORT
+      - _APP_REDIS_USER
+      - _APP_REDIS_PASS
+      - _APP_DB_ADAPTER
+      - _APP_DB_HOST
+      - _APP_DB_PORT
+      - _APP_DB_SCHEMA
+      - _APP_DB_USER
+      - _APP_DB_PASS
+      - _APP_DB_ADAPTER_VECTORSDB
+      - _APP_DB_HOST_VECTORSDB
+      - _APP_DB_PORT_VECTORSDB
+      - _APP_DB_SCHEMA_VECTORSDB
+      - _APP_DB_USER_VECTORSDB
+      - _APP_DB_PASS_VECTORSDB
+      - _APP_DB_ADAPTER_DOCUMENTSDB
+      - _APP_DB_HOST_DOCUMENTSDB
+      - _APP_DB_PORT_DOCUMENTSDB
+      - _APP_DB_SCHEMA_DOCUMENTSDB
+      - _APP_DB_USER_DOCUMENTSDB
+      - _APP_DB_PASS_DOCUMENTSDB
+      - _APP_CONNECTIONS_DATABASE_DOCUMENTSDB
+      - _APP_CONNECTIONS_DATABASE_VECTORSDB
+      - _APP_LOGGING_CONFIG
+      - _APP_LOGGING_FORMAT
+      - _APP_DATABASE_SHARED_TABLES
+      - _APP_LIMIT_DATABASE_BATCH
+      - _APP_DOCUMENTSDB
+      - _APP_VECTORSDB
+      - _APP_EMBEDDING
+  appwrite-worker:
+    entrypoint: worker
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    container_name: appwrite-0123abcd-appwrite-worker
+    image: ${_APP_IMAGE:-appwrite/appwrite}:${_APP_VERSION:-latest}
+    networks:
+      appwrite: {}
+    depends_on:
+      - redis
+      - ${_APP_DB_HOST:-postgresql}
+    volumes:
+      - appwrite-uploads:/storage/uploads:rw
+      - appwrite-cache:/storage/cache:rw
+      - appwrite-functions:/storage/functions:rw
+      - appwrite-sites:/storage/sites:rw
+      - appwrite-builds:/storage/builds:rw
+      - appwrite-certificates:/storage/certificates:rw
+      - appwrite-config:/storage/config:rw
+      - appwrite-imports:/storage/imports:rw
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    environment:
+      - _APP_ENV
+      - _APP_USAGE_STATS
+      - _APP_USAGE_PASS
+      - _APP_CONNECTIONS_DB_USAGE
+      - _APP_POOL_SIZE_USAGE
+      - _APP_CONNECTIONS_DB_EXECUTIONS
+      - _APP_POOL_SIZE_EXECUTIONS
+      - _APP_MAINTENANCE_RETENTION_USAGE_TTL
+      - _APP_STATS_USAGE_QUEUE_NAME
+      - _APP_STATS_RESOURCES_QUEUE_NAME
+      - _APP_STATS_RESOURCES_INTERVAL
+      - _APP_WORKERS_NUM=1
+      - _APP_WORKER_MAX_COROUTINES=78
+      - _APP_WORKER_PER_CORE
+      - _APP_OPENSSL_KEY_V1
+      - _APP_EMAIL_SECURITY
+      - _APP_EMAIL_CERTIFICATES
+      - _APP_DB_ADAPTER
+      - _APP_DB_HOST
+      - _APP_DB_PORT
+      - _APP_DB_SCHEMA
+      - _APP_DB_USER
+      - _APP_DB_PASS
+      - _APP_DB_ADAPTER_VECTORSDB
+      - _APP_DB_HOST_VECTORSDB
+      - _APP_DB_PORT_VECTORSDB
+      - _APP_DB_SCHEMA_VECTORSDB
+      - _APP_DB_USER_VECTORSDB
+      - _APP_DB_PASS_VECTORSDB
+      - _APP_DB_ADAPTER_DOCUMENTSDB
+      - _APP_DB_HOST_DOCUMENTSDB
+      - _APP_DB_PORT_DOCUMENTSDB
+      - _APP_DB_SCHEMA_DOCUMENTSDB
+      - _APP_DB_USER_DOCUMENTSDB
+      - _APP_DB_PASS_DOCUMENTSDB
+      - _APP_CONNECTIONS_DATABASE_DOCUMENTSDB
+      - _APP_CONNECTIONS_DATABASE_VECTORSDB
+      - _APP_REDIS_HOST
+      - _APP_REDIS_PORT
+      - _APP_REDIS_USER
+      - _APP_REDIS_PASS
+      - _APP_LOGGING_CONFIG
+      - _APP_LOGGING_FORMAT
+      - _APP_QUEUE_NAME
+      - _APP_DATABASE_SHARED_TABLES
+      - _APP_CONSOLE_DOMAIN
+      - _APP_CONSOLE_URL
+      - _APP_CONSOLE_TRUSTED_PROJECTS
+      - _APP_DOMAIN
+      - _APP_DOMAIN_TARGET_CNAME
+      - _APP_DOMAIN_TARGET_AAAA
+      - _APP_DOMAIN_TARGET_A
+      - _APP_DOMAIN_TARGET_CAA
+      - _APP_DNS
+      - _APP_DOMAIN_FUNCTIONS
+      - _APP_DOMAIN_SITES
+      - _APP_OPTIONS_FORCE_HTTPS
+      - _APP_OPTIONS_ROUTER_FORCE_HTTPS
+      - _APP_WEBHOOK_MAX_FAILED_ATTEMPTS
+      - _APP_STORAGE_DEVICE
+      - _APP_STORAGE_S3_ACCESS_KEY
+      - _APP_STORAGE_S3_SECRET
+      - _APP_STORAGE_S3_REGION
+      - _APP_STORAGE_S3_BUCKET
+      - _APP_STORAGE_S3_ENDPOINT
+      - _APP_STORAGE_DO_SPACES_ACCESS_KEY
+      - _APP_STORAGE_DO_SPACES_SECRET
+      - _APP_STORAGE_DO_SPACES_REGION
+      - _APP_STORAGE_DO_SPACES_BUCKET
+      - _APP_STORAGE_BACKBLAZE_ACCESS_KEY
+      - _APP_STORAGE_BACKBLAZE_SECRET
+      - _APP_STORAGE_BACKBLAZE_REGION
+      - _APP_STORAGE_BACKBLAZE_BUCKET
+      - _APP_STORAGE_LINODE_ACCESS_KEY
+      - _APP_STORAGE_LINODE_SECRET
+      - _APP_STORAGE_LINODE_REGION
+      - _APP_STORAGE_LINODE_BUCKET
+      - _APP_STORAGE_WASABI_ACCESS_KEY
+      - _APP_STORAGE_WASABI_SECRET
+      - _APP_STORAGE_WASABI_REGION
+      - _APP_STORAGE_WASABI_BUCKET
+      - _APP_EXECUTOR_SECRET
+      - _APP_EXECUTOR_HOST
+      - _APP_DOCKER_HUB_USERNAME
+      - _APP_DOCKER_HUB_PASSWORD
+      - _APP_FUNCTIONS_TIMEOUT
+      - _APP_SITES_TIMEOUT
+      - _APP_COMPUTE_BUILD_TIMEOUT
+      - _APP_COMPUTE_CPUS
+      - _APP_COMPUTE_MEMORY
+      - _APP_OPEN_RUNTIMES_NFT
+      - _APP_COMPUTE_SIZE_LIMIT
+      - _APP_COMPUTE_BUILD_SIZE_LIMIT
+      - _APP_VCS_GITHUB_APP_NAME
+      - _APP_VCS_GITHUB_PRIVATE_KEY
+      - _APP_VCS_GITHUB_APP_ID
+      - _APP_VCS_GITEA_ENDPOINT
+      - _APP_VCS_GITEA_BROWSER_ENDPOINT
+      - _APP_VCS_GITEA_CLIENT_ID
+      - _APP_VCS_GITEA_CLIENT_SECRET
+      - _APP_VCS_GITEA_WEBHOOK_SECRET
+      - _APP_VCS_GITLAB_ENDPOINT
+      - _APP_VCS_GITLAB_CLIENT_ID
+      - _APP_VCS_GITLAB_CLIENT_SECRET
+      - _APP_VCS_GITLAB_WEBHOOK_SECRET
+      - _APP_VCS_BITBUCKET_CLIENT_ID
+      - _APP_VCS_BITBUCKET_CLIENT_SECRET
+      - _APP_VCS_BITBUCKET_WEBHOOK_SECRET
+      - _APP_VCS_ORIGIN_CLIENT_ID
+      - _APP_VCS_ORIGIN_PRIVATE_KEY
+      - _APP_VCS_WEBHOOK_URL
+      - _APP_BUILDS_VOLUME
+      - _APP_JOBS_HOST
+      - _APP_JOBS_SECRET
+      - _APP_JOBS_ENDPOINT
+      - _APP_BROWSER_HOST
+      - _APP_WORKER_SCREENSHOTS_ROUTER
+      - _APP_NOTIFICATIONS_TRACKING_SECRET
+      - _APP_SYSTEM_EMAIL_NAME
+      - _APP_SYSTEM_EMAIL_ADDRESS
+      - _APP_SMTP_HOST
+      - _APP_SMTP_PORT
+      - _APP_SMTP_SECURE
+      - _APP_SMTP_USERNAME
+      - _APP_SMTP_PASSWORD
+      - _APP_SMS_FROM
+      - _APP_SMS_PROVIDER
+      - _APP_SMS_PROJECTS_DENY_LIST
+      - _APP_MIGRATIONS_FIREBASE_CLIENT_ID
+      - _APP_MIGRATIONS_FIREBASE_CLIENT_SECRET
+      - _APP_MIGRATION_HOST
+      - _APP_MAINTENANCE_RETENTION_AUDIT
+      - _APP_MAINTENANCE_RETENTION_AUDIT_CONSOLE
+      - _APP_LIMIT_DATABASE_BATCH
+      - _APP_DOCUMENTSDB
+      - _APP_VECTORSDB
+      - _APP_EMBEDDING
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-worker
+  appwrite-task-scheduler:
+    entrypoint: schedule
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    container_name: appwrite-0123abcd-appwrite-task-scheduler
+    image: ${_APP_IMAGE:-appwrite/appwrite}:${_APP_VERSION:-latest}
+    networks:
+      appwrite: {}
+    depends_on:
+      - ${_APP_DB_HOST:-postgresql}
+      - redis
+    environment:
+      - _APP_ENV
+      - _APP_USAGE_STATS
+      - _APP_USAGE_PASS
+      - _APP_CONNECTIONS_DB_USAGE
+      - _APP_POOL_SIZE_USAGE
+      - _APP_CONNECTIONS_DB_EXECUTIONS
+      - _APP_POOL_SIZE_EXECUTIONS
+      - _APP_MAINTENANCE_RETENTION_USAGE_TTL
+      - _APP_STATS_USAGE_QUEUE_NAME
+      - _APP_STATS_RESOURCES_QUEUE_NAME
+      - _APP_STATS_RESOURCES_INTERVAL
+      - _APP_LOGGING_FORMAT
+      - _APP_WORKER_MAX_COROUTINES=8
+      - _APP_WORKER_PER_CORE
+      - _APP_OPENSSL_KEY_V1
+      - _APP_OPTIONS_FORCE_HTTPS
+      - _APP_DOMAIN
+      - _APP_CONSOLE_DOMAIN
+      - _APP_CONSOLE_SCHEMA
+      - _APP_DOMAIN_FUNCTIONS
+      - _APP_DOMAIN_SITES
+      - _APP_MIGRATION_HOST
+      - _APP_REDIS_HOST
+      - _APP_REDIS_PORT
+      - _APP_REDIS_USER
+      - _APP_REDIS_PASS
+      - _APP_DB_ADAPTER
+      - _APP_DB_HOST
+      - _APP_DB_PORT
+      - _APP_DB_SCHEMA
+      - _APP_DB_USER
+      - _APP_DB_PASS
+      - _APP_DATABASE_SHARED_TABLES
+      - _APP_FUNCTIONS_SCHEDULE_SPREAD
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-task-scheduler
+  appwrite-task-maintenance:
+    entrypoint: maintenance
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    container_name: appwrite-0123abcd-appwrite-task-maintenance
+    image: ${_APP_IMAGE:-appwrite/appwrite}:${_APP_VERSION:-latest}
+    networks:
+      appwrite: {}
+    depends_on:
+      - ${_APP_DB_HOST:-postgresql}
+      - redis
+    environment:
+      - _APP_ENV
+      - _APP_LOGGING_FORMAT
+      - _APP_WORKER_PER_CORE
+      - _APP_DOMAIN
+      - _APP_DOMAIN_TARGET_CNAME
+      - _APP_DOMAIN_TARGET_AAAA
+      - _APP_DOMAIN_TARGET_A
+      - _APP_DOMAIN_TARGET_CAA
+      - _APP_DNS
+      - _APP_DOMAIN_FUNCTIONS
+      - _APP_EDITION
+      - _APP_ROUTER_AUTO_CERTIFICATES
+      - _APP_OPENSSL_KEY_V1
+      - _APP_REDIS_HOST
+      - _APP_REDIS_PORT
+      - _APP_REDIS_USER
+      - _APP_REDIS_PASS
+      - _APP_DB_ADAPTER
+      - _APP_DB_HOST
+      - _APP_DB_PORT
+      - _APP_DB_SCHEMA
+      - _APP_DB_USER
+      - _APP_DB_PASS
+      - _APP_MAINTENANCE_INTERVAL
+      - _APP_MAINTENANCE_RETENTION_EXECUTION
+      - _APP_MAINTENANCE_RETENTION_CACHE
+      - _APP_MAINTENANCE_RETENTION_ABUSE
+      - _APP_MAINTENANCE_RETENTION_AUDIT
+      - _APP_MAINTENANCE_RETENTION_AUDIT_CONSOLE
+      - _APP_MAINTENANCE_RETENTION_SCHEDULES
+      - _APP_MAINTENANCE_START_TIME
+      - _APP_DATABASE_SHARED_TABLES
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-task-maintenance
+  appwrite-task-interval:
+    entrypoint: interval
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    container_name: appwrite-0123abcd-appwrite-task-interval
+    image: ${_APP_IMAGE:-appwrite/appwrite}:${_APP_VERSION:-latest}
+    networks:
+      appwrite: {}
+    depends_on:
+      - ${_APP_DB_HOST:-postgresql}
+      - redis
+    environment:
+      - _APP_ENV
+      - _APP_LOGGING_FORMAT
+      - _APP_WORKER_PER_CORE
+      - _APP_DOMAIN
+      - _APP_DOMAIN_TARGET_CNAME
+      - _APP_DOMAIN_TARGET_AAAA
+      - _APP_DOMAIN_TARGET_A
+      - _APP_DOMAIN_TARGET_CAA
+      - _APP_DNS
+      - _APP_DOMAIN_FUNCTIONS
+      - _APP_DOMAIN_SITES
+      - _APP_OPENSSL_KEY_V1
+      - _APP_REDIS_HOST
+      - _APP_REDIS_PORT
+      - _APP_REDIS_USER
+      - _APP_REDIS_PASS
+      - _APP_DB_ADAPTER
+      - _APP_DB_HOST
+      - _APP_DB_PORT
+      - _APP_DB_SCHEMA
+      - _APP_DB_USER
+      - _APP_DB_PASS
+      - _APP_DATABASE_SHARED_TABLES
+      - _APP_INTERVAL_DOMAIN_VERIFICATION
+      - _APP_INTERVAL_CLEANUP_STALE_EXECUTIONS
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-task-interval
+  appwrite-browser:
+    container_name: appwrite-0123abcd-appwrite-browser
+    image: appwrite/browser:0.3.4
+    networks:
+      appwrite: {}
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-browser
+  appwrite-autogravity:
+    container_name: appwrite-0123abcd-appwrite-autogravity
+    image: ghcr.io/appwrite/autogravity:0.0.11
+    environment:
+      - MODEL_BACKEND=focalnet
+    restart: unless-stopped
+    networks:
+      appwrite: {}
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-autogravity
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.4.3-alpine
+    restart: unless-stopped
+    networks:
+      appwrite: {}
+    environment:
+      - CLICKHOUSE_DB=appwrite
+      - CLICKHOUSE_USER=appwrite
+      - CLICKHOUSE_PASSWORD=${_APP_USAGE_PASS:-appwrite}
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    volumes:
+      - appwrite-clickhouse:/var/lib/clickhouse:rw
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - clickhouse-client --user "$$CLICKHOUSE_USER" --password "$$CLICKHOUSE_PASSWORD" --query "SELECT 1" >/dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    container_name: appwrite-0123abcd-clickhouse
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: clickhouse
+  appwrite-geo:
+    container_name: appwrite-0123abcd-appwrite-geo
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    image: appwrite/geo:0.3.1
+    restart: unless-stopped
+    networks:
+      appwrite: {}
+    environment:
+      - GEO_SECRET=$_APP_GEO_SECRET
+    healthcheck:
+      test: "php -r \"exit(json_decode(file_get_contents('http://localhost/v1/health'))->status === 'ok' ? 0 : 1);\""
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: appwrite-geo
+  mongodb:
+    image: mongo:8.2.5
+    container_name: appwrite-0123abcd-mongodb
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    restart: unless-stopped
+    networks:
+      appwrite:
+        aliases:
+          - appwrite-mongodb
+    volumes:
+      - appwrite-mongodb:/data/db
+      - appwrite-mongodb-keyfile:/data/keyfile
+      - /etc/nitrobase/apps/appwrite-0123abcd/mongo-init.js:/mongo-init.js:ro
+      - /etc/nitrobase/apps/appwrite-0123abcd/mongo-entrypoint.sh:/mongo-entrypoint.sh:ro
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=${_APP_DB_ROOT_PASS}
+      - MONGO_INITDB_DATABASE=${_APP_DB_SCHEMA}
+      - MONGO_INITDB_USERNAME=${_APP_DB_USER}
+      - MONGO_INITDB_PASSWORD=${_APP_DB_PASS}
+    entrypoint:
+      - /bin/bash
+      - /mongo-entrypoint.sh
+    healthcheck:
+      test: |
+        bash -c "
+          mongosh -u root -p ${_APP_DB_ROOT_PASS} --authenticationDatabase admin --quiet --eval \"
+            try {
+              const hello = db.adminCommand({hello: 1});
+              if (hello.isWritablePrimary && hello.setName === 'rs0') {
+                quit(0);
+              }
+            } catch (e) {}
+
+            try {
+              rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'appwrite-mongodb:27017'}]});
+            } catch (e) {}
+
+            quit(1);
+          \" 2>/dev/null
+        "
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: mongodb
+  postgresql:
+    image: appwrite/postgres:0.1.0
+    container_name: appwrite-0123abcd-postgresql
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    networks:
+      appwrite:
+        aliases:
+          - appwrite-postgresql
+    volumes:
+      - appwrite-postgresql:/var/lib/postgresql:rw
+    environment:
+      - POSTGRES_DB=${_APP_DB_SCHEMA}
+      - POSTGRES_USER=${_APP_DB_USER}
+      - POSTGRES_PASSWORD=${_APP_DB_PASS}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${_APP_DB_USER} -d ${_APP_DB_SCHEMA}
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    command:
+      - postgres
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: postgresql
+  redis:
+    image: redis:7.4.7-alpine
+    logging:
+      driver: json-file
+      options:
+        max-file: "5"
+        max-size: 10m
+    container_name: appwrite-0123abcd-redis
+    command:
+      - redis-server
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --maxmemory-samples
+      - "5"
+    networks:
+      appwrite:
+        aliases:
+          - appwrite-redis
+    volumes:
+      - appwrite-redis:/data:rw
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+      nitrobase.service: redis
+networks:
+  appwrite:
+    name: appwrite-0123abcd_appwrite
+volumes:
+  appwrite-mongodb:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-mongodb-keyfile:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-postgresql:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-redis:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-cache:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-clickhouse:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-uploads:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-imports:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-certificates:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-functions:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-sites:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-builds:
+    name: appwrite-0123abcd_appwrite-builds
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+  appwrite-config:
+    labels:
+      nitrobase.app: 0123abcd-0000-4000-8000-00000000c0de
+name: appwrite-0123abcd

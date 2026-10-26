@@ -1,218 +1,324 @@
-Welcome to your new TanStack Start app! 
+<div align="center">
 
-# Getting Started
+<img src="public/nitrobase.svg" alt="Nitrobase" width="420" />
 
-To run this application:
+# Nitrobase
+
+**Your own platform-as-a-service, on your own servers.**
+
+Connect a VPS over SSH, let Nitrobase set up Docker and Traefik, and deploy Supabase, Appwrite, PocketBase,<br/>
+databases or your own Git repository in a few clicks, with HTTPS, backups, monitoring and updates built in.
+
+[Website](https://nitrobase.app) ·
+[Install](#install) ·
+[Features](#features) ·
+[Templates](#app-templates) ·
+[Development](#development) ·
+[License](#license)
+
+![Status](https://img.shields.io/badge/status-beta-orange)
+![License](https://img.shields.io/badge/license-FSL--1.1--ALv2-blue)
+![Stack](https://img.shields.io/badge/TanStack%20Start-React%2019-informational)
+![Runtime](https://img.shields.io/badge/runtime-Bun-black)
+
+</div>
+
+---
+
+## Why Nitrobase
+
+Hosted backends are convenient until the bill, the region or the data policy stops fitting. Nitrobase gives you the same "click to deploy" experience on machines you control:
+
+- **Bring any VPS.** Add a server with an SSH key, or use the machine Nitrobase runs on. Bootstrap shows exactly what it will change before it touches anything.
+- **Backends, not only containers.** First-class templates for Supabase, Appwrite and PocketBase, with their secrets generated, their admin logins shown, and their data backed up the way each app needs.
+- **Safe by default.** Every compose file, template or your own, goes through the same policy: no host mounts outside the app folder, no privileged containers, no reserved labels or networks.
+- **Operations included.** Backups to S3/R2/B2 with verified restores, monitoring and alerts, one-click updates with automatic rollback, moving an app to another server, a web terminal and database consoles.
+
+## Features
+
+| | |
+|---|---|
+| **Servers** | SSH or local host, guided bootstrap (Docker, Traefik v3, firewall checks), ownership markers so two panels never fight over one server, Cloudflare Tunnel support |
+| **Apps** | Marketplace templates, custom `docker-compose.yml`, Git repositories (Dockerfile, Railpack or static) redeployed on push, per-app env editor with secret masking, resource limits, scheduled tasks |
+| **Domains** | Free `*.sslip.io` domain with HTTPS on deploy, your own domains with Let's Encrypt, DNS checks, routing through Cloudflare Tunnel |
+| **Databases** | PostgreSQL, MySQL, MariaDB, MongoDB and Valkey with a web console, connection strings and links to your apps |
+| **Backups** | App backups (database dumps taken after writers stop, plus volumes) to S3, R2, B2 or a server folder; schedules, retention, restore in place or as a new app; an encrypted self-backup of the panel |
+| **Monitoring** | Server and container metrics, health, restart loops, OOM kills, stopped services, disk and memory alerts, notifications by email, Slack, Discord, Telegram or webhook |
+| **Updates** | Update checks for templates, database images and Git branches; backup-first updates with automatic rollback; maintenance windows; in-panel upgrade of Nitrobase itself |
+| **Teams** | Teams with owner, admin, developer and viewer roles, invites, two-factor authentication, audit log, personal and team API tokens with a REST API and OpenAPI document |
+| **Languages** | English and Vietnamese (Lingui); new languages are a catalog away |
+
+## App templates
+
+| Template | What you get |
+|---|---|
+| **Supabase** | Postgres platform: database, auth, REST and realtime APIs, storage, edge functions and Studio. Can import a hosted Supabase project. |
+| **Appwrite** | Auth, databases, storage, messaging and realtime, with the Appwrite console. |
+| **PocketBase** | A one-file backend: realtime database, auth, file storage and admin dashboard. |
+| **Database** | A standalone PostgreSQL, MySQL, MariaDB, Valkey or MongoDB server. |
+| **n8n** | Workflow automation with 400+ integrations, code steps and AI agents. |
+| **Plausible** | Privacy-first web analytics on ClickHouse and Postgres. |
+| **Umami** | Cookie-free web analytics. |
+| **RustFS** | S3-compatible object storage with a web console. |
+| **From Git repository** | Your own code from a branch, built with a Dockerfile, Railpack or as a static site. |
+| **Custom compose** | Paste any `docker-compose.yml`; it goes through the same safety rules as every template. |
+
+Templates are plain folders (`template.toml` + `docker-compose.yml`) under [`templates/`](templates/README.md), so adding one needs no code change.
+
+## Install
+
+On a fresh **Ubuntu or Debian** VPS (amd64 or arm64, 2 GB RAM recommended), as root:
 
 ```bash
-npm install
-npm run dev
+curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/scripts/install.sh \
+  | sudo bash -s -- --repo <owner>/<repo>
 ```
 
-# Building For Production
+Replace `<owner>/<repo>` with the repository that publishes Nitrobase releases and images. A Gitea or Forgejo host works too: add `--api-url https://<host>/api/v1 --raw-url https://<host>/<owner>/<repo>/raw/tag`. A running Nitrobase also serves the installer of its own version at `https://<panel>/api/install.sh`.
 
-To build this application for production:
+The installer is idempotent. It:
+
+1. checks the OS, CPU, RAM, disk and ports, and installs Docker from Docker's apt repository if it is missing (it asks first; `--yes` skips the question);
+2. creates `/opt/nitrobase` with a `0600` `.env` holding generated secrets, and reminds you to **back them up off the server**;
+3. generates a one-time **setup token**, so nobody who reaches the fresh panel before you can claim it;
+4. downloads the release's `docker-compose.prod.yml`, starts it, waits until the panel is healthy and prints the next steps.
+
+<details>
+<summary>Installer options</summary>
+
+| Option | Meaning |
+|---|---|
+| `--version <v>` | Release to install (default: latest). Re-run with another version to change it. |
+| `--dir <path>` | Install folder (default `/opt/nitrobase`). |
+| `--panel-bind <addr:port>` | Where the panel listens (default `0.0.0.0:3000`). |
+| `--domain <host>` | Serve the panel on a domain with Let's Encrypt; binds it to `127.0.0.1:3000` and sets `APP_URL` and `TRUST_PROXY`. |
+| `--image <name>`, `--compose-url <url>` | Use another image or compose file. |
+| `--uninstall` | Stop Nitrobase, keep data and `.env`. |
+| `--uninstall --purge` | Also delete the data (asks you to type `purge <dir>`). |
+| `--print-config`, `--help` | Show the resolved settings or the help. |
+
+</details>
+
+### First steps
+
+Open `http://<server-ip>:3000`, ideally through an SSH tunnel (`ssh -L 3000:localhost:3000 root@<server-ip>`), enter the setup token and create the first account: it becomes the administrator. Moving an existing Nitrobase here? Choose **Restore from a backup** instead.
+
+The dashboard's **Getting started** checklist then walks you through:
+
+1. **Get a server ready**: bootstrap *Localhost* or add a VPS.
+2. **Deploy your first app** from the marketplace; a free `sslip.io` domain with HTTPS is set up for you.
+3. **Add an off-site backup destination** (S3, R2, B2) and a schedule.
+4. **Turn on notifications, two-factor authentication and a panel domain** with HTTPS (Settings → Instance).
+
+<details>
+<summary>Install from a checkout instead</summary>
 
 ```bash
-npm run build
+git clone <this repo> nitrobase && cd nitrobase
+cp .env.example .env
+for key in ENCRYPTION_KEY SESSION_SECRET POSTGRES_PASSWORD; do
+  sed -i "s|^$key=.*|$key=$(openssl rand -hex 32)|" .env
+done
+sed -i 's|^NITROBASE_IMAGE=.*|NITROBASE_IMAGE=nitrobase|; s|^NITROBASE_VERSION=.*|NITROBASE_VERSION=local|' .env
+chmod 600 .env
+docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
 
-## Testing
+Keep `ENCRYPTION_KEY` somewhere other than this machine: backups and stored credentials cannot be read without it.
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+</details>
+
+## How it works
+
+```mermaid
+flowchart LR
+  you([You]) -->|HTTPS| panel[Nitrobase panel<br/>TanStack Start + Postgres]
+  panel -->|SSH / local exec| s1[Server A<br/>Docker + Traefik]
+  panel -->|SSH / local exec| s2[Server B<br/>Docker + Traefik]
+  s1 --> a1[Supabase] & a2[PocketBase]
+  s2 --> a3[Postgres] & a4[Your Git app]
+  panel -->|backups| dest[(S3 / R2 / B2)]
+```
+
+- The **panel** is one container plus its PostgreSQL. It keeps the desired state (servers, apps, env, domains, schedules) and runs jobs: deploys, backups, updates, moves.
+- Each **server** runs Docker and a Traefik reverse proxy. Every app is a compose project in its own folder under `/etc/nitrobase/apps`, on a shared proxy network, with labels that tie it to this panel.
+- **Jobs** are logged live, hold per-server and per-app locks, and resume or roll back cleanly if the panel restarts mid-way.
+- **Secrets** (SSH keys, app passwords, destination credentials) are encrypted at rest with `ENCRYPTION_KEY`.
+
+## Operating Nitrobase
+
+### Production checklist
+
+- Put the panel behind HTTPS (`--domain`, or Settings → Instance) and set `APP_URL=https://…` so session cookies are `Secure`; then bind it to `127.0.0.1:3000` so plain HTTP is no longer reachable.
+- Behind the panel's own Traefik route, set `TRUST_PROXY=true` so sign-in rate limits and the audit log see real client addresses (`TRUSTED_PROXY_HOPS`, default 1).
+- Back up `.env`, especially `ENCRYPTION_KEY`, outside the server.
+- Run **one** panel instance: jobs, locks and the scheduler live in-process.
+- The panel container runs privileged with `pid: host`, so it can manage the host it runs on through `nsenter`. PostgreSQL is never published to the host.
+- Any setting from `src/config/server.ts` can be set in `.env`; the panel reads it through `env_file`.
+
+### Upgrading
+
+**From the panel:** Settings → Instance shows the running version and the latest release (`RELEASE_REPO`; a Gitea/Forgejo host through `RELEASE_API_URL`; `RELEASE_CHANNEL=stable|prerelease`). **Upgrade** then:
+
+1. waits until no job runs, and refuses new jobs until it ends;
+2. takes a mandatory self-backup to the destination you choose;
+3. pulls the new image and starts a short-lived **updater** container, which sets `NITROBASE_VERSION` in `.env` (keeping `.env.before-upgrade`) and recreates the panel;
+4. waits for the new panel to be healthy, otherwise puts the previous version back.
+
+The database is not rolled back automatically: if a new version migrated it and then failed, restore the self-backup from step 2.
+
+**From the shell:** re-run the installer with `--version <v>`, or edit `NITROBASE_VERSION` in `.env` and run `docker compose up -d`.
+
+### Backups and disaster recovery
+
+App backups and the Nitrobase self-backup live under **Data → Destinations** and **Data → Backups**. Runs missed while the panel was down are caught up at the next start.
+
+The **self-backup** is a `pg_dump` of the panel database plus a manifest, as a gzipped tar encrypted with `ENCRYPTION_KEY`. To recover on a new machine:
+
+- **From the panel (recommended):** install a fresh Nitrobase, choose **Restore from a backup** on the first page, enter the setup token, upload the `nitrobase/<date>-<id>.tar.gz.enc` file, its sha256 (shown in Data → Backups) and the old `ENCRYPTION_KEY`. Nitrobase verifies, decrypts and loads it as an unprivileged role, runs this version's migrations and re-encrypts secrets for the new key. The restored panel starts **paused** until you confirm it should take over.
+- **By hand:**
+
+  ```bash
+  sha256sum backup.tar.gz.enc                     # compare with the checksum in Data → Backups
+  export ENCRYPTION_KEY='<the old key>'
+  openssl enc -d -aes-256-cbc -pbkdf2 -md sha256 -iter 200000 \
+    -pass env:ENCRYPTION_KEY -in backup.tar.gz.enc | tar -xzf -
+  docker compose -f docker-compose.prod.yml up -d postgres
+  docker compose -f docker-compose.prod.yml exec -T postgres \
+    psql -U nitrobase -d nitrobase < nitrobase-backup/nitrobase.sql
+  docker compose -f docker-compose.prod.yml up -d
+  ```
+
+  Start the fresh install with the **same** `ENCRYPTION_KEY` and `SESSION_SECRET`.
+
+**Split-brain guard.** The database stores an instance id and each panel keeps a marker on its data volume. A database restored on another machine does not match, so that panel boots paused: no jobs, schedules or monitoring, until an administrator chooses **"This database was moved — resume here"**. Stop the old installation for good first.
+
+<details>
+<summary>Rotating <code>ENCRYPTION_KEY</code></summary>
+
+Stop the panel and run the rotation script with `OLD_ENCRYPTION_KEY` set to the current key and `ENCRYPTION_KEY` to the new one:
 
 ```bash
-npm run test
+docker compose -f docker-compose.prod.yml stop app
+docker compose -f docker-compose.prod.yml run --rm \
+  -e OLD_ENCRYPTION_KEY='<current key>' -e ENCRYPTION_KEY='<new key>' \
+  app bun scripts/rotate-encryption-key.ts
 ```
 
-## Styling
+Then put the new key in `.env` and start the panel again.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+App backups made before the rotation keep their `env.enc` encrypted with the old key, and so does the self-backup. Put the old key in `ENCRYPTION_KEY_PREVIOUS` (comma separated, newest first) until those backups have aged out. To decrypt an older self-backup by hand, pass the old key to `openssl`.
 
-### Removing Tailwind CSS
+</details>
 
-If you prefer not to use Tailwind CSS:
+### App updates
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
+Apps with versioned sources are checked on `APP_UPDATE_CHECK_CRON`, and **Update available** shows in the lists, the sidebar and the dashboard. **Update** backs up first, deploys the new version and, if the deploy or health check fails, rolls back: by redeploying the previous version, or by restoring the backup when the template says the upgrade migrates data irreversibly. Each app can also auto-apply patch or minor releases inside a maintenance window (`APP_AUTO_UPDATE_CRON`).
 
-## Linting & Formatting
+### Moving an app
 
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
+**App → Settings → Move to another server** backs the app up, restores it with the same id, data and env on the target, checks its health there and only then removes it from the source. Any failure removes the copy and restarts the app on the source. Free `sslip.io` domains follow automatically; for your own domains the job log lists the DNS records to change.
 
+### Cloudflare Tunnel
+
+A server can publish its apps through a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) instead of open ports. Nitrobase only needs the connector token and never calls the Cloudflare API:
+
+1. Create a tunnel in Zero Trust → Networks → Tunnels and copy its token.
+2. In Nitrobase, Server → Settings → Cloudflare Tunnel: paste the token, enable it, and optionally choose **Tunnel only** so ports 80/443 can stay closed.
+3. For each domain, add a public hostname with service `http://nitrobase-traefik:8081` and mark the domain *Via Cloudflare Tunnel*.
+
+Tunnel routes live on a private Traefik entrypoint that only cloudflared can reach, so nobody can bypass Cloudflare Access through the server's public IP.
+
+### Importing from Supabase cloud
+
+**Settings → Cloud connections** stores a hosted project's credentials. **Apps → New app → Import from Supabase cloud** then creates a Supabase app with its database, storage files, edge functions and cron jobs. The database is reached with `sslmode=verify-full`: put Supabase's root certificates (`prod-ca-2021.crt` and `prod-ca-2025.crt` from [supabase/cli](https://github.com/supabase/cli)) into `certs/supabase-root-ca.pem`, or point `CLOUD_SYNC_SUPABASE_CA_FILE` at your own bundle.
+
+### Teams, roles and the API
+
+Everything belongs to a **team**. The first account becomes the instance administrator; after that, people join through invites. Roles: **owner**, **admin**, **developer** (deploy and operate, restore backups) and **viewer** (read-only, secrets hidden), defined in `src/config/permissions.ts`.
+
+API tokens (Settings → API tokens) call the REST API at `/api/v1` with `Authorization: Bearer nbk_…`. Tokens are shown once, stored as a hash, expire, are rate limited, and every action is audited. The OpenAPI document is at `/api/v1/openapi.json`.
 
 ```bash
-npm run lint
-npm run format
-npm run check
+curl -H "Authorization: Bearer $TOKEN" https://panel.example.com/api/v1/apps
+curl -X POST -H "Authorization: Bearer $TOKEN" https://panel.example.com/api/v1/apps/<appId>/redeploy
+curl -N -H "Authorization: Bearer $TOKEN" https://panel.example.com/api/v1/jobs/<jobId>/stream
 ```
 
+## Development
 
-## Deploy with Nitro
-
-This project uses Nitro as a generic server adapter, so it can run on any Node-compatible host.
+**Requirements:** [Bun](https://bun.sh) and Docker (for the local PostgreSQL).
 
 ```bash
-npm run build
-node dist/server/index.mjs
+bun install
+cp .env.example .env.local        # fill in the secrets: openssl rand -hex 32
+docker compose up -d postgres     # PostgreSQL on 127.0.0.1:5443
+bun run db:migrate
+bun run dev                       # http://localhost:3000
 ```
 
-The build output is a self-contained Node server. To deploy, push the `dist/` directory to your host (Render, Fly.io, your own VPS, etc.) and run the server command above.
+| Command | What it does |
+|---|---|
+| `bun run dev` | Dev server with hot reload |
+| `bun run build` | Production build |
+| `bun run typecheck` | TypeScript |
+| `bun run check` | Biome lint and format check |
+| `bun run test` | Vitest |
+| `bun run i18n:extract && bun run i18n:compile` | Update and compile the translation catalogs |
+| `bun run db:generate` | New Drizzle migration from the schema |
 
-For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
+### Database migrations
 
+The schema lives in `src/db/schema/*.ts`, and `drizzle/` starts from a single baseline (`0000_baseline.sql`). To change the schema, edit `src/db/schema/`, run `bun run db:generate` (commit the new SQL file and its snapshot), then `bun run db:migrate`. SQL that Drizzle cannot express from the schema, such as triggers or data fixes, goes into a custom migration: `bunx drizzle-kit generate --custom --name <name>`.
 
+### Environment
 
-## Routing
+| Variable | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | yes | PostgreSQL connection string. |
+| `ENCRYPTION_KEY` | yes | ≥ 32 random characters. Encrypts secrets at rest; changing it makes them unreadable. |
+| `SESSION_SECRET` | yes | ≥ 32 random characters. Seals the session cookie. |
+| `APP_URL` | no | Public URL of the panel; cookies are `Secure` only when it starts with `https://`. |
+| `ACME_EMAIL` | no | Let's Encrypt account email; defaults to the administrator's email. |
+| `GITHUB_TOKEN` | no | Raises GitHub API rate limits when listing template versions. |
 
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
+The server refuses to start when a required secret is missing, too short or a known placeholder. Every other setting, with its default, lives in `src/config/server.ts`.
 
-### Adding A Route
+### Tech stack
 
-To add a new route to your application just add a new file in the `./src/routes` directory.
+- **Runtime:** Bun · **Framework:** TanStack Start (React 19, nitro)
+- **Data:** TanStack Router and Query · PostgreSQL with Drizzle ORM
+- **UI:** Mantine 9 · Lucide icons · React Compiler
+- **i18n:** Lingui (English source, Vietnamese translation)
+- **Infrastructure:** ssh2 · Docker · Traefik v3 · Cloudflare Tunnel
 
-TanStack will automatically generate the content of the route file for you.
+### Project layout
 
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
+```text
+src/
+  features/<feature>/   # <x>.functions.ts (server functions), <x>.server.ts (logic), schema.ts, <x>.query.ts
+  components/           # Mantine UI, by feature, plus ui/
+  routes/               # thin TanStack routes (+ api/ file routes)
+  config/               # registries and settings: permissions, statuses, identifiers, server config
+  server/
+    services/           # executor (SSH/local), server setup, templates engine, monitoring, backups
+    routes/             # nitro routes (terminal WebSocket)
+    plugins/            # startup plugin
+  locales/              # Lingui catalogs
+templates/              # app templates (see templates/README.md)
+drizzle/                # SQL migrations (one baseline + later changes)
+scripts/                # installer and maintenance scripts
 ```
 
-Then anywhere in your JSX you can use it like so:
+### Contributing
 
-```tsx
-<Link to="/about">About</Link>
-```
+Issues and pull requests are welcome. Before opening a pull request, make sure `bun run typecheck`, `bun run check` and `bun run test` pass, and that new UI text is extracted and translated (`bun run i18n:extract`). Commits follow [Conventional Commits](https://www.conventionalcommits.org/), checked by a commit hook.
 
-This will create a link that will navigate to the `/about` route.
+## License
 
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
+Nitrobase is **fair source**, released under the [Functional Source License, Version 1.1, ALv2 Future License](LICENSE.md) (FSL-1.1-ALv2).
 
-### Using A Layout
+- You may use, copy, modify and self-host Nitrobase for any purpose, including inside your company and for your clients, **except** to offer a product or service that competes with Nitrobase.
+- Every release automatically becomes available under the **Apache License 2.0** two years after it is published.
 
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+Copyright © 2026 Jimmy Phong.

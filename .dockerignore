@@ -1,0 +1,10 @@
+node_modules
+.output
+.git
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vscode
+.agents

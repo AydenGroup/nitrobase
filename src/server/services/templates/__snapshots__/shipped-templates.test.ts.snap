@@ -1,0 +1,131 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`template appwrite > matches the snapshot 4`] = `
+{
+  "files": [
+    "mongo-entrypoint.sh",
+    "mongo-init.js",
+    ".nitrobase-networks",
+  ],
+  "warnings": [
+    "Ignored upstream COMPOSE_PROFILES (reserved for Docker Compose)",
+    "appwrite: removed 11 reserved labels (traefik.*)",
+    "appwrite-console: removed 11 reserved labels (traefik.*)",
+    "appwrite-realtime: removed 11 reserved labels (traefik.*)",
+  ],
+}
+`;
+
+exports[`template custom-compose > matches the snapshot 4`] = `
+{
+  "files": [
+    ".nitrobase-networks",
+  ],
+  "warnings": [
+    "web: removed published ports (traffic goes through Traefik)",
+  ],
+}
+`;
+
+exports[`template database > matches the snapshot 4`] = `
+{
+  "files": [
+    ".nitrobase-networks",
+  ],
+  "warnings": [],
+}
+`;
+
+exports[`template git > matches the snapshot 4`] = `
+{
+  "files": [
+    ".nitrobase-networks",
+  ],
+  "warnings": [],
+}
+`;
+
+exports[`template n8n > matches the snapshot 4`] = `
+{
+  "files": [
+    ".nitrobase-networks",
+  ],
+  "warnings": [],
+}
+`;
+
+exports[`template plausible > matches the snapshot 4`] = `
+{
+  "files": [
+    "clickhouse/default-profile-low-resources-overrides.xml",
+    "clickhouse/ipv4-only.xml",
+    "clickhouse/logs.xml",
+    "clickhouse/low-resources.xml",
+    ".nitrobase-networks",
+  ],
+  "warnings": [],
+}
+`;
+
+exports[`template pocketbase > matches the snapshot 4`] = `
+{
+  "files": [
+    ".nitrobase-networks",
+  ],
+  "warnings": [],
+}
+`;
+
+exports[`template rustfs > matches the snapshot 4`] = `
+{
+  "files": [
+    ".nitrobase-networks",
+  ],
+  "warnings": [],
+}
+`;
+
+exports[`template supabase > matches the snapshot 4`] = `
+{
+  "files": [
+    "volumes/api/envoy/cds.yaml",
+    "volumes/api/envoy/docker-entrypoint.sh",
+    "volumes/api/envoy/envoy.yaml",
+    "volumes/api/envoy/lds.template.yaml",
+    "volumes/api/kong-entrypoint.sh",
+    "volumes/api/kong.yml",
+    "volumes/db/_supabase.sql",
+    "volumes/db/init/data.sql",
+    "volumes/db/jwt.sql",
+    "volumes/db/logs.sql",
+    "volumes/db/pooler.sql",
+    "volumes/db/realtime.sql",
+    "volumes/db/roles.sql",
+    "volumes/db/webhooks.sql",
+    "volumes/functions/hello/index.ts",
+    "volumes/functions/main/index.ts",
+    "volumes/logs/vector.yml",
+    "volumes/pooler/pooler.exs",
+    "volumes/proxy/caddy/Caddyfile",
+    "volumes/proxy/nginx/supabase-nginx.conf.tpl",
+    "volumes/snippets/.gitkeep",
+    "service-env/functions.env",
+    ".nitrobase-networks",
+  ],
+  "warnings": [
+    "Ignored upstream COMPOSE_FILE (reserved for Docker Compose)",
+    "Ignored upstream DOCKER_SOCKET_LOCATION (reserved for Docker Compose)",
+    "kong: removed published ports (traffic goes through Traefik)",
+    "supavisor: removed published ports (traffic goes through Traefik)",
+  ],
+}
+`;
+
+exports[`template umami > matches the snapshot 4`] = `
+{
+  "files": [
+    ".nitrobase-networks",
+  ],
+  "warnings": [],
+}
+`;

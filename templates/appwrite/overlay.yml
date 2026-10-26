@@ -1,0 +1,48 @@
+# Deep-merged onto Appwrite's docker-compose.yml at the release tag (the
+# same file Appwrite's installer starts from). Lists replace; null removes.
+services:
+  # Nitrobase's Traefik routes the app (see [[domains]] in template.toml).
+  traefik: null
+  # Functions and Sites runtimes: the executor and the orchestrator need the
+  # Docker socket (root on the host) and start runtime containers outside
+  # the app's compose project and Nitrobase's policy, so they are not shipped.
+  # Appwrite runs without Functions/Sites builds; see template.toml.
+  openruntimes-executor: null
+  orchestrator: null
+  # Alternative databases (PostgreSQL is used; MongoDB backs DocumentsDB).
+  mariadb: null
+  # Optional, resource-heavy or external-key services (installer defaults).
+  appwrite-embedding: null
+  appwrite-assistant: null
+  # MQTT needs a raw TCP entrypoint (not routed by Nitrobase).
+  appwrite-mqtt: null
+  # "separate" topology workers: the combined appwrite-worker and
+  # appwrite-task-scheduler run them (installer default topology).
+  appwrite-worker-stats-usage: null
+  appwrite-worker-stats-resources: null
+  appwrite-task-stats-resources: null
+  appwrite-worker-webhooks: null
+  appwrite-worker-deletes: null
+  appwrite-worker-databases: null
+  appwrite-worker-builds: null
+  appwrite-worker-jobs: null
+  appwrite-worker-screenshots: null
+  appwrite-worker-certificates: null
+  appwrite-worker-executions: null
+  appwrite-worker-functions: null
+  appwrite-worker-mails: null
+  appwrite-worker-notifications: null
+  appwrite-worker-messaging: null
+  appwrite-worker-migrations: null
+  appwrite-task-scheduler-functions: null
+  appwrite-task-scheduler-executions: null
+  appwrite-task-scheduler-messages: null
+
+networks:
+  gateway: null
+  runtimes: null
+
+volumes:
+  appwrite-mariadb: null
+  appwrite-models: null
+  openruntimes-node-modules-cache: null

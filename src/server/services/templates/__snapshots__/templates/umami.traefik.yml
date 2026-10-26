@@ -1,0 +1,26 @@
+http:
+  routers:
+    app-0123abcd0000-0-http:
+      rule: Host(`app.example.org`)
+      entryPoints:
+        - web
+      middlewares:
+        - app-0123abcd0000-https-redirect
+      service: app-0123abcd0000-0
+    app-0123abcd0000-0:
+      rule: Host(`app.example.org`)
+      entryPoints:
+        - websecure
+      service: app-0123abcd0000-0
+      tls:
+        certResolver: letsencrypt
+  services:
+    app-0123abcd0000-0:
+      loadBalancer:
+        servers:
+          - url: http://umami-0123abcd-umami:3000
+  middlewares:
+    app-0123abcd0000-https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true

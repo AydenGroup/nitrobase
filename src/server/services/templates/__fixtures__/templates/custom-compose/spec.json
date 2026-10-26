@@ -1,0 +1,6 @@
+{
+	"compose": "services:\n  web:\n    image: nginx:1.27-alpine\n    ports: [\"8080:80\"]\n    volumes:\n      - site:/usr/share/nginx/html\n      - ./conf:/etc/nginx/conf.d:ro\n    environment:\n      GREETING: ${GREETING}\n  cache:\n    image: redis:7-alpine\n    volumes: [cache-data:/data]\nvolumes:\n  site:\n  cache-data:\n",
+	"env": "GREETING=hello $USER\n",
+	"routes": [{ "service": "web", "port": 80 }],
+	"backupVolumes": ["site"]
+}

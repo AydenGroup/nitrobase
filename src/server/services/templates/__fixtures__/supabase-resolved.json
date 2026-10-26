@@ -1,0 +1,575 @@
+{
+	"name": "supabase-0123abcd",
+	"networks": {
+		"default": {
+			"name": "supabase-0123abcd_default",
+			"ipam": {}
+		}
+	},
+	"services": {
+		"auth": {
+			"container_name": "supabase-0123abcd-auth",
+			"depends_on": {
+				"db": {
+					"condition": "service_healthy",
+					"required": true
+				}
+			},
+			"environment": {
+				"API_EXTERNAL_URL": "<redacted>",
+				"GOTRUE_API_HOST": "<redacted>",
+				"GOTRUE_API_PORT": "<redacted>",
+				"GOTRUE_DB_DATABASE_URL": "<redacted>",
+				"GOTRUE_DB_DRIVER": "<redacted>",
+				"GOTRUE_DISABLE_SIGNUP": "<redacted>",
+				"GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED": "<redacted>",
+				"GOTRUE_EXTERNAL_EMAIL_ENABLED": "<redacted>",
+				"GOTRUE_EXTERNAL_PHONE_ENABLED": "<redacted>",
+				"GOTRUE_JWT_ADMIN_ROLES": "<redacted>",
+				"GOTRUE_JWT_AUD": "<redacted>",
+				"GOTRUE_JWT_DEFAULT_GROUP_NAME": "<redacted>",
+				"GOTRUE_JWT_EXP": "<redacted>",
+				"GOTRUE_JWT_ISSUER": "<redacted>",
+				"GOTRUE_JWT_SECRET": "<redacted>",
+				"GOTRUE_MAILER_AUTOCONFIRM": "<redacted>",
+				"GOTRUE_MAILER_URLPATHS_CONFIRMATION": "<redacted>",
+				"GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE": "<redacted>",
+				"GOTRUE_MAILER_URLPATHS_INVITE": "<redacted>",
+				"GOTRUE_MAILER_URLPATHS_RECOVERY": "<redacted>",
+				"GOTRUE_SITE_URL": "<redacted>",
+				"GOTRUE_SMS_AUTOCONFIRM": "<redacted>",
+				"GOTRUE_SMTP_ADMIN_EMAIL": "<redacted>",
+				"GOTRUE_SMTP_HOST": "<redacted>",
+				"GOTRUE_SMTP_PASS": "<redacted>",
+				"GOTRUE_SMTP_PORT": "<redacted>",
+				"GOTRUE_SMTP_SENDER_NAME": "<redacted>",
+				"GOTRUE_SMTP_USER": "<redacted>",
+				"GOTRUE_URI_ALLOW_LIST": "<redacted>"
+			},
+			"image": "supabase/gotrue:v2.189.0",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "auth"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-auth"]
+				}
+			},
+			"restart": "unless-stopped"
+		},
+		"db": {
+			"container_name": "supabase-0123abcd-db",
+			"environment": {
+				"JWT_EXP": "<redacted>",
+				"JWT_SECRET": "<redacted>",
+				"PGDATABASE": "<redacted>",
+				"PGPASSWORD": "<redacted>",
+				"PGPORT": "<redacted>",
+				"POSTGRES_DB": "<redacted>",
+				"POSTGRES_HOST": "<redacted>",
+				"POSTGRES_PASSWORD": "<redacted>",
+				"POSTGRES_PORT": "<redacted>"
+			},
+			"image": "supabase/postgres:17.6.1.136",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "db"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-db"]
+				}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/realtime.sql",
+					"target": "/docker-entrypoint-initdb.d/migrations/99-realtime.sql",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/webhooks.sql",
+					"target": "/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/roles.sql",
+					"target": "/docker-entrypoint-initdb.d/init-scripts/99-roles.sql",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/jwt.sql",
+					"target": "/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/data",
+					"target": "/var/lib/postgresql/data",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/_supabase.sql",
+					"target": "/docker-entrypoint-initdb.d/migrations/97-_supabase.sql",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/logs.sql",
+					"target": "/docker-entrypoint-initdb.d/migrations/99-logs.sql",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/db/pooler.sql",
+					"target": "/docker-entrypoint-initdb.d/migrations/99-pooler.sql",
+					"bind": {
+						"selinux": "Z"
+					}
+				},
+				{
+					"type": "volume",
+					"source": "db-config",
+					"target": "/etc/postgresql-custom",
+					"volume": {}
+				}
+			]
+		},
+		"functions": {
+			"container_name": "supabase-0123abcd-functions",
+			"depends_on": {
+				"kong": {
+					"condition": "service_healthy",
+					"required": true
+				}
+			},
+			"environment": {
+				"JWT_SECRET": "<redacted>",
+				"SUPABASE_ANON_KEY": "<redacted>",
+				"SUPABASE_DB_URL": "<redacted>",
+				"SUPABASE_PUBLIC_URL": "<redacted>",
+				"SUPABASE_PUBLISHABLE_KEYS": "<redacted>",
+				"SUPABASE_SECRET_KEYS": "<redacted>",
+				"SUPABASE_SERVICE_ROLE_KEY": "<redacted>",
+				"SUPABASE_URL": "<redacted>",
+				"VERIFY_JWT": "<redacted>"
+			},
+			"image": "supabase/edge-runtime:v1.74.0",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "functions"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-edge-functions"]
+				}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/functions",
+					"target": "/home/deno/functions",
+					"bind": {
+						"selinux": "z"
+					}
+				},
+				{
+					"type": "volume",
+					"source": "deno-cache",
+					"target": "/root/.cache/deno",
+					"volume": {}
+				}
+			]
+		},
+		"imgproxy": {
+			"container_name": "supabase-0123abcd-imgproxy",
+			"environment": {
+				"IMGPROXY_AUTO_WEBP": "<redacted>",
+				"IMGPROXY_BIND": "<redacted>",
+				"IMGPROXY_LOCAL_FILESYSTEM_ROOT": "<redacted>",
+				"IMGPROXY_MAX_SRC_RESOLUTION": "<redacted>",
+				"IMGPROXY_USE_ETAG": "<redacted>"
+			},
+			"image": "darthsim/imgproxy:v3.30.1",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "imgproxy"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-imgproxy"]
+				}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/storage",
+					"target": "/var/lib/storage",
+					"bind": {
+						"selinux": "z"
+					}
+				}
+			]
+		},
+		"kong": {
+			"container_name": "supabase-0123abcd-kong",
+			"depends_on": {
+				"studio": {
+					"condition": "service_healthy",
+					"required": true
+				}
+			},
+			"environment": {
+				"ANON_KEY_ASYMMETRIC": "<redacted>",
+				"DASHBOARD_PASSWORD": "<redacted>",
+				"DASHBOARD_USERNAME": "<redacted>",
+				"KONG_DATABASE": "<redacted>",
+				"KONG_DECLARATIVE_CONFIG": "<redacted>",
+				"KONG_DNS_NOT_FOUND_TTL": "<redacted>",
+				"KONG_DNS_ORDER": "<redacted>",
+				"KONG_DNS_VALID_TTL": "<redacted>",
+				"KONG_NGINX_PROXY_PROXY_BUFFERS": "<redacted>",
+				"KONG_NGINX_PROXY_PROXY_BUFFER_SIZE": "<redacted>",
+				"KONG_PLUGINS": "<redacted>",
+				"KONG_PROXY_ACCESS_LOG": "<redacted>",
+				"KONG_ROUTER_FLAVOR": "<redacted>",
+				"SERVICE_ROLE_KEY_ASYMMETRIC": "<redacted>",
+				"SUPABASE_ANON_KEY": "<redacted>",
+				"SUPABASE_PUBLISHABLE_KEY": "<redacted>",
+				"SUPABASE_SECRET_KEY": "<redacted>",
+				"SUPABASE_SERVICE_KEY": "<redacted>"
+			},
+			"image": "kong/kong:3.9.3",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "kong",
+				"nitrobase.routed": "true"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["api-gw", "supabase-kong"]
+				}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/api/kong.yml",
+					"target": "/home/kong/temp.yml",
+					"read_only": true,
+					"bind": {
+						"selinux": "z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/api/kong-entrypoint.sh",
+					"target": "/home/kong/kong-entrypoint.sh",
+					"read_only": true,
+					"bind": {
+						"selinux": "z"
+					}
+				}
+			]
+		},
+		"meta": {
+			"container_name": "supabase-0123abcd-meta",
+			"depends_on": {
+				"db": {
+					"condition": "service_healthy",
+					"required": true
+				}
+			},
+			"environment": {
+				"CRYPTO_KEY": "<redacted>",
+				"PG_META_DB_HOST": "<redacted>",
+				"PG_META_DB_NAME": "<redacted>",
+				"PG_META_DB_PASSWORD": "<redacted>",
+				"PG_META_DB_PORT": "<redacted>",
+				"PG_META_DB_USER": "<redacted>",
+				"PG_META_PORT": "<redacted>"
+			},
+			"image": "supabase/postgres-meta:v0.96.6",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "meta"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-meta"]
+				}
+			},
+			"restart": "unless-stopped"
+		},
+		"realtime": {
+			"container_name": "supabase-0123abcd-realtime",
+			"depends_on": {
+				"db": {
+					"condition": "service_healthy",
+					"required": true
+				}
+			},
+			"environment": {
+				"API_JWT_SECRET": "<redacted>",
+				"APP_NAME": "<redacted>",
+				"DB_AFTER_CONNECT_QUERY": "<redacted>",
+				"DB_ENC_KEY": "<redacted>",
+				"DB_HOST": "<redacted>",
+				"DB_NAME": "<redacted>",
+				"DB_PASSWORD": "<redacted>",
+				"DB_PORT": "<redacted>",
+				"DB_USER": "<redacted>",
+				"DISABLE_HEALTHCHECK_LOGGING": "<redacted>",
+				"DNS_NODES": "<redacted>",
+				"ERL_AFLAGS": "<redacted>",
+				"METRICS_JWT_SECRET": "<redacted>",
+				"PORT": "<redacted>",
+				"RLIMIT_NOFILE": "<redacted>",
+				"RUN_JANITOR": "<redacted>",
+				"SECRET_KEY_BASE": "<redacted>",
+				"SEED_SELF_HOST": "<redacted>"
+			},
+			"image": "supabase/realtime:v2.102.3",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "realtime"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["realtime-dev.supabase-realtime"]
+				}
+			},
+			"restart": "unless-stopped"
+		},
+		"rest": {
+			"container_name": "supabase-0123abcd-rest",
+			"depends_on": {
+				"db": {
+					"condition": "service_healthy",
+					"required": true
+				}
+			},
+			"environment": {
+				"PGRST_ADMIN_SERVER_HOST": "<redacted>",
+				"PGRST_ADMIN_SERVER_PORT": "<redacted>",
+				"PGRST_APP_SETTINGS_JWT_EXP": "<redacted>",
+				"PGRST_APP_SETTINGS_JWT_SECRET": "<redacted>",
+				"PGRST_DB_ANON_ROLE": "<redacted>",
+				"PGRST_DB_EXTRA_SEARCH_PATH": "<redacted>",
+				"PGRST_DB_MAX_ROWS": "<redacted>",
+				"PGRST_DB_SCHEMAS": "<redacted>",
+				"PGRST_DB_URI": "<redacted>",
+				"PGRST_DB_USE_LEGACY_GUCS": "<redacted>",
+				"PGRST_JWT_SECRET": "<redacted>"
+			},
+			"image": "postgrest/postgrest:v14.12",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "rest"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-rest"]
+				}
+			},
+			"restart": "unless-stopped"
+		},
+		"storage": {
+			"container_name": "supabase-0123abcd-storage",
+			"depends_on": {
+				"db": {
+					"condition": "service_healthy",
+					"required": true
+				},
+				"imgproxy": {
+					"condition": "service_started",
+					"required": true
+				},
+				"rest": {
+					"condition": "service_started",
+					"required": true
+				}
+			},
+			"environment": {
+				"ANON_KEY": "<redacted>",
+				"AUTH_JWT_SECRET": "<redacted>",
+				"DATABASE_URL": "<redacted>",
+				"ENABLE_IMAGE_TRANSFORMATION": "<redacted>",
+				"FILE_SIZE_LIMIT": "<redacted>",
+				"FILE_STORAGE_BACKEND_PATH": "<redacted>",
+				"GLOBAL_S3_BUCKET": "<redacted>",
+				"IMGPROXY_URL": "<redacted>",
+				"POSTGREST_URL": "<redacted>",
+				"REGION": "<redacted>",
+				"REQUEST_ALLOW_X_FORWARDED_PATH": "<redacted>",
+				"S3_PROTOCOL_ACCESS_KEY_ID": "<redacted>",
+				"S3_PROTOCOL_ACCESS_KEY_SECRET": "<redacted>",
+				"SERVICE_KEY": "<redacted>",
+				"STORAGE_BACKEND": "<redacted>",
+				"STORAGE_PUBLIC_URL": "<redacted>",
+				"TENANT_ID": "<redacted>"
+			},
+			"image": "supabase/storage-api:v1.60.4",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "storage"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-storage"]
+				}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/storage",
+					"target": "/var/lib/storage",
+					"bind": {
+						"selinux": "z"
+					}
+				}
+			]
+		},
+		"studio": {
+			"container_name": "supabase-0123abcd-studio",
+			"environment": {
+				"AUTH_JWT_SECRET": "<redacted>",
+				"DEFAULT_ORGANIZATION_NAME": "<redacted>",
+				"DEFAULT_PROJECT_NAME": "<redacted>",
+				"EDGE_FUNCTIONS_MANAGEMENT_FOLDER": "<redacted>",
+				"ENABLED_FEATURES_LOGS_ALL": "<redacted>",
+				"HOSTNAME": "<redacted>",
+				"OPENAI_API_KEY": "<redacted>",
+				"PGRST_DB_EXTRA_SEARCH_PATH": "<redacted>",
+				"PGRST_DB_MAX_ROWS": "<redacted>",
+				"PGRST_DB_SCHEMAS": "<redacted>",
+				"PG_META_CRYPTO_KEY": "<redacted>",
+				"POSTGRES_DB": "<redacted>",
+				"POSTGRES_HOST": "<redacted>",
+				"POSTGRES_PASSWORD": "<redacted>",
+				"POSTGRES_PORT": "<redacted>",
+				"POSTGRES_USER_READ_WRITE": "<redacted>",
+				"SNIPPETS_MANAGEMENT_FOLDER": "<redacted>",
+				"STUDIO_PG_META_URL": "<redacted>",
+				"SUPABASE_ANON_KEY": "<redacted>",
+				"SUPABASE_PUBLIC_URL": "<redacted>",
+				"SUPABASE_PUBLISHABLE_KEY": "<redacted>",
+				"SUPABASE_SECRET_KEY": "<redacted>",
+				"SUPABASE_SERVICE_KEY": "<redacted>",
+				"SUPABASE_URL": "<redacted>"
+			},
+			"image": "supabase/studio:2026.08.03-sha-022b374",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "studio"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-studio"]
+				}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/snippets",
+					"target": "/app/snippets",
+					"bind": {
+						"selinux": "z"
+					}
+				},
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/functions",
+					"target": "/app/edge-functions",
+					"read_only": true,
+					"bind": {
+						"selinux": "z"
+					}
+				}
+			]
+		},
+		"supavisor": {
+			"container_name": "supabase-0123abcd-supavisor",
+			"depends_on": {
+				"db": {
+					"condition": "service_healthy",
+					"required": true
+				}
+			},
+			"environment": {
+				"API_JWT_SECRET": "<redacted>",
+				"CLUSTER_POSTGRES": "<redacted>",
+				"DATABASE_URL": "<redacted>",
+				"DB_POOL_SIZE": "<redacted>",
+				"ERL_AFLAGS": "<redacted>",
+				"METRICS_JWT_SECRET": "<redacted>",
+				"POOLER_DEFAULT_POOL_SIZE": "<redacted>",
+				"POOLER_MAX_CLIENT_CONN": "<redacted>",
+				"POOLER_POOL_MODE": "<redacted>",
+				"POOLER_TENANT_ID": "<redacted>",
+				"PORT": "<redacted>",
+				"POSTGRES_DB": "<redacted>",
+				"POSTGRES_HOST": "<redacted>",
+				"POSTGRES_PASSWORD": "<redacted>",
+				"POSTGRES_PORT": "<redacted>",
+				"REGION": "<redacted>",
+				"SECRET_KEY_BASE": "<redacted>",
+				"VAULT_ENC_KEY": "<redacted>"
+			},
+			"image": "supabase/supavisor:2.9.5",
+			"labels": {
+				"nitrobase.app": "0123abcd-0000-4000-8000-000000000000",
+				"nitrobase.service": "supavisor"
+			},
+			"networks": {
+				"default": {
+					"aliases": ["supabase-pooler"]
+				}
+			},
+			"restart": "unless-stopped",
+			"volumes": [
+				{
+					"type": "bind",
+					"source": "/etc/nitrobase/apps/supabase-0123abcd/volumes/pooler/pooler.exs",
+					"target": "/etc/pooler/pooler.exs",
+					"read_only": true,
+					"bind": {
+						"selinux": "z"
+					}
+				}
+			]
+		}
+	},
+	"volumes": {
+		"db-config": {
+			"name": "supabase-0123abcd_db-config"
+		},
+		"deno-cache": {
+			"name": "supabase-0123abcd_deno-cache"
+		}
+	}
+}

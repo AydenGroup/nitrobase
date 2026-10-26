@@ -1,0 +1,71 @@
+services:
+  umami:
+    image: ghcr.io/umami-software/umami:${UMAMI_VERSION}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://umami:${DB_PASSWORD}@db:5432/umami
+      APP_SECRET: ${APP_SECRET}
+      DISABLE_TELEMETRY: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3000/api/heartbeat >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: Umami seeds admin/umami on its first start. Once the account
+  # exists, replace that well-known password (only while it is still the
+  # default) and exit. Runs again on every start; a changed password is kept.
+  # pgcrypto reads bcrypt hashes as $2a$ only; Umami writes $2b$, which is
+  # the same hash for passwords this short, so it is compared as $2a$.
+  set-admin-password:
+    image: postgres:16-alpine
+    restart: on-failure
+    environment:
+      PGHOST: db
+      PGUSER: umami
+      PGDATABASE: umami
+      PGPASSWORD: ${DB_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for i in $$(seq 1 120); do
+          if psql -XAtc "select 1 from \"user\" where username = 'admin'" 2>/dev/null | grep -q 1; then
+            psql -X -v ON_ERROR_STOP=1 -v pw="$$ADMIN_PASSWORD" -v name="$$ADMIN_USERNAME" <<'SQL'
+        create extension if not exists pgcrypto;
+        update "user" set username = :'name', password = crypt(:'pw', gen_salt('bf', 10))
+        where username = 'admin'
+          and '$$2a$$' || substr(password, 5) = crypt('umami', '$$2a$$' || substr(password, 5));
+        SQL
+            exit $$?
+          fi
+          sleep 5
+        done
+        echo "Umami did not create its admin account in time" >&2
+        exit 1
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

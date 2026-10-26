@@ -1,0 +1,25 @@
+# Development only: local PostgreSQL bound to loopback.
+# Production: see docker-compose.prod.yml.
+name: nitrobase-dev
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nitrobase_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nitrobase
+      POSTGRES_PASSWORD: nitrobase
+      POSTGRES_DB: nitrobase
+    ports:
+      - "127.0.0.1:5443:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nitrobase"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local

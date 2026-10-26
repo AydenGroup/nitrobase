@@ -1,0 +1,157 @@
+<svg viewBox="50 20 100 196" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">nitrobase</title>
+  <desc id="desc">A rocket hovering above a database cylinder.</desc>
+  <defs>
+    <!-- Database shading -->
+    <linearGradient id="dbBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="45%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="dbTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+    <!-- Rocket shading -->
+    <linearGradient id="rocketBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="40%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <radialGradient id="windowGlass" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#a5f3fc"/>
+      <stop offset="100%" stop-color="#0891b2"/>
+    </radialGradient>
+    <!-- Flame -->
+    <linearGradient id="flameOuter" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="60%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="flameInner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffbeb"/>
+      <stop offset="50%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#fde047" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Glow where the thrust hits the database -->
+    <radialGradient id="impactGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fde047" stop-opacity="0.9"/>
+      <stop offset="60%" stop-color="#f97316" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- ===================== DATABASE ===================== -->
+  <g id="database">
+    <!-- Cylinder body -->
+    <path d="M52,148 V202 A48,12 0 0 0 148,202 V148 Z" fill="url(#dbBody)"/>
+    <!-- Tier separators -->
+    <path d="M52,166 A48,12 0 0 0 148,166" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+    <path d="M52,184 A48,12 0 0 0 148,184" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+    <!-- Data stripes -->
+    <g stroke="#bfdbfe" stroke-width="3" stroke-linecap="round" opacity="0.85">
+      <path d="M68,168 H92"/>
+      <path d="M68,186 H92"/>
+      <path d="M68,204 H92"/>
+    </g>
+    <!-- Activity LEDs (blink in sequence) -->
+    <g fill="#22d3ee">
+      <circle cx="130" cy="166.5" r="3">
+        <animate attributeName="opacity" values="0.25;1;0.25" dur="1.2s" begin="0s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="130" cy="184.5" r="3">
+        <animate attributeName="opacity" values="0.25;1;0.25" dur="1.2s" begin="0.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="130" cy="202.5" r="3">
+        <animate attributeName="opacity" values="0.25;1;0.25" dur="1.2s" begin="0.8s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <!-- Top cap -->
+    <ellipse cx="100" cy="148" rx="48" ry="12" fill="url(#dbTop)"/>
+  </g>
+  <!-- Thrust impact glow on the database lid -->
+  <ellipse cx="100" cy="148" rx="34" ry="9" fill="url(#impactGlow)">
+    <animate attributeName="opacity" values="0.6;1;0.6" dur="0.3s" repeatCount="indefinite"/>
+    <animate attributeName="rx" values="30;36;30" dur="2.4s" repeatCount="indefinite"
+             calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>
+  </ellipse>
+  <!-- Exhaust puffs spreading across the lid -->
+  <g fill="#e2e8f0">
+    <circle cx="100" cy="146" r="3" opacity="0">
+      <animate attributeName="cx" values="96;54" dur="1.4s" begin="0s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;7" dur="1.4s" begin="0s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0" dur="1.4s" begin="0s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="100" cy="146" r="3" opacity="0">
+      <animate attributeName="cx" values="104;146" dur="1.4s" begin="0.35s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;7" dur="1.4s" begin="0.35s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0" dur="1.4s" begin="0.35s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="100" cy="144" r="3" opacity="0">
+      <animate attributeName="cx" values="96;60" dur="1.4s" begin="0.7s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;6" dur="1.4s" begin="0.7s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0" dur="1.4s" begin="0.7s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="100" cy="144" r="3" opacity="0">
+      <animate attributeName="cx" values="104;140" dur="1.4s" begin="1.05s" repeatCount="indefinite"/>
+      <animate attributeName="r" values="2;6" dur="1.4s" begin="1.05s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.7;0" dur="1.4s" begin="1.05s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  <!-- Speed lines streaming past the rocket -->
+  <g stroke="#60a5fa" stroke-width="2" stroke-linecap="round">
+    <line x1="64" y1="30" x2="64" y2="52" opacity="0">
+      <animateTransform attributeName="transform" type="translate" values="0,-10;0,40" dur="0.9s" begin="0s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.8;0" dur="0.9s" begin="0s" repeatCount="indefinite"/>
+    </line>
+    <line x1="136" y1="40" x2="136" y2="62" opacity="0">
+      <animateTransform attributeName="transform" type="translate" values="0,-10;0,40" dur="0.9s" begin="0.3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.8;0" dur="0.9s" begin="0.3s" repeatCount="indefinite"/>
+    </line>
+    <line x1="74" y1="58" x2="74" y2="74" opacity="0">
+      <animateTransform attributeName="transform" type="translate" values="0,-10;0,40" dur="0.9s" begin="0.55s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.6;0" dur="0.9s" begin="0.55s" repeatCount="indefinite"/>
+    </line>
+    <line x1="126" y1="20" x2="126" y2="36" opacity="0">
+      <animateTransform attributeName="transform" type="translate" values="0,-10;0,40" dur="0.9s" begin="0.15s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.6;0" dur="0.9s" begin="0.15s" repeatCount="indefinite"/>
+    </line>
+  </g>
+  <!-- ===================== ROCKET ===================== -->
+  <g id="rocket">
+    <!-- Gentle hover -->
+    <animateTransform attributeName="transform" type="translate"
+                      values="0,0;0,-6;0,0" dur="2.4s" repeatCount="indefinite"
+                      calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1"/>
+    <!-- Flames (drawn first so they sit behind the nozzle) -->
+    <path fill="url(#flameOuter)">
+      <animate attributeName="d" dur="0.25s" repeatCount="indefinite"
+        values="M90,102 C90,118 100,128 100,140 C100,128 110,118 110,102 Z;
+                M90,102 C88,116 99,124 100,132 C101,124 112,116 110,102 Z;
+                M90,102 C90,118 100,128 100,140 C100,128 110,118 110,102 Z"/>
+    </path>
+    <path fill="url(#flameInner)">
+      <animate attributeName="d" dur="0.18s" repeatCount="indefinite"
+        values="M94,102 C94,112 100,118 100,126 C100,118 106,112 106,102 Z;
+                M94,102 C95,110 99,116 100,121 C101,116 105,110 106,102 Z;
+                M94,102 C94,112 100,118 100,126 C100,118 106,112 106,102 Z"/>
+    </path>
+    <!-- Fins -->
+    <path d="M87,72 L70,100 L87,96 Z" fill="url(#accent)"/>
+    <path d="M113,72 L130,100 L113,96 Z" fill="url(#accent)"/>
+    <path d="M98,84 L96,102 L104,102 L102,84 Z" fill="#b91c1c"/>
+    <!-- Body -->
+    <path d="M100,22 C114,34 116,56 114,96 L86,96 C84,56 86,34 100,22 Z" fill="url(#rocketBody)"/>
+    <!-- Nose cone -->
+    <path d="M100,22 C106,27 109,32 111,40 L89,40 C91,32 94,27 100,22 Z" fill="url(#accent)"/>
+    <!-- Window -->
+    <circle cx="100" cy="60" r="9" fill="#1e3a8a"/>
+    <circle cx="100" cy="60" r="6.5" fill="url(#windowGlass)"/>
+    <circle cx="98" cy="58" r="1.8" fill="#ffffff" opacity="0.8"/>
+    <!-- Nozzle -->
+    <rect x="91" y="96" width="18" height="6" rx="1.5" fill="#475569"/>
+  </g>
+  </svg>

@@ -1,0 +1,427 @@
+id = "supabase"
+name = "Supabase"
+description = "Postgres development platform: database, auth, REST & realtime APIs, storage, edge functions and Studio."
+category = "backend"
+color = "teal"
+website = "https://supabase.com"
+tags = ["postgres", "auth", "storage", "realtime", "edge-functions"]
+# Edge function secrets: Nitrobase-managed env file for the functions service.
+service_env = ["functions"]
+
+# Versions = GitHub releases of supabase/supabase (monthly "v1.YY.MM" tags,
+# each pinning tested image versions in docker/docker-compose.yml). Commits on
+# master would deploy untested image combinations, so releases are used.
+# Files come from the `docker` directory at the release's commit SHA.
+[source]
+repo = "supabase/supabase"
+versions = "releases"
+path = "docker"
+compose = "docker-compose.yml"
+env_defaults = ".env.example"
+include = ["docker-compose.yml", ".env.example", "volumes"]
+version_filter = '^v[0-9]+\.[0-9]+\.[0-9]+$'
+# Older releases are not offered: their `vector` log collector bind-mounts
+# the Docker socket (`${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock`) with
+# `security_opt: label=disable`, both refused by the compose policy.
+# v1.26.07 is the first release without it (no `vector` service).
+min_version = "v1.26.07"
+
+# Asymmetric JWT verification for the new API keys (releases that have them).
+[[overlays]]
+path = "overlay-api-keys.yml"
+min_version = "v1.26.04"
+
+# Everything below overrides the insecure upstream demo values in .env.example.
+
+[variables.POSTGRES_PASSWORD]
+value = "${password:40}"
+description = "Password of the postgres user (psql, pg_dump, pooler)"
+secret = true
+credential = true
+
+[variables.JWT_SECRET]
+value = "${password:48}"
+description = "Signs Supabase JWTs (anon / service_role keys)"
+secret = true
+rotatable = true
+
+# Refresh tokens are opaque rows in auth.refresh_tokens (tied to
+# auth.sessions, ON DELETE CASCADE), not JWTs: a new JWT secret alone does
+# not stop them from minting new access tokens. Deleting both signs every
+# user out (supabase_admin: superuser in supabase/postgres; auth.* belongs
+# to supabase_auth_admin).
+[variables.JWT_SECRET.on_rotate]
+label = "Sign out all users"
+description = "Every session and refresh token is deleted after the redeploy: signed-in users must sign in again. A user who refreshes while the app redeploys keeps access until that access token expires (JWT_EXPIRY, one hour by default)."
+skipped = "Sessions stay valid: signed-in users keep refreshing their tokens, now signed with the new secret."
+default = true
+service = "db"
+user = "supabase_admin"
+database = "postgres"
+sql = "delete from auth.refresh_tokens; delete from auth.sessions;"
+
+[variables.ANON_KEY]
+value = "${jwt:JWT_SECRET:anon:supabase}"
+description = "Public client key (safe in browsers, subject to RLS)"
+credential = true
+
+[variables.SERVICE_ROLE_KEY]
+value = "${jwt:JWT_SECRET:service_role:supabase}"
+description = "Bypasses RLS: keep on the server only"
+secret = true
+credential = true
+
+# New API keys (upstream v1.26.04+, utils/add-new-auth-keys.sh): opaque
+# keys the gateway (Kong) swaps for ES256 JWTs signed with JWT_KEYS. The
+# legacy ANON_KEY / SERVICE_ROLE_KEY keep working (JWT_JWKS also holds
+# JWT_SECRET). Existing apps get them on their next redeploy (upstream's
+# empty defaults are replaced by generated values); overlay-api-keys.yml
+# turns on the services' asymmetric verification.
+[variables.SUPABASE_PUBLISHABLE_KEY]
+value = "${opaque_key:sb_publishable_:supabase-self-hosted}"
+description = "Publishable key for clients (safe in browsers, subject to RLS); replaces the anon key"
+credential = true
+min_version = "v1.26.04"
+
+[variables.SUPABASE_SECRET_KEY]
+value = "${opaque_key:sb_secret_:supabase-self-hosted}"
+description = "Secret key: bypasses RLS, keep on the server only; replaces the service_role key"
+secret = true
+credential = true
+rotatable = true
+min_version = "v1.26.04"
+
+# JWT_KEYS and JWT_JWKS both hold the legacy HS256 secret (JWT_SECRET as a
+# symmetric JWK): service-internal only, never serve them publicly. The
+# public key set is Auth's /auth/v1/.well-known/jwks.json (no secrets).
+[variables.JWT_KEYS]
+value = "${signing_keys:es256:JWT_SECRET}"
+description = "Auth signing keys (ES256 private key + the legacy JWT secret)"
+secret = true
+min_version = "v1.26.04"
+
+# Not a public JWKS: contains JWT_SECRET (see above).
+[variables.JWT_JWKS]
+value = "${jwks:JWT_KEYS}"
+description = "Token verification keys (ES256 public key + the legacy JWT secret)"
+secret = true
+min_version = "v1.26.04"
+
+# The JWTs the gateway forwards for the publishable / secret key.
+[variables.ANON_KEY_ASYMMETRIC]
+value = "${jwt_es256:JWT_KEYS:anon:supabase}"
+min_version = "v1.26.04"
+
+[variables.SERVICE_ROLE_KEY_ASYMMETRIC]
+value = "${jwt_es256:JWT_KEYS:service_role:supabase}"
+secret = true
+min_version = "v1.26.04"
+
+[variables.DASHBOARD_USERNAME]
+label = "Studio username"
+group = "Studio"
+value = "supabase"
+description = "Studio basic-auth username"
+editable = true
+credential = true
+min_length = 3
+pattern = '^[A-Za-z0-9_.-]+$'
+
+[variables.DASHBOARD_PASSWORD]
+label = "Studio password"
+group = "Studio"
+value = "${password:32}"
+description = "Studio basic-auth password"
+secret = true
+editable = true
+credential = true
+rotatable = true
+min_length = 12
+
+[variables.SECRET_KEY_BASE]
+value = "${password:64}"
+secret = true
+
+[variables.VAULT_ENC_KEY]
+value = "${password:32}"
+secret = true
+
+[variables.PG_META_CRYPTO_KEY]
+value = "${password:32}"
+secret = true
+
+[variables.REALTIME_DB_ENC_KEY]
+value = "${password:16}"
+secret = true
+
+[variables.LOGFLARE_PUBLIC_ACCESS_TOKEN]
+value = "${password:40}"
+secret = true
+
+[variables.LOGFLARE_PRIVATE_ACCESS_TOKEN]
+value = "${password:40}"
+secret = true
+
+[variables.S3_PROTOCOL_ACCESS_KEY_ID]
+value = "${hex:16}"
+secret = true
+
+[variables.S3_PROTOCOL_ACCESS_KEY_SECRET]
+value = "${hex:32}"
+secret = true
+
+[variables.MINIO_ROOT_PASSWORD]
+value = "${password:32}"
+secret = true
+
+[variables.POOLER_TENANT_ID]
+value = "${folder}"
+
+[variables.SUPABASE_PUBLIC_URL]
+value = "${url}"
+
+[variables.API_EXTERNAL_URL]
+value = "${url}/auth/v1"
+
+[variables.SITE_URL]
+label = "Site URL"
+group = "Auth"
+value = "${url}"
+description = "Default redirect URL for auth emails"
+editable = true
+type = "url"
+
+# Email: upstream points SMTP at a host that is not part of the stack, so
+# sign-up fails until SMTP is configured. Auto-confirm is on by default.
+[variables.ENABLE_EMAIL_AUTOCONFIRM]
+label = "Auto-confirm emails (no SMTP)"
+group = "Email"
+value = "true"
+description = "On: sign-ups are confirmed without an email, so anyone can register with any address. Turn it off after configuring SMTP below."
+editable = true
+type = "boolean"
+
+[variables.SMTP_HOST]
+label = "SMTP host"
+group = "Email"
+value = ""
+description = "Leave empty without SMTP (password recovery and confirmation emails are not sent)"
+editable = true
+type = "hostname"
+
+[variables.SMTP_PORT]
+label = "SMTP port"
+group = "Email"
+value = "587"
+editable = true
+type = "integer"
+
+[variables.SMTP_USER]
+label = "SMTP username"
+group = "Email"
+value = ""
+editable = true
+
+[variables.SMTP_PASS]
+label = "SMTP password"
+group = "Email"
+value = ""
+secret = true
+editable = true
+
+[variables.SMTP_SENDER_NAME]
+label = "Sender name"
+group = "Email"
+value = "${app_name}"
+editable = true
+
+[variables.SMTP_ADMIN_EMAIL]
+label = "Sender email"
+group = "Email"
+value = "admin@${domain}"
+editable = true
+type = "email"
+
+[variables.STUDIO_DEFAULT_PROJECT]
+value = "${app_name}"
+
+# Edge functions: upstream's main service (volumes/functions/main/index.ts)
+# imports `jsr:@panva/jose@6`, downloaded from the JSR registry (jsr.io) when
+# the functions container starts. Where jsr.io is unreachable (or answers a
+# bot challenge), the container crash-loops. Empty (default) = upstream
+# behaviour. Set: the main service's `jsr:` imports load from this mirror
+# instead, e.g. `https://esm.sh/jsr` (esm.sh serves JSR packages under
+# /jsr/@scope/name@version). The edge runtime's `start` has no import-map
+# option for the main service, so the import specifiers are rewritten (see
+# [[rewrites]] below, one per quote style; a release where neither matches
+# logs a "has no effect" warning). Your own functions keep their own
+# imports (give them a deno.json import map).
+[variables.FUNCTIONS_JSR_MIRROR]
+label = "JSR mirror for edge functions"
+group = "Edge functions"
+value = "https://esm.sh/jsr"
+description = "Mirror the edge functions main service downloads JSR packages from (default https://esm.sh/jsr, because jsr.io often blocks servers). Clear it to download from jsr.io directly. Code from the mirror runs in the edge functions main service with all of the app's secrets, so only use a mirror you trust."
+editable = true
+# The mirror's code runs with every app secret (the main service passes its
+# whole env to functions): setting it is as strong as a shell in the app's
+# containers, so it needs that permission, not only the env editor's.
+permission = "app.terminal"
+pattern = '^(https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~@/-]*)?)?$'
+
+[[rewrites]]
+path = "volumes/functions/main/index.ts"
+find = "'jsr:"
+replace = "'${FUNCTIONS_JSR_MIRROR}/"
+when = "FUNCTIONS_JSR_MIRROR"
+
+[[rewrites]]
+path = "volumes/functions/main/index.ts"
+find = '"jsr:'
+replace = '"${FUNCTIONS_JSR_MIRROR}/'
+when = "FUNCTIONS_JSR_MIRROR"
+
+[failure_hints.jsr_unreachable]
+variable = "FUNCTIONS_JSR_MIRROR"
+
+[[domains]]
+service = "kong"
+port = 8000
+primary = true
+
+# Studio on its own subdomain (studio.<domain>), behind Traefik basic auth
+# with the Studio credentials. Applies to every domain routed to studio.
+[[domains]]
+service = "studio"
+port = 3000
+basic_auth = { username = "DASHBOARD_USERNAME", password = "DASHBOARD_PASSWORD" }
+
+[[links]]
+label = "Open Studio"
+service = "studio"
+primary = true
+
+# Opt-in only (Settings → Published ports): the Supavisor pooler on a host
+# port, for psql/pg_dump from outside. Off by default.
+[[ports]]
+id = "pooler-session"
+service = "supavisor"
+port = 5432
+label = "Postgres pooler (session mode)"
+description = "psql, pg_dump and long-lived connections"
+default_host_port = 5432
+
+[[ports]]
+id = "pooler-transaction"
+service = "supavisor"
+port = 6543
+label = "Postgres pooler (transaction mode)"
+description = "Serverless and short-lived connections"
+default_host_port = 6543
+
+[plugin]
+api_service = "kong"
+api_port = 8000
+studio_service = "studio"
+functions_service = "functions"
+functions_dir = "/home/deno/functions"
+functions_reserved = ["main"]
+db_service = "db"
+db_user = "supabase_admin"
+db_name = "postgres"
+# Supabase-managed schemas: browsable, but not editable from the UI.
+db_readonly_schemas = [
+  "auth", "storage", "realtime", "_realtime", "extensions", "graphql",
+  "graphql_public", "vault", "pgsodium", "pgsodium_masks", "net", "cron",
+  "pgbouncer", "supabase_functions", "supabase_migrations", "_analytics",
+  "_supavisor", "pgtle", "topology", "tiger", "tiger_data",
+]
+anon_key = "ANON_KEY"
+service_key = "SERVICE_ROLE_KEY"
+jwt_secret = "JWT_SECRET"
+# New API keys (preferred when the app has them) and the public JWKS path
+# behind the gateway (Auth's signing keys, without private parts).
+publishable_key = "SUPABASE_PUBLISHABLE_KEY"
+secret_key = "SUPABASE_SECRET_KEY"
+jwks_path = "/auth/v1/.well-known/jwks.json"
+studio_username = "DASHBOARD_USERNAME"
+studio_password = "DASHBOARD_PASSWORD"
+db_password = "POSTGRES_PASSWORD"
+pooler_tenant = "POOLER_TENANT_ID"
+pooler_ports = ["pooler-session", "pooler-transaction"]
+# Cloud sync (import from a hosted project): services stopped while the
+# database loads, the database port variable, the storage S3 protocol
+# (path behind the gateway, region and keys) and the pgsodium/Vault root
+# key file (persisted in the db-config volume).
+sync_writer_services = ["auth", "rest", "realtime", "storage", "functions"]
+db_port_variable = "POSTGRES_PORT"
+storage_s3_path = "/storage/v1/s3"
+storage_region = "REGION"
+storage_s3_key_id = "S3_PROTOCOL_ACCESS_KEY_ID"
+storage_s3_key_secret = "S3_PROTOCOL_ACCESS_KEY_SECRET"
+db_root_key_file = "/etc/postgresql-custom/pgsodium_root.key"
+db_root_key_owner = "postgres"
+# Cloud sync export (the app → an empty hosted project): services stopped on
+# request while the app is copied (storage and functions stay up: the copy
+# reads files through them), the functions runtime's JWT setting and the
+# file names of a function's entrypoint and import map (as the edge runtime
+# and the Supabase CLI look for them).
+sync_export_writer_services = ["auth", "rest", "realtime"]
+functions_verify_jwt = "FUNCTIONS_VERIFY_JWT"
+functions_entrypoints = ["index.ts", "index.js", "index.tsx", "index.jsx", "index.mjs"]
+functions_import_maps = ["deno.json", "deno.jsonc", "import_map.json"]
+
+# Storage file backend (STORAGE_BACKEND=file in upstream's compose). Each
+# object is one file, FILE_STORAGE_BACKEND_PATH (volumes/storage here) +
+# /<GLOBAL_S3_BUCKET>/<TENANT_ID>/<bucket_id>/<name>/<version> (storage-api
+# TenantLocation + withOptionalVersion; `-$v-` instead of `/` when
+# TUS_USE_FILE_VERSION_SEPARATOR=true). The storage API reads its content
+# type and cache control from the file's extended attributes and answers
+# 500 (ENODATA) without them; storage.objects.metadata has the same values
+# (mimetype, cacheControl), so a restore of an archive made before backups
+# kept extended attributes can rebuild them. Defaults = the storage API's.
+[plugin.storage_files]
+service = "storage"
+# Only the file backend keeps metadata in xattrs (read from the storage
+# container's env: upstream sets STORAGE_BACKEND in the compose file).
+backend_variable = "STORAGE_BACKEND"
+backend_value = "file"
+path = "volumes/storage"
+bucket_variable = "GLOBAL_S3_BUCKET"
+tenant_variable = "STORAGE_TENANT_ID"
+version_separators = ["/", "-$v-"]
+content_type_xattr = "user.supabase.content-type"
+cache_control_xattr = "user.supabase.cache-control"
+default_content_type = "application/octet-stream"
+default_cache_control = "no-cache"
+
+[requirements]
+memory_mb = 4096
+disk_mb = 10240
+
+# Every container must also pass its own Docker healthcheck. Kong answers 401
+# at key-auth for any unauthenticated path, which proves the gateway serves.
+[health]
+service = "kong"
+path = "/auth/v1/health"
+port = 8000
+expect = [200, 401]
+timeout_seconds = 900
+
+# The database is dumped online (generic postgres strategy, cluster mode:
+# roles + every database as the superuser), so its data folder is not
+# archived; it is emptied before a restore so Postgres initialises fresh and
+# the dump is loaded into it. Archives made by the former Supabase plugin
+# strategy (same dump) stay restorable through legacy_ids.
+[backup]
+paths = ["volumes/storage", "volumes/functions", "volumes/snippets"]
+volumes = ["db-config"]
+stop = false
+reset = ["volumes/db/data"]
+
+[backup.database]
+type = "postgres"
+service = "db"
+mode = "cluster"
+user = "supabase_admin"
+database = "postgres"
+legacy_ids = ["supabase-pg-dumpall"]

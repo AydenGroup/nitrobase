@@ -2,7 +2,11 @@ import { NavigationProgress, nprogress } from "@mantine/nprogress";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-export function NProgress() {
+/**
+ * Top navigation progress bar driven by router events: starts when a
+ * navigation begins loading and completes when it has loaded.
+ */
+export const NProgress: React.FC = () => {
 	const router = useRouter();
 
 	useEffect(() => {
@@ -23,4 +27,4 @@ export function NProgress() {
 	}, [router]);
 
 	return <NavigationProgress />;
-}
+};

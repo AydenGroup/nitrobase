@@ -1,0 +1,58 @@
+http:
+  routers:
+    app-0123abcd0000-0-http:
+      rule: Host(`app.example.org`)
+      entryPoints:
+        - web
+      middlewares:
+        - app-0123abcd0000-https-redirect
+      service: app-0123abcd0000-0
+    app-0123abcd0000-0:
+      rule: Host(`app.example.org`)
+      entryPoints:
+        - websecure
+      service: app-0123abcd0000-0
+      tls:
+        certResolver: letsencrypt
+    app-0123abcd0000-1-root:
+      rule: Host(`console.app.example.org`) && Path(`/`) && Method(`GET`)
+      entryPoints:
+        - websecure
+      middlewares:
+        - app-0123abcd0000-1-root
+      service: app-0123abcd0000-1
+      tls:
+        certResolver: letsencrypt
+    app-0123abcd0000-1-http:
+      rule: Host(`console.app.example.org`)
+      entryPoints:
+        - web
+      middlewares:
+        - app-0123abcd0000-https-redirect
+      service: app-0123abcd0000-1
+    app-0123abcd0000-1:
+      rule: Host(`console.app.example.org`)
+      entryPoints:
+        - websecure
+      service: app-0123abcd0000-1
+      tls:
+        certResolver: letsencrypt
+  services:
+    app-0123abcd0000-0:
+      loadBalancer:
+        servers:
+          - url: http://rustfs-0123abcd-rustfs:9000
+    app-0123abcd0000-1:
+      loadBalancer:
+        servers:
+          - url: http://rustfs-0123abcd-rustfs:9001
+  middlewares:
+    app-0123abcd0000-https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+    app-0123abcd0000-1-root:
+      redirectRegex:
+        regex: ^(https?://[^/]+)/?$
+        replacement: ${1}/rustfs/console/
+        permanent: false

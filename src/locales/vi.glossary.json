@@ -1,0 +1,52 @@
+{
+	"terms": [
+		{
+			"concept": "server",
+			"use": "máy chủ",
+			"forbidden": ["\\bservers?\\b"],
+			"flags": "i"
+		},
+		{
+			"concept": "app",
+			"use": "ứng dụng",
+			"forbidden": ["\\bapps?\\b"],
+			"flags": "i"
+		},
+		{
+			"concept": "backup (noun) / back up (verb)",
+			"use": "bản sao lưu / sao lưu",
+			"forbidden": ["\\bbackups?\\b", "\\bback up\\b"],
+			"flags": "i"
+		},
+		{
+			"concept": "job",
+			"use": "tác vụ",
+			"forbidden": ["\\bjobs?\\b"],
+			"flags": "i"
+		},
+		{
+			"concept": "domain",
+			"use": "tên miền",
+			"forbidden": ["\\bdomains?\\b"],
+			"flags": "i"
+		},
+		{
+			"concept": "team",
+			"use": "nhóm",
+			"forbidden": ["\\bteams?\\b"],
+			"flags": "i"
+		},
+		{
+			"concept": "deploy",
+			"use": "triển khai",
+			"forbidden": ["\\bdeploy(s|ed|ing)?\\b"],
+			"flags": "i"
+		},
+		{
+			"concept": "dashboard",
+			"use": "bảng điều khiển",
+			"forbidden": ["\\bdashboard\\b"],
+			"flags": "i"
+		}
+	]
+}

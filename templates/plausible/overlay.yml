@@ -1,0 +1,6 @@
+# Deep-merged onto upstream compose.yml (lists replace, null removes).
+services:
+  plausible_db:
+    # Upstream uses the demo password "postgres".
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}

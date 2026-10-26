@@ -9,51 +9,1012 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as Char123LocaleChar125IndexRouteImport } from './routes/{-$locale}/index'
+import { Route as Char123LocaleChar125RouteRouteImport } from './routes/{-$locale}/route'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiInstallDotshRouteImport } from './routes/api/install[.]sh'
+import { Route as Char123LocaleChar125AuthedRouteImport } from './routes/{-$locale}/_authed'
+import { Route as Char123LocaleChar125LoginRouteImport } from './routes/{-$locale}/login'
+import { Route as Char123LocaleChar125RegisterRouteImport } from './routes/{-$locale}/register'
+import { Route as ApiAuditExportRouteImport } from './routes/api/audit/export'
+import { Route as ApiSetupRestoreRouteImport } from './routes/api/setup/restore'
+import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
+import { Route as Char123LocaleChar125AuthedIndexRouteImport } from './routes/{-$locale}/_authed/index'
+import { Route as Char123LocaleChar125InviteTokenRouteImport } from './routes/{-$locale}/invite.$token'
+import { Route as ApiAppsAppIdLogsRouteImport } from './routes/api/apps/$appId.logs'
+import { Route as ApiAppsAppIdMetricsRouteImport } from './routes/api/apps/$appId.metrics'
+import { Route as ApiAvatarsStyleSeedRouteImport } from './routes/api/avatars/$style.$seed'
+import { Route as ApiBackupsBackupIdDownloadRouteImport } from './routes/api/backups/$backupId.download'
+import { Route as ApiDeploymentsDeploymentIdStreamRouteImport } from './routes/api/deployments/$deploymentId.stream'
+import { Route as ApiHooksGitHookIdRouteImport } from './routes/api/hooks/git/$hookId'
+import { Route as ApiServersServerIdMetricsRouteImport } from './routes/api/servers/$serverId.metrics'
+import { Route as ApiTemplatesTemplateIdLogoRouteImport } from './routes/api/templates/$templateId.logo'
+import { Route as Char123LocaleChar125AuthedAppsIndexRouteImport } from './routes/{-$locale}/_authed/apps/index'
+import { Route as Char123LocaleChar125AuthedAppsAppIdRouteImport } from './routes/{-$locale}/_authed/apps/$appId'
+import { Route as Char123LocaleChar125AuthedAppsNewRouteImport } from './routes/{-$locale}/_authed/apps/new'
+import { Route as Char123LocaleChar125AuthedAuditIndexRouteImport } from './routes/{-$locale}/_authed/audit/index'
+import { Route as Char123LocaleChar125AuthedBackupsIndexRouteImport } from './routes/{-$locale}/_authed/backups/index'
+import { Route as Char123LocaleChar125AuthedDatabasesIndexRouteImport } from './routes/{-$locale}/_authed/databases/index'
+import { Route as Char123LocaleChar125AuthedDatabasesDatabaseIdRouteImport } from './routes/{-$locale}/_authed/databases/$databaseId'
+import { Route as Char123LocaleChar125AuthedDatabasesNewRouteImport } from './routes/{-$locale}/_authed/databases/new'
+import { Route as Char123LocaleChar125AuthedDestinationsIndexRouteImport } from './routes/{-$locale}/_authed/destinations/index'
+import { Route as Char123LocaleChar125AuthedDomainsIndexRouteImport } from './routes/{-$locale}/_authed/domains/index'
+import { Route as Char123LocaleChar125AuthedJobsIndexRouteImport } from './routes/{-$locale}/_authed/jobs/index'
+import { Route as Char123LocaleChar125AuthedMarketplaceIndexRouteImport } from './routes/{-$locale}/_authed/marketplace/index'
+import { Route as Char123LocaleChar125AuthedProvidersIndexRouteImport } from './routes/{-$locale}/_authed/providers/index'
+import { Route as Char123LocaleChar125AuthedServersIndexRouteImport } from './routes/{-$locale}/_authed/servers/index'
+import { Route as Char123LocaleChar125AuthedServersServerIdRouteImport } from './routes/{-$locale}/_authed/servers/$serverId'
+import { Route as Char123LocaleChar125AuthedSettingsGithubRouteImport } from './routes/{-$locale}/_authed/settings/github'
+import { Route as Char123LocaleChar125AuthedSettingsInstanceRouteImport } from './routes/{-$locale}/_authed/settings/instance'
+import { Route as Char123LocaleChar125AuthedSettingsProfileRouteImport } from './routes/{-$locale}/_authed/settings/profile'
+import { Route as Char123LocaleChar125AuthedSshKeysIndexRouteImport } from './routes/{-$locale}/_authed/ssh-keys/index'
+import { Route as Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRouteImport } from './routes/{-$locale}/_authed/settings/cloud-connections/index'
+import { Route as Char123LocaleChar125AuthedSettingsNotificationsIndexRouteImport } from './routes/{-$locale}/_authed/settings/notifications/index'
+import { Route as Char123LocaleChar125AuthedSettingsSecurityIndexRouteImport } from './routes/{-$locale}/_authed/settings/security/index'
+import { Route as Char123LocaleChar125AuthedSettingsTeamIndexRouteImport } from './routes/{-$locale}/_authed/settings/team/index'
+import { Route as Char123LocaleChar125AuthedSettingsTokensIndexRouteImport } from './routes/{-$locale}/_authed/settings/tokens/index'
 
-const Char123LocaleChar125IndexRoute =
-  Char123LocaleChar125IndexRouteImport.update({
-    id: '/{-$locale}/',
-    path: '/{-$locale}/',
+const Char123LocaleChar125RouteRoute =
+  Char123LocaleChar125RouteRouteImport.update({
+    id: '/{-$locale}',
+    path: '/{-$locale}',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInstallDotshRoute = ApiInstallDotshRouteImport.update({
+  id: '/api/install.sh',
+  path: '/api/install.sh',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char123LocaleChar125AuthedRoute =
+  Char123LocaleChar125AuthedRouteImport.update({
+    id: '/_authed',
+    getParentRoute: () => Char123LocaleChar125RouteRoute,
+  } as any)
+const Char123LocaleChar125LoginRoute =
+  Char123LocaleChar125LoginRouteImport.update({
+    id: '/login',
+    path: '/login',
+    getParentRoute: () => Char123LocaleChar125RouteRoute,
+  } as any)
+const Char123LocaleChar125RegisterRoute =
+  Char123LocaleChar125RegisterRouteImport.update({
+    id: '/register',
+    path: '/register',
+    getParentRoute: () => Char123LocaleChar125RouteRoute,
+  } as any)
+const ApiAuditExportRoute = ApiAuditExportRouteImport.update({
+  id: '/api/audit/export',
+  path: '/api/audit/export',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSetupRestoreRoute = ApiSetupRestoreRouteImport.update({
+  id: '/api/setup/restore',
+  path: '/api/setup/restore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1SplatRoute = ApiV1SplatRouteImport.update({
+  id: '/api/v1/$',
+  path: '/api/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char123LocaleChar125AuthedIndexRoute =
+  Char123LocaleChar125AuthedIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125InviteTokenRoute =
+  Char123LocaleChar125InviteTokenRouteImport.update({
+    id: '/invite/$token',
+    path: '/invite/$token',
+    getParentRoute: () => Char123LocaleChar125RouteRoute,
+  } as any)
+const ApiAppsAppIdLogsRoute = ApiAppsAppIdLogsRouteImport.update({
+  id: '/api/apps/$appId/logs',
+  path: '/api/apps/$appId/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAppsAppIdMetricsRoute = ApiAppsAppIdMetricsRouteImport.update({
+  id: '/api/apps/$appId/metrics',
+  path: '/api/apps/$appId/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAvatarsStyleSeedRoute = ApiAvatarsStyleSeedRouteImport.update({
+  id: '/api/avatars/$style/$seed',
+  path: '/api/avatars/$style/$seed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackupsBackupIdDownloadRoute =
+  ApiBackupsBackupIdDownloadRouteImport.update({
+    id: '/api/backups/$backupId/download',
+    path: '/api/backups/$backupId/download',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiDeploymentsDeploymentIdStreamRoute =
+  ApiDeploymentsDeploymentIdStreamRouteImport.update({
+    id: '/api/deployments/$deploymentId/stream',
+    path: '/api/deployments/$deploymentId/stream',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiHooksGitHookIdRoute = ApiHooksGitHookIdRouteImport.update({
+  id: '/api/hooks/git/$hookId',
+  path: '/api/hooks/git/$hookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiServersServerIdMetricsRoute =
+  ApiServersServerIdMetricsRouteImport.update({
+    id: '/api/servers/$serverId/metrics',
+    path: '/api/servers/$serverId/metrics',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiTemplatesTemplateIdLogoRoute =
+  ApiTemplatesTemplateIdLogoRouteImport.update({
+    id: '/api/templates/$templateId/logo',
+    path: '/api/templates/$templateId/logo',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char123LocaleChar125AuthedAppsIndexRoute =
+  Char123LocaleChar125AuthedAppsIndexRouteImport.update({
+    id: '/apps/',
+    path: '/apps/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedAppsAppIdRoute =
+  Char123LocaleChar125AuthedAppsAppIdRouteImport.update({
+    id: '/apps/$appId',
+    path: '/apps/$appId',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedAppsNewRoute =
+  Char123LocaleChar125AuthedAppsNewRouteImport.update({
+    id: '/apps/new',
+    path: '/apps/new',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedAuditIndexRoute =
+  Char123LocaleChar125AuthedAuditIndexRouteImport.update({
+    id: '/audit/',
+    path: '/audit/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedBackupsIndexRoute =
+  Char123LocaleChar125AuthedBackupsIndexRouteImport.update({
+    id: '/backups/',
+    path: '/backups/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedDatabasesIndexRoute =
+  Char123LocaleChar125AuthedDatabasesIndexRouteImport.update({
+    id: '/databases/',
+    path: '/databases/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedDatabasesDatabaseIdRoute =
+  Char123LocaleChar125AuthedDatabasesDatabaseIdRouteImport.update({
+    id: '/databases/$databaseId',
+    path: '/databases/$databaseId',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedDatabasesNewRoute =
+  Char123LocaleChar125AuthedDatabasesNewRouteImport.update({
+    id: '/databases/new',
+    path: '/databases/new',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedDestinationsIndexRoute =
+  Char123LocaleChar125AuthedDestinationsIndexRouteImport.update({
+    id: '/destinations/',
+    path: '/destinations/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedDomainsIndexRoute =
+  Char123LocaleChar125AuthedDomainsIndexRouteImport.update({
+    id: '/domains/',
+    path: '/domains/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedJobsIndexRoute =
+  Char123LocaleChar125AuthedJobsIndexRouteImport.update({
+    id: '/jobs/',
+    path: '/jobs/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedMarketplaceIndexRoute =
+  Char123LocaleChar125AuthedMarketplaceIndexRouteImport.update({
+    id: '/marketplace/',
+    path: '/marketplace/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedProvidersIndexRoute =
+  Char123LocaleChar125AuthedProvidersIndexRouteImport.update({
+    id: '/providers/',
+    path: '/providers/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedServersIndexRoute =
+  Char123LocaleChar125AuthedServersIndexRouteImport.update({
+    id: '/servers/',
+    path: '/servers/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedServersServerIdRoute =
+  Char123LocaleChar125AuthedServersServerIdRouteImport.update({
+    id: '/servers/$serverId',
+    path: '/servers/$serverId',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsGithubRoute =
+  Char123LocaleChar125AuthedSettingsGithubRouteImport.update({
+    id: '/settings/github',
+    path: '/settings/github',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsInstanceRoute =
+  Char123LocaleChar125AuthedSettingsInstanceRouteImport.update({
+    id: '/settings/instance',
+    path: '/settings/instance',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsProfileRoute =
+  Char123LocaleChar125AuthedSettingsProfileRouteImport.update({
+    id: '/settings/profile',
+    path: '/settings/profile',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSshKeysIndexRoute =
+  Char123LocaleChar125AuthedSshKeysIndexRouteImport.update({
+    id: '/ssh-keys/',
+    path: '/ssh-keys/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute =
+  Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRouteImport.update({
+    id: '/settings/cloud-connections/',
+    path: '/settings/cloud-connections/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsNotificationsIndexRoute =
+  Char123LocaleChar125AuthedSettingsNotificationsIndexRouteImport.update({
+    id: '/settings/notifications/',
+    path: '/settings/notifications/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsSecurityIndexRoute =
+  Char123LocaleChar125AuthedSettingsSecurityIndexRouteImport.update({
+    id: '/settings/security/',
+    path: '/settings/security/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsTeamIndexRoute =
+  Char123LocaleChar125AuthedSettingsTeamIndexRouteImport.update({
+    id: '/settings/team/',
+    path: '/settings/team/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
+  } as any)
+const Char123LocaleChar125AuthedSettingsTokensIndexRoute =
+  Char123LocaleChar125AuthedSettingsTokensIndexRouteImport.update({
+    id: '/settings/tokens/',
+    path: '/settings/tokens/',
+    getParentRoute: () => Char123LocaleChar125AuthedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/{-$locale}/': typeof Char123LocaleChar125IndexRoute
+  '/{-$locale}': typeof Char123LocaleChar125RouteRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
+  '/api/install.sh': typeof ApiInstallDotshRoute
+  '/{-$locale}/login': typeof Char123LocaleChar125LoginRoute
+  '/{-$locale}/register': typeof Char123LocaleChar125RegisterRoute
+  '/api/audit/export': typeof ApiAuditExportRoute
+  '/api/setup/restore': typeof ApiSetupRestoreRoute
+  '/api/v1/$': typeof ApiV1SplatRoute
+  '/{-$locale}/invite/$token': typeof Char123LocaleChar125InviteTokenRoute
+  '/{-$locale}/': typeof Char123LocaleChar125AuthedIndexRoute
+  '/api/apps/$appId/logs': typeof ApiAppsAppIdLogsRoute
+  '/api/apps/$appId/metrics': typeof ApiAppsAppIdMetricsRoute
+  '/api/avatars/$style/$seed': typeof ApiAvatarsStyleSeedRoute
+  '/api/backups/$backupId/download': typeof ApiBackupsBackupIdDownloadRoute
+  '/api/deployments/$deploymentId/stream': typeof ApiDeploymentsDeploymentIdStreamRoute
+  '/api/hooks/git/$hookId': typeof ApiHooksGitHookIdRoute
+  '/api/servers/$serverId/metrics': typeof ApiServersServerIdMetricsRoute
+  '/api/templates/$templateId/logo': typeof ApiTemplatesTemplateIdLogoRoute
+  '/{-$locale}/apps/$appId': typeof Char123LocaleChar125AuthedAppsAppIdRoute
+  '/{-$locale}/apps/new': typeof Char123LocaleChar125AuthedAppsNewRoute
+  '/{-$locale}/databases/$databaseId': typeof Char123LocaleChar125AuthedDatabasesDatabaseIdRoute
+  '/{-$locale}/databases/new': typeof Char123LocaleChar125AuthedDatabasesNewRoute
+  '/{-$locale}/servers/$serverId': typeof Char123LocaleChar125AuthedServersServerIdRoute
+  '/{-$locale}/settings/github': typeof Char123LocaleChar125AuthedSettingsGithubRoute
+  '/{-$locale}/settings/instance': typeof Char123LocaleChar125AuthedSettingsInstanceRoute
+  '/{-$locale}/settings/profile': typeof Char123LocaleChar125AuthedSettingsProfileRoute
+  '/{-$locale}/apps/': typeof Char123LocaleChar125AuthedAppsIndexRoute
+  '/{-$locale}/audit/': typeof Char123LocaleChar125AuthedAuditIndexRoute
+  '/{-$locale}/backups/': typeof Char123LocaleChar125AuthedBackupsIndexRoute
+  '/{-$locale}/databases/': typeof Char123LocaleChar125AuthedDatabasesIndexRoute
+  '/{-$locale}/destinations/': typeof Char123LocaleChar125AuthedDestinationsIndexRoute
+  '/{-$locale}/domains/': typeof Char123LocaleChar125AuthedDomainsIndexRoute
+  '/{-$locale}/jobs/': typeof Char123LocaleChar125AuthedJobsIndexRoute
+  '/{-$locale}/marketplace/': typeof Char123LocaleChar125AuthedMarketplaceIndexRoute
+  '/{-$locale}/providers/': typeof Char123LocaleChar125AuthedProvidersIndexRoute
+  '/{-$locale}/servers/': typeof Char123LocaleChar125AuthedServersIndexRoute
+  '/{-$locale}/ssh-keys/': typeof Char123LocaleChar125AuthedSshKeysIndexRoute
+  '/{-$locale}/settings/cloud-connections/': typeof Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute
+  '/{-$locale}/settings/notifications/': typeof Char123LocaleChar125AuthedSettingsNotificationsIndexRoute
+  '/{-$locale}/settings/security/': typeof Char123LocaleChar125AuthedSettingsSecurityIndexRoute
+  '/{-$locale}/settings/team/': typeof Char123LocaleChar125AuthedSettingsTeamIndexRoute
+  '/{-$locale}/settings/tokens/': typeof Char123LocaleChar125AuthedSettingsTokensIndexRoute
 }
 export interface FileRoutesByTo {
-  '/{-$locale}': typeof Char123LocaleChar125IndexRoute
+  '/{-$locale}': typeof Char123LocaleChar125AuthedIndexRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/install.sh': typeof ApiInstallDotshRoute
+  '/{-$locale}/login': typeof Char123LocaleChar125LoginRoute
+  '/{-$locale}/register': typeof Char123LocaleChar125RegisterRoute
+  '/api/audit/export': typeof ApiAuditExportRoute
+  '/api/setup/restore': typeof ApiSetupRestoreRoute
+  '/api/v1/$': typeof ApiV1SplatRoute
+  '/{-$locale}/invite/$token': typeof Char123LocaleChar125InviteTokenRoute
+  '/api/apps/$appId/logs': typeof ApiAppsAppIdLogsRoute
+  '/api/apps/$appId/metrics': typeof ApiAppsAppIdMetricsRoute
+  '/api/avatars/$style/$seed': typeof ApiAvatarsStyleSeedRoute
+  '/api/backups/$backupId/download': typeof ApiBackupsBackupIdDownloadRoute
+  '/api/deployments/$deploymentId/stream': typeof ApiDeploymentsDeploymentIdStreamRoute
+  '/api/hooks/git/$hookId': typeof ApiHooksGitHookIdRoute
+  '/api/servers/$serverId/metrics': typeof ApiServersServerIdMetricsRoute
+  '/api/templates/$templateId/logo': typeof ApiTemplatesTemplateIdLogoRoute
+  '/{-$locale}/apps/$appId': typeof Char123LocaleChar125AuthedAppsAppIdRoute
+  '/{-$locale}/apps/new': typeof Char123LocaleChar125AuthedAppsNewRoute
+  '/{-$locale}/databases/$databaseId': typeof Char123LocaleChar125AuthedDatabasesDatabaseIdRoute
+  '/{-$locale}/databases/new': typeof Char123LocaleChar125AuthedDatabasesNewRoute
+  '/{-$locale}/servers/$serverId': typeof Char123LocaleChar125AuthedServersServerIdRoute
+  '/{-$locale}/settings/github': typeof Char123LocaleChar125AuthedSettingsGithubRoute
+  '/{-$locale}/settings/instance': typeof Char123LocaleChar125AuthedSettingsInstanceRoute
+  '/{-$locale}/settings/profile': typeof Char123LocaleChar125AuthedSettingsProfileRoute
+  '/{-$locale}/apps': typeof Char123LocaleChar125AuthedAppsIndexRoute
+  '/{-$locale}/audit': typeof Char123LocaleChar125AuthedAuditIndexRoute
+  '/{-$locale}/backups': typeof Char123LocaleChar125AuthedBackupsIndexRoute
+  '/{-$locale}/databases': typeof Char123LocaleChar125AuthedDatabasesIndexRoute
+  '/{-$locale}/destinations': typeof Char123LocaleChar125AuthedDestinationsIndexRoute
+  '/{-$locale}/domains': typeof Char123LocaleChar125AuthedDomainsIndexRoute
+  '/{-$locale}/jobs': typeof Char123LocaleChar125AuthedJobsIndexRoute
+  '/{-$locale}/marketplace': typeof Char123LocaleChar125AuthedMarketplaceIndexRoute
+  '/{-$locale}/providers': typeof Char123LocaleChar125AuthedProvidersIndexRoute
+  '/{-$locale}/servers': typeof Char123LocaleChar125AuthedServersIndexRoute
+  '/{-$locale}/ssh-keys': typeof Char123LocaleChar125AuthedSshKeysIndexRoute
+  '/{-$locale}/settings/cloud-connections': typeof Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute
+  '/{-$locale}/settings/notifications': typeof Char123LocaleChar125AuthedSettingsNotificationsIndexRoute
+  '/{-$locale}/settings/security': typeof Char123LocaleChar125AuthedSettingsSecurityIndexRoute
+  '/{-$locale}/settings/team': typeof Char123LocaleChar125AuthedSettingsTeamIndexRoute
+  '/{-$locale}/settings/tokens': typeof Char123LocaleChar125AuthedSettingsTokensIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/{-$locale}/': typeof Char123LocaleChar125IndexRoute
+  '/{-$locale}': typeof Char123LocaleChar125RouteRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
+  '/api/install.sh': typeof ApiInstallDotshRoute
+  '/{-$locale}/_authed': typeof Char123LocaleChar125AuthedRouteWithChildren
+  '/{-$locale}/login': typeof Char123LocaleChar125LoginRoute
+  '/{-$locale}/register': typeof Char123LocaleChar125RegisterRoute
+  '/api/audit/export': typeof ApiAuditExportRoute
+  '/api/setup/restore': typeof ApiSetupRestoreRoute
+  '/api/v1/$': typeof ApiV1SplatRoute
+  '/{-$locale}/invite/$token': typeof Char123LocaleChar125InviteTokenRoute
+  '/{-$locale}/_authed/': typeof Char123LocaleChar125AuthedIndexRoute
+  '/api/apps/$appId/logs': typeof ApiAppsAppIdLogsRoute
+  '/api/apps/$appId/metrics': typeof ApiAppsAppIdMetricsRoute
+  '/api/avatars/$style/$seed': typeof ApiAvatarsStyleSeedRoute
+  '/api/backups/$backupId/download': typeof ApiBackupsBackupIdDownloadRoute
+  '/api/deployments/$deploymentId/stream': typeof ApiDeploymentsDeploymentIdStreamRoute
+  '/api/hooks/git/$hookId': typeof ApiHooksGitHookIdRoute
+  '/api/servers/$serverId/metrics': typeof ApiServersServerIdMetricsRoute
+  '/api/templates/$templateId/logo': typeof ApiTemplatesTemplateIdLogoRoute
+  '/{-$locale}/_authed/apps/$appId': typeof Char123LocaleChar125AuthedAppsAppIdRoute
+  '/{-$locale}/_authed/apps/new': typeof Char123LocaleChar125AuthedAppsNewRoute
+  '/{-$locale}/_authed/databases/$databaseId': typeof Char123LocaleChar125AuthedDatabasesDatabaseIdRoute
+  '/{-$locale}/_authed/databases/new': typeof Char123LocaleChar125AuthedDatabasesNewRoute
+  '/{-$locale}/_authed/servers/$serverId': typeof Char123LocaleChar125AuthedServersServerIdRoute
+  '/{-$locale}/_authed/settings/github': typeof Char123LocaleChar125AuthedSettingsGithubRoute
+  '/{-$locale}/_authed/settings/instance': typeof Char123LocaleChar125AuthedSettingsInstanceRoute
+  '/{-$locale}/_authed/settings/profile': typeof Char123LocaleChar125AuthedSettingsProfileRoute
+  '/{-$locale}/_authed/apps/': typeof Char123LocaleChar125AuthedAppsIndexRoute
+  '/{-$locale}/_authed/audit/': typeof Char123LocaleChar125AuthedAuditIndexRoute
+  '/{-$locale}/_authed/backups/': typeof Char123LocaleChar125AuthedBackupsIndexRoute
+  '/{-$locale}/_authed/databases/': typeof Char123LocaleChar125AuthedDatabasesIndexRoute
+  '/{-$locale}/_authed/destinations/': typeof Char123LocaleChar125AuthedDestinationsIndexRoute
+  '/{-$locale}/_authed/domains/': typeof Char123LocaleChar125AuthedDomainsIndexRoute
+  '/{-$locale}/_authed/jobs/': typeof Char123LocaleChar125AuthedJobsIndexRoute
+  '/{-$locale}/_authed/marketplace/': typeof Char123LocaleChar125AuthedMarketplaceIndexRoute
+  '/{-$locale}/_authed/providers/': typeof Char123LocaleChar125AuthedProvidersIndexRoute
+  '/{-$locale}/_authed/servers/': typeof Char123LocaleChar125AuthedServersIndexRoute
+  '/{-$locale}/_authed/ssh-keys/': typeof Char123LocaleChar125AuthedSshKeysIndexRoute
+  '/{-$locale}/_authed/settings/cloud-connections/': typeof Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute
+  '/{-$locale}/_authed/settings/notifications/': typeof Char123LocaleChar125AuthedSettingsNotificationsIndexRoute
+  '/{-$locale}/_authed/settings/security/': typeof Char123LocaleChar125AuthedSettingsSecurityIndexRoute
+  '/{-$locale}/_authed/settings/team/': typeof Char123LocaleChar125AuthedSettingsTeamIndexRoute
+  '/{-$locale}/_authed/settings/tokens/': typeof Char123LocaleChar125AuthedSettingsTokensIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/{-$locale}/'
+  fullPaths:
+    | '/{-$locale}'
+    | '/api/health'
+    | '/api/install.sh'
+    | '/{-$locale}/login'
+    | '/{-$locale}/register'
+    | '/api/audit/export'
+    | '/api/setup/restore'
+    | '/api/v1/$'
+    | '/{-$locale}/invite/$token'
+    | '/{-$locale}/'
+    | '/api/apps/$appId/logs'
+    | '/api/apps/$appId/metrics'
+    | '/api/avatars/$style/$seed'
+    | '/api/backups/$backupId/download'
+    | '/api/deployments/$deploymentId/stream'
+    | '/api/hooks/git/$hookId'
+    | '/api/servers/$serverId/metrics'
+    | '/api/templates/$templateId/logo'
+    | '/{-$locale}/apps/$appId'
+    | '/{-$locale}/apps/new'
+    | '/{-$locale}/databases/$databaseId'
+    | '/{-$locale}/databases/new'
+    | '/{-$locale}/servers/$serverId'
+    | '/{-$locale}/settings/github'
+    | '/{-$locale}/settings/instance'
+    | '/{-$locale}/settings/profile'
+    | '/{-$locale}/apps/'
+    | '/{-$locale}/audit/'
+    | '/{-$locale}/backups/'
+    | '/{-$locale}/databases/'
+    | '/{-$locale}/destinations/'
+    | '/{-$locale}/domains/'
+    | '/{-$locale}/jobs/'
+    | '/{-$locale}/marketplace/'
+    | '/{-$locale}/providers/'
+    | '/{-$locale}/servers/'
+    | '/{-$locale}/ssh-keys/'
+    | '/{-$locale}/settings/cloud-connections/'
+    | '/{-$locale}/settings/notifications/'
+    | '/{-$locale}/settings/security/'
+    | '/{-$locale}/settings/team/'
+    | '/{-$locale}/settings/tokens/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/{-$locale}'
-  id: '__root__' | '/{-$locale}/'
+  to:
+    | '/{-$locale}'
+    | '/api/health'
+    | '/api/install.sh'
+    | '/{-$locale}/login'
+    | '/{-$locale}/register'
+    | '/api/audit/export'
+    | '/api/setup/restore'
+    | '/api/v1/$'
+    | '/{-$locale}/invite/$token'
+    | '/api/apps/$appId/logs'
+    | '/api/apps/$appId/metrics'
+    | '/api/avatars/$style/$seed'
+    | '/api/backups/$backupId/download'
+    | '/api/deployments/$deploymentId/stream'
+    | '/api/hooks/git/$hookId'
+    | '/api/servers/$serverId/metrics'
+    | '/api/templates/$templateId/logo'
+    | '/{-$locale}/apps/$appId'
+    | '/{-$locale}/apps/new'
+    | '/{-$locale}/databases/$databaseId'
+    | '/{-$locale}/databases/new'
+    | '/{-$locale}/servers/$serverId'
+    | '/{-$locale}/settings/github'
+    | '/{-$locale}/settings/instance'
+    | '/{-$locale}/settings/profile'
+    | '/{-$locale}/apps'
+    | '/{-$locale}/audit'
+    | '/{-$locale}/backups'
+    | '/{-$locale}/databases'
+    | '/{-$locale}/destinations'
+    | '/{-$locale}/domains'
+    | '/{-$locale}/jobs'
+    | '/{-$locale}/marketplace'
+    | '/{-$locale}/providers'
+    | '/{-$locale}/servers'
+    | '/{-$locale}/ssh-keys'
+    | '/{-$locale}/settings/cloud-connections'
+    | '/{-$locale}/settings/notifications'
+    | '/{-$locale}/settings/security'
+    | '/{-$locale}/settings/team'
+    | '/{-$locale}/settings/tokens'
+  id:
+    | '__root__'
+    | '/{-$locale}'
+    | '/api/health'
+    | '/api/install.sh'
+    | '/{-$locale}/_authed'
+    | '/{-$locale}/login'
+    | '/{-$locale}/register'
+    | '/api/audit/export'
+    | '/api/setup/restore'
+    | '/api/v1/$'
+    | '/{-$locale}/invite/$token'
+    | '/{-$locale}/_authed/'
+    | '/api/apps/$appId/logs'
+    | '/api/apps/$appId/metrics'
+    | '/api/avatars/$style/$seed'
+    | '/api/backups/$backupId/download'
+    | '/api/deployments/$deploymentId/stream'
+    | '/api/hooks/git/$hookId'
+    | '/api/servers/$serverId/metrics'
+    | '/api/templates/$templateId/logo'
+    | '/{-$locale}/_authed/apps/$appId'
+    | '/{-$locale}/_authed/apps/new'
+    | '/{-$locale}/_authed/databases/$databaseId'
+    | '/{-$locale}/_authed/databases/new'
+    | '/{-$locale}/_authed/servers/$serverId'
+    | '/{-$locale}/_authed/settings/github'
+    | '/{-$locale}/_authed/settings/instance'
+    | '/{-$locale}/_authed/settings/profile'
+    | '/{-$locale}/_authed/apps/'
+    | '/{-$locale}/_authed/audit/'
+    | '/{-$locale}/_authed/backups/'
+    | '/{-$locale}/_authed/databases/'
+    | '/{-$locale}/_authed/destinations/'
+    | '/{-$locale}/_authed/domains/'
+    | '/{-$locale}/_authed/jobs/'
+    | '/{-$locale}/_authed/marketplace/'
+    | '/{-$locale}/_authed/providers/'
+    | '/{-$locale}/_authed/servers/'
+    | '/{-$locale}/_authed/ssh-keys/'
+    | '/{-$locale}/_authed/settings/cloud-connections/'
+    | '/{-$locale}/_authed/settings/notifications/'
+    | '/{-$locale}/_authed/settings/security/'
+    | '/{-$locale}/_authed/settings/team/'
+    | '/{-$locale}/_authed/settings/tokens/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  Char123LocaleChar125IndexRoute: typeof Char123LocaleChar125IndexRoute
+  Char123LocaleChar125RouteRoute: typeof Char123LocaleChar125RouteRouteWithChildren
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiInstallDotshRoute: typeof ApiInstallDotshRoute
+  ApiAuditExportRoute: typeof ApiAuditExportRoute
+  ApiSetupRestoreRoute: typeof ApiSetupRestoreRoute
+  ApiV1SplatRoute: typeof ApiV1SplatRoute
+  ApiAppsAppIdLogsRoute: typeof ApiAppsAppIdLogsRoute
+  ApiAppsAppIdMetricsRoute: typeof ApiAppsAppIdMetricsRoute
+  ApiAvatarsStyleSeedRoute: typeof ApiAvatarsStyleSeedRoute
+  ApiBackupsBackupIdDownloadRoute: typeof ApiBackupsBackupIdDownloadRoute
+  ApiDeploymentsDeploymentIdStreamRoute: typeof ApiDeploymentsDeploymentIdStreamRoute
+  ApiHooksGitHookIdRoute: typeof ApiHooksGitHookIdRoute
+  ApiServersServerIdMetricsRoute: typeof ApiServersServerIdMetricsRoute
+  ApiTemplatesTemplateIdLogoRoute: typeof ApiTemplatesTemplateIdLogoRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/{-$locale}/': {
-      id: '/{-$locale}/'
+    '/{-$locale}': {
+      id: '/{-$locale}'
       path: '/{-$locale}'
-      fullPath: '/{-$locale}/'
-      preLoaderRoute: typeof Char123LocaleChar125IndexRouteImport
+      fullPath: '/{-$locale}'
+      preLoaderRoute: typeof Char123LocaleChar125RouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/install.sh': {
+      id: '/api/install.sh'
+      path: '/api/install.sh'
+      fullPath: '/api/install.sh'
+      preLoaderRoute: typeof ApiInstallDotshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/{-$locale}/_authed': {
+      id: '/{-$locale}/_authed'
+      path: ''
+      fullPath: '/{-$locale}'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedRouteImport
+      parentRoute: typeof Char123LocaleChar125RouteRoute
+    }
+    '/{-$locale}/login': {
+      id: '/{-$locale}/login'
+      path: '/login'
+      fullPath: '/{-$locale}/login'
+      preLoaderRoute: typeof Char123LocaleChar125LoginRouteImport
+      parentRoute: typeof Char123LocaleChar125RouteRoute
+    }
+    '/{-$locale}/register': {
+      id: '/{-$locale}/register'
+      path: '/register'
+      fullPath: '/{-$locale}/register'
+      preLoaderRoute: typeof Char123LocaleChar125RegisterRouteImport
+      parentRoute: typeof Char123LocaleChar125RouteRoute
+    }
+    '/api/audit/export': {
+      id: '/api/audit/export'
+      path: '/api/audit/export'
+      fullPath: '/api/audit/export'
+      preLoaderRoute: typeof ApiAuditExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/setup/restore': {
+      id: '/api/setup/restore'
+      path: '/api/setup/restore'
+      fullPath: '/api/setup/restore'
+      preLoaderRoute: typeof ApiSetupRestoreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/$': {
+      id: '/api/v1/$'
+      path: '/api/v1/$'
+      fullPath: '/api/v1/$'
+      preLoaderRoute: typeof ApiV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/{-$locale}/_authed/': {
+      id: '/{-$locale}/_authed/'
+      path: '/'
+      fullPath: '/{-$locale}/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/invite/$token': {
+      id: '/{-$locale}/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/{-$locale}/invite/$token'
+      preLoaderRoute: typeof Char123LocaleChar125InviteTokenRouteImport
+      parentRoute: typeof Char123LocaleChar125RouteRoute
+    }
+    '/api/apps/$appId/logs': {
+      id: '/api/apps/$appId/logs'
+      path: '/api/apps/$appId/logs'
+      fullPath: '/api/apps/$appId/logs'
+      preLoaderRoute: typeof ApiAppsAppIdLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/apps/$appId/metrics': {
+      id: '/api/apps/$appId/metrics'
+      path: '/api/apps/$appId/metrics'
+      fullPath: '/api/apps/$appId/metrics'
+      preLoaderRoute: typeof ApiAppsAppIdMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/avatars/$style/$seed': {
+      id: '/api/avatars/$style/$seed'
+      path: '/api/avatars/$style/$seed'
+      fullPath: '/api/avatars/$style/$seed'
+      preLoaderRoute: typeof ApiAvatarsStyleSeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/backups/$backupId/download': {
+      id: '/api/backups/$backupId/download'
+      path: '/api/backups/$backupId/download'
+      fullPath: '/api/backups/$backupId/download'
+      preLoaderRoute: typeof ApiBackupsBackupIdDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/deployments/$deploymentId/stream': {
+      id: '/api/deployments/$deploymentId/stream'
+      path: '/api/deployments/$deploymentId/stream'
+      fullPath: '/api/deployments/$deploymentId/stream'
+      preLoaderRoute: typeof ApiDeploymentsDeploymentIdStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/hooks/git/$hookId': {
+      id: '/api/hooks/git/$hookId'
+      path: '/api/hooks/git/$hookId'
+      fullPath: '/api/hooks/git/$hookId'
+      preLoaderRoute: typeof ApiHooksGitHookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/servers/$serverId/metrics': {
+      id: '/api/servers/$serverId/metrics'
+      path: '/api/servers/$serverId/metrics'
+      fullPath: '/api/servers/$serverId/metrics'
+      preLoaderRoute: typeof ApiServersServerIdMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/templates/$templateId/logo': {
+      id: '/api/templates/$templateId/logo'
+      path: '/api/templates/$templateId/logo'
+      fullPath: '/api/templates/$templateId/logo'
+      preLoaderRoute: typeof ApiTemplatesTemplateIdLogoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/{-$locale}/_authed/apps/': {
+      id: '/{-$locale}/_authed/apps/'
+      path: '/apps'
+      fullPath: '/{-$locale}/apps/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedAppsIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/apps/$appId': {
+      id: '/{-$locale}/_authed/apps/$appId'
+      path: '/apps/$appId'
+      fullPath: '/{-$locale}/apps/$appId'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedAppsAppIdRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/apps/new': {
+      id: '/{-$locale}/_authed/apps/new'
+      path: '/apps/new'
+      fullPath: '/{-$locale}/apps/new'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedAppsNewRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/audit/': {
+      id: '/{-$locale}/_authed/audit/'
+      path: '/audit'
+      fullPath: '/{-$locale}/audit/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedAuditIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/backups/': {
+      id: '/{-$locale}/_authed/backups/'
+      path: '/backups'
+      fullPath: '/{-$locale}/backups/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedBackupsIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/databases/': {
+      id: '/{-$locale}/_authed/databases/'
+      path: '/databases'
+      fullPath: '/{-$locale}/databases/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedDatabasesIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/databases/$databaseId': {
+      id: '/{-$locale}/_authed/databases/$databaseId'
+      path: '/databases/$databaseId'
+      fullPath: '/{-$locale}/databases/$databaseId'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedDatabasesDatabaseIdRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/databases/new': {
+      id: '/{-$locale}/_authed/databases/new'
+      path: '/databases/new'
+      fullPath: '/{-$locale}/databases/new'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedDatabasesNewRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/destinations/': {
+      id: '/{-$locale}/_authed/destinations/'
+      path: '/destinations'
+      fullPath: '/{-$locale}/destinations/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedDestinationsIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/domains/': {
+      id: '/{-$locale}/_authed/domains/'
+      path: '/domains'
+      fullPath: '/{-$locale}/domains/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedDomainsIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/jobs/': {
+      id: '/{-$locale}/_authed/jobs/'
+      path: '/jobs'
+      fullPath: '/{-$locale}/jobs/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedJobsIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/marketplace/': {
+      id: '/{-$locale}/_authed/marketplace/'
+      path: '/marketplace'
+      fullPath: '/{-$locale}/marketplace/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedMarketplaceIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/providers/': {
+      id: '/{-$locale}/_authed/providers/'
+      path: '/providers'
+      fullPath: '/{-$locale}/providers/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedProvidersIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/servers/': {
+      id: '/{-$locale}/_authed/servers/'
+      path: '/servers'
+      fullPath: '/{-$locale}/servers/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedServersIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/servers/$serverId': {
+      id: '/{-$locale}/_authed/servers/$serverId'
+      path: '/servers/$serverId'
+      fullPath: '/{-$locale}/servers/$serverId'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedServersServerIdRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/github': {
+      id: '/{-$locale}/_authed/settings/github'
+      path: '/settings/github'
+      fullPath: '/{-$locale}/settings/github'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsGithubRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/instance': {
+      id: '/{-$locale}/_authed/settings/instance'
+      path: '/settings/instance'
+      fullPath: '/{-$locale}/settings/instance'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsInstanceRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/profile': {
+      id: '/{-$locale}/_authed/settings/profile'
+      path: '/settings/profile'
+      fullPath: '/{-$locale}/settings/profile'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsProfileRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/ssh-keys/': {
+      id: '/{-$locale}/_authed/ssh-keys/'
+      path: '/ssh-keys'
+      fullPath: '/{-$locale}/ssh-keys/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSshKeysIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/cloud-connections/': {
+      id: '/{-$locale}/_authed/settings/cloud-connections/'
+      path: '/settings/cloud-connections'
+      fullPath: '/{-$locale}/settings/cloud-connections/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/notifications/': {
+      id: '/{-$locale}/_authed/settings/notifications/'
+      path: '/settings/notifications'
+      fullPath: '/{-$locale}/settings/notifications/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsNotificationsIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/security/': {
+      id: '/{-$locale}/_authed/settings/security/'
+      path: '/settings/security'
+      fullPath: '/{-$locale}/settings/security/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsSecurityIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/team/': {
+      id: '/{-$locale}/_authed/settings/team/'
+      path: '/settings/team'
+      fullPath: '/{-$locale}/settings/team/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsTeamIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
+    }
+    '/{-$locale}/_authed/settings/tokens/': {
+      id: '/{-$locale}/_authed/settings/tokens/'
+      path: '/settings/tokens'
+      fullPath: '/{-$locale}/settings/tokens/'
+      preLoaderRoute: typeof Char123LocaleChar125AuthedSettingsTokensIndexRouteImport
+      parentRoute: typeof Char123LocaleChar125AuthedRoute
     }
   }
 }
 
+interface Char123LocaleChar125AuthedRouteChildren {
+  Char123LocaleChar125AuthedIndexRoute: typeof Char123LocaleChar125AuthedIndexRoute
+  Char123LocaleChar125AuthedAppsAppIdRoute: typeof Char123LocaleChar125AuthedAppsAppIdRoute
+  Char123LocaleChar125AuthedAppsNewRoute: typeof Char123LocaleChar125AuthedAppsNewRoute
+  Char123LocaleChar125AuthedDatabasesDatabaseIdRoute: typeof Char123LocaleChar125AuthedDatabasesDatabaseIdRoute
+  Char123LocaleChar125AuthedDatabasesNewRoute: typeof Char123LocaleChar125AuthedDatabasesNewRoute
+  Char123LocaleChar125AuthedServersServerIdRoute: typeof Char123LocaleChar125AuthedServersServerIdRoute
+  Char123LocaleChar125AuthedSettingsGithubRoute: typeof Char123LocaleChar125AuthedSettingsGithubRoute
+  Char123LocaleChar125AuthedSettingsInstanceRoute: typeof Char123LocaleChar125AuthedSettingsInstanceRoute
+  Char123LocaleChar125AuthedSettingsProfileRoute: typeof Char123LocaleChar125AuthedSettingsProfileRoute
+  Char123LocaleChar125AuthedAppsIndexRoute: typeof Char123LocaleChar125AuthedAppsIndexRoute
+  Char123LocaleChar125AuthedAuditIndexRoute: typeof Char123LocaleChar125AuthedAuditIndexRoute
+  Char123LocaleChar125AuthedBackupsIndexRoute: typeof Char123LocaleChar125AuthedBackupsIndexRoute
+  Char123LocaleChar125AuthedDatabasesIndexRoute: typeof Char123LocaleChar125AuthedDatabasesIndexRoute
+  Char123LocaleChar125AuthedDestinationsIndexRoute: typeof Char123LocaleChar125AuthedDestinationsIndexRoute
+  Char123LocaleChar125AuthedDomainsIndexRoute: typeof Char123LocaleChar125AuthedDomainsIndexRoute
+  Char123LocaleChar125AuthedJobsIndexRoute: typeof Char123LocaleChar125AuthedJobsIndexRoute
+  Char123LocaleChar125AuthedMarketplaceIndexRoute: typeof Char123LocaleChar125AuthedMarketplaceIndexRoute
+  Char123LocaleChar125AuthedProvidersIndexRoute: typeof Char123LocaleChar125AuthedProvidersIndexRoute
+  Char123LocaleChar125AuthedServersIndexRoute: typeof Char123LocaleChar125AuthedServersIndexRoute
+  Char123LocaleChar125AuthedSshKeysIndexRoute: typeof Char123LocaleChar125AuthedSshKeysIndexRoute
+  Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute: typeof Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute
+  Char123LocaleChar125AuthedSettingsNotificationsIndexRoute: typeof Char123LocaleChar125AuthedSettingsNotificationsIndexRoute
+  Char123LocaleChar125AuthedSettingsSecurityIndexRoute: typeof Char123LocaleChar125AuthedSettingsSecurityIndexRoute
+  Char123LocaleChar125AuthedSettingsTeamIndexRoute: typeof Char123LocaleChar125AuthedSettingsTeamIndexRoute
+  Char123LocaleChar125AuthedSettingsTokensIndexRoute: typeof Char123LocaleChar125AuthedSettingsTokensIndexRoute
+}
+
+const Char123LocaleChar125AuthedRouteChildren: Char123LocaleChar125AuthedRouteChildren =
+  {
+    Char123LocaleChar125AuthedIndexRoute: Char123LocaleChar125AuthedIndexRoute,
+    Char123LocaleChar125AuthedAppsAppIdRoute:
+      Char123LocaleChar125AuthedAppsAppIdRoute,
+    Char123LocaleChar125AuthedAppsNewRoute:
+      Char123LocaleChar125AuthedAppsNewRoute,
+    Char123LocaleChar125AuthedDatabasesDatabaseIdRoute:
+      Char123LocaleChar125AuthedDatabasesDatabaseIdRoute,
+    Char123LocaleChar125AuthedDatabasesNewRoute:
+      Char123LocaleChar125AuthedDatabasesNewRoute,
+    Char123LocaleChar125AuthedServersServerIdRoute:
+      Char123LocaleChar125AuthedServersServerIdRoute,
+    Char123LocaleChar125AuthedSettingsGithubRoute:
+      Char123LocaleChar125AuthedSettingsGithubRoute,
+    Char123LocaleChar125AuthedSettingsInstanceRoute:
+      Char123LocaleChar125AuthedSettingsInstanceRoute,
+    Char123LocaleChar125AuthedSettingsProfileRoute:
+      Char123LocaleChar125AuthedSettingsProfileRoute,
+    Char123LocaleChar125AuthedAppsIndexRoute:
+      Char123LocaleChar125AuthedAppsIndexRoute,
+    Char123LocaleChar125AuthedAuditIndexRoute:
+      Char123LocaleChar125AuthedAuditIndexRoute,
+    Char123LocaleChar125AuthedBackupsIndexRoute:
+      Char123LocaleChar125AuthedBackupsIndexRoute,
+    Char123LocaleChar125AuthedDatabasesIndexRoute:
+      Char123LocaleChar125AuthedDatabasesIndexRoute,
+    Char123LocaleChar125AuthedDestinationsIndexRoute:
+      Char123LocaleChar125AuthedDestinationsIndexRoute,
+    Char123LocaleChar125AuthedDomainsIndexRoute:
+      Char123LocaleChar125AuthedDomainsIndexRoute,
+    Char123LocaleChar125AuthedJobsIndexRoute:
+      Char123LocaleChar125AuthedJobsIndexRoute,
+    Char123LocaleChar125AuthedMarketplaceIndexRoute:
+      Char123LocaleChar125AuthedMarketplaceIndexRoute,
+    Char123LocaleChar125AuthedProvidersIndexRoute:
+      Char123LocaleChar125AuthedProvidersIndexRoute,
+    Char123LocaleChar125AuthedServersIndexRoute:
+      Char123LocaleChar125AuthedServersIndexRoute,
+    Char123LocaleChar125AuthedSshKeysIndexRoute:
+      Char123LocaleChar125AuthedSshKeysIndexRoute,
+    Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute:
+      Char123LocaleChar125AuthedSettingsCloudConnectionsIndexRoute,
+    Char123LocaleChar125AuthedSettingsNotificationsIndexRoute:
+      Char123LocaleChar125AuthedSettingsNotificationsIndexRoute,
+    Char123LocaleChar125AuthedSettingsSecurityIndexRoute:
+      Char123LocaleChar125AuthedSettingsSecurityIndexRoute,
+    Char123LocaleChar125AuthedSettingsTeamIndexRoute:
+      Char123LocaleChar125AuthedSettingsTeamIndexRoute,
+    Char123LocaleChar125AuthedSettingsTokensIndexRoute:
+      Char123LocaleChar125AuthedSettingsTokensIndexRoute,
+  }
+
+const Char123LocaleChar125AuthedRouteWithChildren =
+  Char123LocaleChar125AuthedRoute._addFileChildren(
+    Char123LocaleChar125AuthedRouteChildren,
+  )
+
+interface Char123LocaleChar125RouteRouteChildren {
+  Char123LocaleChar125AuthedRoute: typeof Char123LocaleChar125AuthedRouteWithChildren
+  Char123LocaleChar125LoginRoute: typeof Char123LocaleChar125LoginRoute
+  Char123LocaleChar125RegisterRoute: typeof Char123LocaleChar125RegisterRoute
+  Char123LocaleChar125InviteTokenRoute: typeof Char123LocaleChar125InviteTokenRoute
+}
+
+const Char123LocaleChar125RouteRouteChildren: Char123LocaleChar125RouteRouteChildren =
+  {
+    Char123LocaleChar125AuthedRoute:
+      Char123LocaleChar125AuthedRouteWithChildren,
+    Char123LocaleChar125LoginRoute: Char123LocaleChar125LoginRoute,
+    Char123LocaleChar125RegisterRoute: Char123LocaleChar125RegisterRoute,
+    Char123LocaleChar125InviteTokenRoute: Char123LocaleChar125InviteTokenRoute,
+  }
+
+const Char123LocaleChar125RouteRouteWithChildren =
+  Char123LocaleChar125RouteRoute._addFileChildren(
+    Char123LocaleChar125RouteRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
-  Char123LocaleChar125IndexRoute: Char123LocaleChar125IndexRoute,
+  Char123LocaleChar125RouteRoute: Char123LocaleChar125RouteRouteWithChildren,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiInstallDotshRoute: ApiInstallDotshRoute,
+  ApiAuditExportRoute: ApiAuditExportRoute,
+  ApiSetupRestoreRoute: ApiSetupRestoreRoute,
+  ApiV1SplatRoute: ApiV1SplatRoute,
+  ApiAppsAppIdLogsRoute: ApiAppsAppIdLogsRoute,
+  ApiAppsAppIdMetricsRoute: ApiAppsAppIdMetricsRoute,
+  ApiAvatarsStyleSeedRoute: ApiAvatarsStyleSeedRoute,
+  ApiBackupsBackupIdDownloadRoute: ApiBackupsBackupIdDownloadRoute,
+  ApiDeploymentsDeploymentIdStreamRoute: ApiDeploymentsDeploymentIdStreamRoute,
+  ApiHooksGitHookIdRoute: ApiHooksGitHookIdRoute,
+  ApiServersServerIdMetricsRoute: ApiServersServerIdMetricsRoute,
+  ApiTemplatesTemplateIdLogoRoute: ApiTemplatesTemplateIdLogoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

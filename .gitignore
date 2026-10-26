@@ -4,6 +4,8 @@ dist
 dist-ssr
 *.local
 .env
+# Template test fixtures mirror upstream repos, which ship their own .env
+!src/server/services/templates/__fixtures__/**/.env
 .nitro
 .tanstack
 .wrangler
@@ -11,3 +13,10 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# Agent worktrees
+.claude/worktrees/
+.data
+
+.claude/settings.local.json
+.claude/plan.md

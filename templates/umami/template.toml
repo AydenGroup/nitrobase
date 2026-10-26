@@ -1,0 +1,76 @@
+id = "umami"
+name = "Umami"
+description = "Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres."
+category = "analytics"
+color = "indigo"
+website = "https://umami.is"
+docs = "https://umami.is/docs/install"
+tags = ["analytics", "privacy", "postgres"]
+min_docker_version = "20.10"
+
+# Versions = GitHub releases "vX.Y.Z" (v3+: Postgres only). The official
+# image is tagged without the "v".
+[source]
+repo = "umami-software/umami"
+versions = "releases"
+version_filter = '^v([3-9]|[1-9][0-9])\.[0-9]+\.[0-9]+$'
+
+[variables.UMAMI_VERSION]
+value = "${version_number}"
+description = "Umami release (image tag)"
+
+[variables.APP_SECRET]
+value = "${hex:32}"
+description = "Signs Umami sessions"
+secret = true
+rotatable = true
+
+[variables.DB_PASSWORD]
+value = "${password:32}"
+description = "Password of the Umami Postgres user"
+secret = true
+
+[variables.ADMIN_USERNAME]
+label = "Admin username"
+value = "admin"
+description = "Umami creates this account on first start"
+credential = true
+initial_only = true
+
+[variables.ADMIN_PASSWORD]
+label = "Admin password"
+value = "${password:24}"
+description = "Replaces Umami's default admin password (umami) right after the first start. Later changes are made in Umami."
+secret = true
+editable = true
+credential = true
+# Applied only while Umami still has its default password (first start).
+initial_only = true
+min_length = 12
+
+[[domains]]
+service = "umami"
+port = 3000
+primary = true
+
+# Measured on a test box: ~240 MiB idle (Umami + Postgres), images ~1.8 GB.
+[requirements]
+memory_mb = 512
+disk_mb = 3072
+
+[health]
+service = "umami"
+path = "/api/heartbeat"
+port = 3000
+timeout_seconds = 300
+
+[backup]
+stop = false
+reset_volumes = ["db-data"]
+
+[backup.database]
+type = "postgres"
+service = "db"
+mode = "database"
+user = "umami"
+database = "umami"

@@ -1,0 +1,15 @@
+id = "custom-compose"
+name = "Custom compose"
+description = "Advanced: paste your own docker-compose.yml and env. It goes through the same safety rules as every template."
+category = "custom"
+tags = ["docker-compose", "advanced"]
+advanced = true
+docs = "https://docs.docker.com/reference/compose-file/"
+
+# No versions and nothing fetched: each app stores its own compose file, env
+# (encrypted), routed service/port and backup volumes. The compose is
+# transformed and checked by the same policy as every template, and
+# [security] stays empty: no privileged mode, Docker socket, host paths or
+# host networking, ever.
+[source]
+type = "inline"

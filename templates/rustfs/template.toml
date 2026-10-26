@@ -1,0 +1,74 @@
+id = "rustfs"
+name = "RustFS"
+description = "S3-compatible object storage (Apache-2.0, a maintained MinIO alternative) with a web console."
+category = "storage"
+color = "cyan"
+website = "https://rustfs.com"
+docs = "https://docs.rustfs.com/installation/docker/"
+tags = ["s3", "object-storage", "minio-alternative"]
+min_docker_version = "20.10"
+
+# Versions = GitHub releases (X.Y.Z, 1.0.0+ stable); the official image is
+# tagged the same. Single node, single drive: a volume per app.
+[source]
+repo = "rustfs/rustfs"
+versions = "releases"
+version_filter = '^[1-9][0-9]*\.[0-9]+\.[0-9]+$'
+
+[variables.RUSTFS_VERSION]
+value = "${version_number}"
+description = "RustFS release (image tag)"
+
+[variables.RUSTFS_ACCESS_KEY]
+label = "Access key"
+value = "${password:20}"
+description = "Root access key (S3 clients and the console login)"
+credential = true
+editable = true
+min_length = 3
+pattern = '^[A-Za-z0-9_-]+$'
+
+[variables.RUSTFS_SECRET_KEY]
+label = "Secret key"
+value = "${password:40}"
+description = "Root secret key (S3 clients and the console password)"
+secret = true
+credential = true
+editable = true
+min_length = 8
+
+[variables.S3_ENDPOINT]
+value = "${url}"
+description = "S3 endpoint for clients (path-style)"
+credential = true
+
+# The S3 API on the app's domain, the console on console.<domain>.
+[[domains]]
+service = "rustfs"
+port = 9000
+primary = true
+
+# The console UI is served under /rustfs/console/ (/ answers S3 errors).
+[[domains]]
+service = "rustfs"
+port = 9001
+subdomain = "console"
+root_redirect = "/rustfs/console/"
+
+# Measured on a test box: ~85 MiB idle, image ~350 MB; add your data.
+[requirements]
+memory_mb = 256
+disk_mb = 1024
+
+# RustFS answers S3 on the root path (403 without credentials); /health is
+# its liveness endpoint.
+[health]
+service = "rustfs"
+path = "/health"
+port = 9000
+timeout_seconds = 180
+
+# Objects live in the data volume: RustFS stops for a consistent copy.
+[backup]
+volumes = ["data"]
+stop = true

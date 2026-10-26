@@ -1,0 +1,75 @@
+id = "pocketbase"
+name = "PocketBase"
+description = "Open source backend in one file: realtime database, auth, file storage and admin dashboard."
+category = "backend"
+website = "https://pocketbase.io"
+tags = ["database", "auth", "realtime", "sqlite"]
+
+# Versions = official GitHub releases. The local docker-compose.yml builds a
+# tiny image from the release binary (checksum-verified), so no third-party
+# image is trusted. Only v0.23+ is offered (needs the `superuser` command).
+[source]
+repo = "pocketbase/pocketbase"
+versions = "releases"
+version_filter = '^v(0\.(2[3-9]|[3-9][0-9])|[1-9][0-9]*\.[0-9]+)\.[0-9]+$'
+
+[variables.PB_VERSION]
+value = "${version_number}"
+description = "PocketBase release used to build the image"
+
+[variables.PB_ENCRYPTION_KEY]
+value = "${hex:16}"
+description = "Encrypts app settings at rest (32 characters)"
+secret = true
+
+[variables.PB_ADMIN_EMAIL]
+label = "Admin email"
+value = "admin@${domain}"
+description = "Superuser email for the PocketBase dashboard (set on first start)"
+editable = true
+credential = true
+# The superuser is created on the first start only (docker-compose.yml):
+# later values are ignored, so the panel freezes them after the first deploy.
+initial_only = true
+type = "email"
+prefill = "account_email"
+
+[variables.PB_ADMIN_PASSWORD]
+label = "Admin password"
+value = "${password:24}"
+description = "Initial superuser password (change it later in the PocketBase dashboard)"
+secret = true
+editable = true
+credential = true
+initial_only = true
+min_length = 10
+
+[[domains]]
+service = "pocketbase"
+port = 8090
+primary = true
+
+# Quick links on the app page.
+[[links]]
+label = "Admin console"
+path = "/_/"
+
+# Default limit (owners can change or remove it per app).
+[resources.pocketbase]
+memory_mb = 512
+
+[requirements]
+memory_mb = 256
+disk_mb = 1024
+
+[health]
+service = "pocketbase"
+path = "/api/health"
+port = 8090
+timeout_seconds = 300
+
+# SQLite in WAL mode is only consistent on disk when PocketBase is stopped:
+# the service stops for the few seconds the archive takes.
+[backup]
+paths = ["pb_data"]
+stop = true

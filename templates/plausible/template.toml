@@ -1,0 +1,87 @@
+id = "plausible"
+name = "Plausible Analytics"
+description = "Plausible Community Edition: lightweight, privacy-first web analytics on ClickHouse and Postgres."
+category = "analytics"
+color = "indigo"
+website = "https://plausible.io"
+docs = "https://github.com/plausible/community-edition"
+tags = ["analytics", "privacy", "clickhouse", "postgres"]
+min_docker_version = "20.10"
+notes = "Open the app and register right away: the first account becomes the owner, then registration is invite-only."
+
+# Plausible CE publishes each version as a branch (v3.2.1, ...) of
+# plausible/community-edition holding the official compose.yml (images
+# pinned to that version) and ClickHouse tuning files. Those are fetched
+# from the repo root at the branch's commit; overlay.yml swaps the upstream
+# demo database password for a generated one.
+[source]
+repo = "plausible/community-edition"
+versions = "branches"
+path = "."
+compose = "compose.yml"
+include = ["compose.yml", "clickhouse"]
+version_filter = '^v([3-9]|[1-9][0-9])\.[0-9]+\.[0-9]+$'
+
+[variables.BASE_URL]
+value = "${url}"
+
+[variables.SECRET_KEY_BASE]
+value = "${base64:48}"
+description = "Signs Plausible sessions"
+secret = true
+
+[variables.TOTP_VAULT_KEY]
+value = "${base64:32}"
+description = "Encrypts users' 2FA secrets"
+secret = true
+
+[variables.DB_PASSWORD]
+value = "${password:32}"
+description = "Password of the Postgres superuser"
+secret = true
+
+[variables.DATABASE_URL]
+value = "postgres://postgres:${DB_PASSWORD}@plausible_db:5432/plausible_db"
+secret = true
+
+[variables.DISABLE_REGISTRATION]
+label = "Registration"
+value = "invite_only"
+description = "invite_only: only the first account and invited people; true: closed; false: open"
+editable = true
+pattern = '^(invite_only|true|false)$'
+
+[variables.ENABLE_EMAIL_VERIFICATION]
+value = "false"
+
+[[domains]]
+service = "plausible"
+port = 8000
+primary = true
+
+# Measured on a test box: ~790 MiB idle (Plausible, ClickHouse, Postgres),
+# images ~1.3 GB. ClickHouse needs headroom for merges: 1.5 GB minimum.
+[requirements]
+memory_mb = 1536
+disk_mb = 4096
+
+[health]
+service = "plausible"
+path = "/api/health"
+port = 8000
+timeout_seconds = 600
+
+# Plausible and ClickHouse are stopped first; Postgres (sites, users),
+# still running, is then dumped and ClickHouse (events) is copied from its
+# volume, so both hold the same writes.
+[backup]
+volumes = ["event-data", "plausible-data"]
+stop = ["plausible", "plausible_events_db"]
+reset_volumes = ["db-data"]
+
+[backup.database]
+type = "postgres"
+service = "plausible_db"
+mode = "database"
+user = "postgres"
+database = "plausible_db"

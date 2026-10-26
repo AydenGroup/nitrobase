@@ -1,0 +1,43 @@
+services:
+  pocketbase:
+    image: nitrobase/pocketbase:${PB_VERSION}
+    build:
+      context: .
+      args:
+        PB_VERSION: ${PB_VERSION}
+      # `$$` escapes compose interpolation; these are Dockerfile variables.
+      dockerfile_inline: |
+        FROM alpine:3.22
+        ARG PB_VERSION
+        ARG TARGETARCH
+        RUN apk add --no-cache ca-certificates unzip wget \
+          && cd /tmp \
+          && wget -q "https://github.com/pocketbase/pocketbase/releases/download/v$${PB_VERSION}/pocketbase_$${PB_VERSION}_linux_$${TARGETARCH}.zip" \
+          && wget -q "https://github.com/pocketbase/pocketbase/releases/download/v$${PB_VERSION}/checksums.txt" \
+          && grep " pocketbase_$${PB_VERSION}_linux_$${TARGETARCH}.zip$$" checksums.txt | sha256sum -c - \
+          && mkdir -p /pb && unzip -q "pocketbase_$${PB_VERSION}_linux_$${TARGETARCH}.zip" -d /pb \
+          && rm -f /tmp/*.zip /tmp/checksums.txt
+        EXPOSE 8090
+    restart: unless-stopped
+    environment:
+      PB_ENCRYPTION_KEY: ${PB_ENCRYPTION_KEY}
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      # The superuser is created on first start only; later password changes
+      # made in the PocketBase dashboard are kept.
+      - >-
+        if [ ! -f /pb/pb_data/data.db ]; then
+        /pb/pocketbase superuser upsert "$$PB_ADMIN_EMAIL" "$$PB_ADMIN_PASSWORD" --dir /pb/pb_data;
+        fi
+        && exec /pb/pocketbase serve --http=0.0.0.0:8090 --dir /pb/pb_data --encryptionEnv PB_ENCRYPTION_KEY
+    volumes:
+      - ./pb_data:/pb/pb_data
+    expose:
+      - "8090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8090/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

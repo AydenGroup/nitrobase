@@ -1,0 +1,51 @@
+http:
+  routers:
+    app-0123abcd0000-0-http:
+      rule: Host(`app.example.org`)
+      entryPoints:
+        - web
+      middlewares:
+        - app-0123abcd0000-https-redirect
+      service: app-0123abcd0000-0
+    app-0123abcd0000-0:
+      rule: Host(`app.example.org`)
+      entryPoints:
+        - websecure
+      service: app-0123abcd0000-0
+      tls:
+        certResolver: letsencrypt
+    app-0123abcd0000-1-http:
+      rule: Host(`studio.app.example.org`)
+      entryPoints:
+        - web
+      middlewares:
+        - app-0123abcd0000-https-redirect
+      service: app-0123abcd0000-1
+    app-0123abcd0000-1:
+      rule: Host(`studio.app.example.org`)
+      entryPoints:
+        - websecure
+      service: app-0123abcd0000-1
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - app-0123abcd0000-1-auth
+  services:
+    app-0123abcd0000-0:
+      loadBalancer:
+        servers:
+          - url: http://supabase-0123abcd-kong:8000
+    app-0123abcd0000-1:
+      loadBalancer:
+        servers:
+          - url: http://supabase-0123abcd-studio:3000
+  middlewares:
+    app-0123abcd0000-https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+    app-0123abcd0000-1-auth:
+      basicAuth:
+        users:
+          - supabase:$2b$04$abcdefghijklmnopqrstuuSI5KolhqT5JP0MAKmfPM0Jl7gtYwHMi
+        removeHeader: true

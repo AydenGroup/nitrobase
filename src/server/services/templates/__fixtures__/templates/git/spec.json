@@ -1,0 +1,8 @@
+{
+	"commitSha": "0123456789abcdef0123456789abcdef01234567",
+	"runtime": {
+		"port": 8080,
+		"healthPath": "/healthz",
+		"volumes": [{ "name": "data", "mountPath": "/app/data" }]
+	}
+}
