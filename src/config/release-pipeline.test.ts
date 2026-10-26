@@ -64,6 +64,57 @@ describe("release pipeline", () => {
 		}
 	});
 
+	it("publishes the panel and the installer image with the same tags", () => {
+		const image = (
+			parse(read(".github/workflows/release.yml")) as {
+				jobs: Record<
+					string,
+					{
+						strategy?: {
+							matrix?: { include?: Record<string, string>[] };
+						};
+						steps?: { uses?: string; with?: Record<string, unknown> }[];
+					}
+				>;
+			}
+		).jobs.image;
+		const include = image.strategy?.matrix?.include ?? [];
+		expect(include.map((entry) => entry.image)).toEqual(["panel", "installer"]);
+		for (const entry of include) {
+			expect(existsSync(path.join(ROOT, entry.file)), entry.file).toBe(true);
+		}
+		const installer = include.find((entry) => entry.image === "installer");
+		// The installer installs its own release by default.
+		expect(installer?.["build-args"]).toContain(
+			"VERSION=${{ needs.version.outputs.version }}",
+		);
+		const meta = image.steps?.find((step) =>
+			step.uses?.startsWith("docker/metadata-action@"),
+		);
+		expect(meta?.with?.images).toBe("${{ matrix.name }}");
+		const build = image.steps?.find((step) =>
+			step.uses?.startsWith("docker/build-push-action@"),
+		);
+		expect(build?.with?.file).toBe("${{ matrix.file }}");
+		expect(build?.with?.platforms).toBe("linux/amd64,linux/arm64");
+	});
+
+	it("names the installer image after the panel image, like install.sh", () => {
+		const text = read(".github/workflows/release.yml");
+		expect(text).toContain('echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"');
+		expect(text).toContain(
+			'echo "installer_image=ghcr.io/${GITHUB_REPOSITORY,,}-installer"',
+		);
+		expect(read("scripts/install.sh")).toMatch(
+			/^INSTALLER_IMAGE="\$\{NITROBASE_INSTALLER_IMAGE:-\$DEFAULT_IMAGE_REGISTRY\/.*-installer\}"$/m,
+		);
+	});
+
+	it("CI builds the installer image", () => {
+		const text = read(".github/workflows/ci.yml");
+		expect(text).toMatch(/docker build -f installer\/Dockerfile /);
+		expect(text).toMatch(/bash -n scripts\/install\.sh/);
+	});
 	it("attaches files that exist", () => {
 		const text = read(".github/workflows/release.yml");
 		for (const [, source] of text.matchAll(/^\s+cp (\S+) dist\//gm)) {

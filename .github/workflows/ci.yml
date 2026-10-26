@@ -63,3 +63,12 @@ jobs:
       - name: ShellCheck installer
         # ShellCheck is preinstalled on GitHub's Ubuntu runners.
         run: shellcheck scripts/install.sh
+
+      # Single arch, not pushed: the image builds and runs install.sh in
+      # container mode (no socket needed for --print-config).
+      - name: Installer image
+        run: |
+          docker build -f installer/Dockerfile --build-arg VERSION=0.0.0-ci -t nitrobase-installer:ci .
+          docker run --rm nitrobase-installer:ci --print-config | grep -qx 'container=1'
+          docker run --rm nitrobase-installer:ci --print-config | grep -qx 'image_version=0.0.0-ci'
+          docker run --rm --entrypoint bash nitrobase-installer:ci -n /usr/local/bin/nitrobase-install

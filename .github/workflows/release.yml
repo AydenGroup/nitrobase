@@ -3,6 +3,9 @@ name: Release
 # Push a tag `v<package.json version>` (e.g. v0.1.0-beta.0) to publish:
 #   - ghcr.io/<owner>/<repo>:<version> for linux/amd64 and linux/arm64
 #     (plus :latest for the highest stable version, as for the Release);
+#   - the installer image ghcr.io/<owner>/<repo>-installer with the same
+#     tags (installer/Dockerfile: install.sh run through the Docker socket,
+#     installing <version> by default);
 #   - a GitHub Release with docker-compose.prod.yml, install.sh and
 #     env.example attached (marked pre-release for `-` versions). It becomes
 #     the repository's "latest" release only when it is the highest stable
@@ -32,6 +35,7 @@ jobs:
       prerelease: ${{ steps.version.outputs.prerelease }}
       make_latest: ${{ steps.version.outputs.make_latest }}
       image: ${{ steps.version.outputs.image }}
+      installer_image: ${{ steps.version.outputs.installer_image }}
       license: ${{ steps.version.outputs.license }}
     steps:
       - uses: actions/checkout@v4
@@ -64,17 +68,38 @@ jobs:
             echo "make_latest=$make_latest"
             # The image is named after the repository (lowercase for OCI).
             echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
+            # The installer image: the panel image + -installer (install.sh,
+            # NITROBASE_INSTALLER_IMAGE default).
+            echo "installer_image=ghcr.io/${GITHUB_REPOSITORY,,}-installer"
             echo "license=$(jq -r .license package.json)"
           } >> "$GITHUB_OUTPUT"
 
   image:
-    name: Image (amd64 + arm64)
+    name: Image ${{ matrix.image }} (amd64 + arm64)
     needs: [checks, version]
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     permissions:
       contents: read
       packages: write
+    strategy:
+      # The release needs both images.
+      fail-fast: true
+      matrix:
+        include:
+          - image: panel
+            file: Dockerfile
+            title: Nitrobase
+            name: ${{ needs.version.outputs.image }}
+            build-args: ""
+          - image: installer
+            file: installer/Dockerfile
+            title: Nitrobase installer
+            name: ${{ needs.version.outputs.installer_image }}
+            # Installs its own version by default; names itself in hints.
+            build-args: |
+              VERSION=${{ needs.version.outputs.version }}
+              INSTALLER_IMAGE=${{ needs.version.outputs.installer_image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -96,13 +121,13 @@ jobs:
           # Annotations on the image manifests and the multi-arch index.
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
-          images: ${{ needs.version.outputs.image }}
+          images: ${{ matrix.name }}
           flavor: latest=false
           tags: |
             type=raw,value=${{ needs.version.outputs.version }}
             type=raw,value=latest,enable=${{ needs.version.outputs.make_latest == 'true' }}
           labels: |
-            org.opencontainers.image.title=Nitrobase
+            org.opencontainers.image.title=${{ matrix.title }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.url=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.version=${{ needs.version.outputs.version }}
@@ -112,14 +137,15 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
+          file: ${{ matrix.file }}
+          build-args: ${{ matrix.build-args }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
 
   release:
     name: GitHub Release
