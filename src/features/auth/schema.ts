@@ -34,7 +34,7 @@ export const RegisterSchema = (i18n: I18n) =>
 			confirmPassword: z.string().min(1, {
 				message: i18n._("Please confirm your password"),
 			}),
-			/** First account only, when the installer set SETUP_TOKEN. */
+			/** First account only: SETUP_TOKEN, or the one printed in the logs. */
 			setupToken: z.string().trim().max(256).optional(),
 		})
 		.refine((data) => data.password === data.confirmPassword, {

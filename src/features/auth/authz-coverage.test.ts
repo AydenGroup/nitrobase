@@ -36,8 +36,6 @@ const ungatedFunctions: Record<string, string> = {
 	logoutFn: "public: ends the caller's own session",
 	getCurrentUserFn: "public: the caller's own user or null",
 	isInitialSetupCompleteFn: "public: whether any account exists",
-	getSetupInfoFn:
-		"public: whether any account exists and a setup token is required",
 	previewInviteFn: "public: the invite token is the secret",
 	// Account-level (authMiddleware): the caller's own account, any team.
 	updateProfileFn: "account",

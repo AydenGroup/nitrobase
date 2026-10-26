@@ -27,9 +27,7 @@ import { useAppMutation } from "../ui/useAppMutation";
  */
 export const RegisterForm: React.FC<{
 	invite?: { token: string; email: string | null; teamName: string };
-	/** First account: the installer's setup token is required. */
-	setupTokenRequired?: boolean;
-}> = ({ invite, setupTokenRequired = false }) => {
+}> = ({ invite }) => {
 	const { i18n } = useLingui();
 	const router = useRouter();
 	const queryClient = useQueryClient();
@@ -118,11 +116,12 @@ export const RegisterForm: React.FC<{
 						key={form.key("confirmPassword")}
 						{...form.getInputProps("confirmPassword")}
 					/>
-					{setupTokenRequired && !invite && (
+					{/* First account: the setup token is always required. */}
+					{!invite && (
 						<TextInput
 							label={i18n._("Setup token")}
 							description={i18n._(
-								"Printed by the installer (SETUP_TOKEN in the install's .env). Needed until the first account exists.",
+								"Printed by the installer, or in the panel logs (docker compose logs app). Needed until the first account exists.",
 							)}
 							autoComplete="off"
 							spellCheck={false}

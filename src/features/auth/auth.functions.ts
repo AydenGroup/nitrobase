@@ -5,7 +5,6 @@ import { findInvite } from "#/features/teams/teams.server.ts";
 import { i18nMiddleware } from "#/libs/i18n.ts";
 import { audit } from "#/server/services/audit.ts";
 import { currentRequestInfo } from "#/server/services/request-info.ts";
-import { setupTokenRequired } from "#/server/services/setup-token.ts";
 import { AppError } from "#/utils/error.ts";
 import {
 	openAppSession,
@@ -221,18 +220,6 @@ export const getCurrentUserFn = createServerFn({ method: "GET" }).handler(
 		if (!resolved) return null;
 		return (await getUserById(resolved.userId)) ?? null;
 	},
-);
-
-/** Whether an admin account exists (false shows the registration flow). */
-/**
- * First-run state for the sign-up page: whether an account exists and
- * whether the installer's setup token is required to create the first one.
- */
-export const getSetupInfoFn = createServerFn({ method: "GET" }).handler(
-	async () => ({
-		complete: await getExistedUser(),
-		tokenRequired: setupTokenRequired(),
-	}),
 );
 
 export const isInitialSetupCompleteFn = createServerFn({

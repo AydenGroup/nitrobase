@@ -7,12 +7,15 @@ import { db } from "#/db/index.ts";
 import { users } from "#/db/schema/user.ts";
 import { createDefaultServer } from "#/features/servers/servers.server.ts";
 import {
+	clearSetupToken,
+	setupTokenMatches,
+} from "#/features/setup/setup-token.server.ts";
+import {
 	consumeInvite,
 	createTeamRecord,
 	type InviteClaim,
 } from "#/features/teams/teams.server.ts";
 import { normalizeEmail } from "#/libs/email.ts";
-import { setupTokenMatches } from "#/server/services/setup-token.ts";
 import { AppError } from "#/utils/error.ts";
 import {
 	type PersistentRateLimiter,
@@ -225,8 +228,9 @@ export async function createUser(
 			const existing = await tx.select({ id: users.id }).from(users).limit(1);
 			const bootstrap = existing.length === 0;
 			if (!bootstrap && !invite) throw new AppError("INVITE_REQUIRED");
-			// The first account needs the installer's one-time setup token.
-			if (bootstrap && !setupTokenMatches(data.setupToken)) {
+			// The first account needs the one-time setup token (SETUP_TOKEN,
+			// else the one the panel generated and logged).
+			if (bootstrap && !(await setupTokenMatches(data.setupToken))) {
 				throw new AppError("SETUP_TOKEN_INVALID");
 			}
 
@@ -241,6 +245,7 @@ export async function createUser(
 				})
 				.returning(dtoUserColumns);
 			if (bootstrap) {
+				await clearSetupToken(tx);
 				const team = await createTeamRecord(tx, null, newUser.id, true);
 				await createDefaultServer({ teamId: team.id, userId: newUser.id }, tx);
 			} else if (invite) {

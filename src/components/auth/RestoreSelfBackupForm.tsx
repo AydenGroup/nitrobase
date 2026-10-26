@@ -25,9 +25,7 @@ import { formatDate } from "#/libs/intl.ts";
  * the sha256, decrypts with the old ENCRYPTION_KEY and pauses the
  * restored installation until an instance admin resumes it.
  */
-export const RestoreSelfBackupForm: React.FC<{ tokenRequired: boolean }> = ({
-	tokenRequired,
-}) => {
+export const RestoreSelfBackupForm: React.FC = () => {
 	const { i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const [file, setFile] = useState<File | null>(null);
@@ -145,18 +143,16 @@ export const RestoreSelfBackupForm: React.FC<{ tokenRequired: boolean }> = ({
 				leftSection={<DatabaseBackup size={16} />}
 				clearable
 			/>
-			{tokenRequired && (
-				<TextInput
-					label={i18n._("Setup token")}
-					description={i18n._(
-						"Printed by the installer (SETUP_TOKEN in the install's .env). Needed until the first account exists.",
-					)}
-					value={setupToken}
-					onChange={(event) => setSetupToken(event.currentTarget.value)}
-					spellCheck={false}
-					autoComplete="off"
-				/>
-			)}
+			<TextInput
+				label={i18n._("Setup token")}
+				description={i18n._(
+					"Printed by the installer, or in the panel logs (docker compose logs app). Needed until the first account exists.",
+				)}
+				value={setupToken}
+				onChange={(event) => setSetupToken(event.currentTarget.value)}
+				spellCheck={false}
+				autoComplete="off"
+			/>
 			<TextInput
 				label={i18n._("sha256 of the backup")}
 				description={i18n._(

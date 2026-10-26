@@ -884,7 +884,8 @@ const ConfigSchema = z.object({
 	/**
 	 * One-time token needed for the first sign-up and the first-run restore
 	 * while no account exists (the installer generates and prints it).
-	 * Unset: anyone reaching a fresh panel first may set it up (warned).
+	 * Unset: the panel generates one and prints it to its logs at boot
+	 * (`#/features/setup/setup-token.server.ts`).
 	 */
 	SETUP_TOKEN: z
 		.string()

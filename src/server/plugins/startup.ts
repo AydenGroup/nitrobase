@@ -2,6 +2,7 @@ import { definePlugin } from "nitro";
 import { getConfig } from "#/config/server.ts";
 import { stopMonitoring } from "#/features/monitoring/service.server.ts";
 import { checkInstanceIdentity } from "#/features/settings/instance-identity.server.ts";
+import { setupTokens } from "#/features/setup/setup-token.server.ts";
 import { startBackgroundWork } from "#/server/background.ts";
 import { stopScheduler } from "#/server/services/scheduler.ts";
 import { assertServerEnv } from "#/utils/env.ts";
@@ -22,6 +23,13 @@ export default definePlugin((nitroApp) => {
 	const boot = (attempt: number) => {
 		void checkInstanceIdentity()
 			.then((paused) => {
+				// No account yet: print the setup token (generated when
+				// SETUP_TOKEN is unset); else drop a leftover one.
+				void setupTokens
+					.boot()
+					.catch((error) =>
+						console.error("[startup] setup token check failed", error),
+					);
 				if (!paused) startBackgroundWork();
 			})
 			.catch((error) => {

@@ -7,11 +7,11 @@ import {
 	releaseRestoreSlot,
 	restoreFromSelfBackup,
 } from "#/features/setup/first-run-restore.server.ts";
+import { setupTokenMatches } from "#/features/setup/setup-token.server.ts";
 import { formatBytes } from "#/libs/intl.ts";
 import { PanelArchiveError } from "#/server/services/backup/panel-archive.ts";
 import { createRateLimiter } from "#/server/services/rate-limit.ts";
 import { currentRequestInfo } from "#/server/services/request-info.ts";
-import { setupTokenMatches } from "#/server/services/setup-token.ts";
 import { AppError, getAppErrorMessage } from "#/utils/error.ts";
 
 /** Restore attempts per client address per window (a restore is heavy). */
@@ -74,7 +74,7 @@ export async function firstRunRestoreResponse(
 		return Response.json({ message: "Too many attempts" }, { status: 429 });
 	}
 	restoreLimiter().hit(ip);
-	if (!setupTokenMatches(request.headers.get("x-setup-token"))) {
+	if (!(await setupTokenMatches(request.headers.get("x-setup-token")))) {
 		return fail(new AppError("SETUP_TOKEN_INVALID"), 403);
 	}
 	const key = decodeHeader(request.headers.get("x-encryption-key"));
