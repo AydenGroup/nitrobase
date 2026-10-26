@@ -4,9 +4,11 @@ import {
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
+	readdirSync,
 	readFileSync,
 	rmSync,
 	statSync,
+	symlinkSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -109,6 +111,27 @@ function mockCurl(api: { latest?: Answer; list?: Answer } = {}): void {
 afterEach(() => {
 	rmSync(root, { recursive: true, force: true });
 });
+
+/**
+ * PATH of the mocks plus the system tools, minus `hidden`: a host that has
+ * the real tool (CI runners ship Docker in /usr/bin) still runs the
+ * "missing" branch.
+ */
+function pathWithout(...hidden: string[]): string {
+	const system = path.join(root, "system-bin");
+	mkdirSync(system, { recursive: true });
+	for (const dir of ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]) {
+		if (!existsSync(dir)) continue;
+		for (const name of readdirSync(dir)) {
+			const link = path.join(system, name);
+			if (hidden.some((tool) => name.startsWith(tool)) || existsSync(link)) {
+				continue;
+			}
+			symlinkSync(path.join(dir, name), link);
+		}
+	}
+	return `${bin}:${system}`;
+}
 
 function run(args: string[], env: Record<string, string> = {}) {
 	const result = spawnSync("bash", [SCRIPT, ...args], {
@@ -486,7 +509,10 @@ describe("installer run (mocked system)", () => {
 		rmSync(path.join(bin, "docker"));
 		mock("dpkg", "echo amd64");
 		const apt = path.join(root, "apt");
-		const result = run(base(), { NITROBASE_APT_ETC: apt });
+		const result = run(base(), {
+			NITROBASE_APT_ETC: apt,
+			PATH: pathWithout("docker"),
+		});
 		expect(
 			readFileSync(path.join(apt, "sources.list.d/docker.list"), "utf8"),
 		).toBe(

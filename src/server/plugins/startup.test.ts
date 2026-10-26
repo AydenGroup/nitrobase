@@ -45,6 +45,9 @@ vi.mock("#/features/upgrade/upgrade.server.ts", () => ({}));
 vi.mock("#/features/upgrade/release.server.ts", () => ({
 	registerUpdateCheck: track("updateCheck"),
 }));
+vi.mock("#/features/setup/setup-token.server.ts", () => ({
+	setupTokens: { boot: vi.fn(async () => {}) },
+}));
 vi.mock("#/features/app-updates/app-updates.server.ts", () => ({
 	registerAppUpdateSchedules: track("appUpdates"),
 }));
