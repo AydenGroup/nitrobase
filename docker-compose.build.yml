@@ -1,6 +1,8 @@
 # Build the panel image from this checkout instead of pulling a release:
 #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
-# The image is tagged NITROBASE_IMAGE:NITROBASE_VERSION from .env (e.g. nitrobase:local).
+# The image is tagged NITROBASE_IMAGE:NITROBASE_VERSION from .env: set
+# NITROBASE_IMAGE=nitrobase and NITROBASE_VERSION=local so a local build is
+# not mistaken for the official image.
 services:
   app:
     build:

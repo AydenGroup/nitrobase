@@ -1,10 +1,15 @@
-# Production: Nitrobase + PostgreSQL on one host (what scripts/install.sh sets up).
-#   .env holds the secrets and NITROBASE_IMAGE / NITROBASE_VERSION (the image tag):
+# Production: Nitrobase + PostgreSQL on one host (what scripts/install.sh sets up,
+# or by hand: see "Install" in README.md).
+#   .env holds the secrets and NITROBASE_VERSION (the image tag to run;
+#   NITROBASE_IMAGE defaults to the official image):
 #   docker compose -f docker-compose.prod.yml up -d
 # Build from source instead of pulling a release image:
 #   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 # PostgreSQL is NOT published to the host; only the app reaches it.
 # Run a single app instance: jobs, server locks and the scheduler are in-process.
+# The project name matches the installer's --project-name (COMPOSE_PROJECT).
+name: nitrobase
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -24,8 +29,8 @@ services:
 
   app:
     # The in-panel upgrade changes the version variable in .env and recreates
-    # this service (Settings → Instance).
-    image: ${NITROBASE_IMAGE:?Set NITROBASE_IMAGE in .env (image without tag)}:${NITROBASE_VERSION:?Set NITROBASE_VERSION in .env (image tag)}
+    # this service (Settings → Instance), so the tag must be pinned there.
+    image: ${NITROBASE_IMAGE:-ghcr.io/aydengroup/nitrobase}:${NITROBASE_VERSION:?Set NITROBASE_VERSION in .env (image tag, e.g. 0.1.0)}
     container_name: nitrobase_app
     restart: unless-stopped
     # Required to manage the host (Localhost server) through nsenter.

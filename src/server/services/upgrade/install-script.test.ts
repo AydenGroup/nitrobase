@@ -405,6 +405,20 @@ describe("installer and src/config", () => {
 		);
 	});
 
+	it("matches docker-compose.prod.yml (project name, default image)", () => {
+		const compose = readFileSync(COMPOSE, "utf8");
+		const script = readFileSync(SCRIPT, "utf8");
+		const project = /^readonly COMPOSE_PROJECT="([^"]+)"/m.exec(script)?.[1];
+		expect(project).toBeTruthy();
+		expect(compose).toMatch(new RegExp(`^name: ${project}$`, "m"));
+		expect(compose).toContain(
+			`\${NITROBASE_IMAGE:-ghcr.io/${RELEASE_REPO_DEFAULT.toLowerCase()}}:`,
+		);
+		expect(compose).toContain(
+			`container_name: ${/^readonly APP_CONTAINER="([^"]+)"/m.exec(script)?.[1]}`,
+		);
+	});
+
 	it("defaults to the same release repository as the panel", () => {
 		expect(readFileSync(SCRIPT, "utf8")).toContain(
 			`readonly DEFAULT_REPO="${RELEASE_REPO_DEFAULT}"`,
