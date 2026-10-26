@@ -792,6 +792,30 @@ describe("installer and src/config", () => {
 		);
 	});
 
+	it("installer image runs this script in container mode", () => {
+		const dockerfile = readFileSync(
+			path.resolve(__dirname, "../../../../installer/Dockerfile"),
+			"utf8",
+		);
+		const script = readFileSync(SCRIPT, "utf8");
+		const target = /^COPY scripts\/install\.sh (\S+)$/m.exec(dockerfile)?.[1];
+		expect(target).toBeTruthy();
+		expect(dockerfile).toContain(`ENTRYPOINT ["bash", "${target}"]`);
+		for (const name of [
+			"NITROBASE_INSTALLER_CONTAINER",
+			"NITROBASE_INSTALLER_VERSION",
+			"NITROBASE_INSTALLER_IMAGE",
+		]) {
+			expect(dockerfile, name).toMatch(new RegExp(`\\b${name}=`));
+			expect(script, name).toContain(`\${${name}:-`);
+		}
+		expect(dockerfile).toMatch(/^ENV NITROBASE_INSTALLER_CONTAINER=1 /m);
+		// Base image pinned to a version and a digest.
+		expect(dockerfile).toMatch(
+			/^FROM \S+:\d+\.\d+\.\d+-cli@sha256:[0-9a-f]{64}$/m,
+		);
+	});
+
 	it("removes only its own updater container on uninstall", () => {
 		expect(run(base()).code).toBe(0);
 		const keep = run(["--dir", dir(), "--uninstall"]);

@@ -1,0 +1,3 @@
+# Build context of installer/Dockerfile: install.sh only.
+*
+!scripts/install.sh
