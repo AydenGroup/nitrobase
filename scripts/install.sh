@@ -15,6 +15,18 @@
 # Without --repo / --image / --api-url, a re-run keeps the ones in .env
 # (RELEASE_REPO, NITROBASE_IMAGE, RELEASE_API_URL), else the defaults.
 #
+# In a container (the installer image, NITROBASE_INSTALLER_CONTAINER=1):
+#
+#   docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock \
+#     -v /opt/nitrobase:/opt/nitrobase ghcr.io/aydengroup/nitrobase-installer
+#
+# the same install is made through the mounted Docker socket on any OS
+# with Docker. The OS check, the Docker install and the host port check
+# are skipped; the install folder must be mounted at the same path on the
+# host and in the container (compose resolves it on the host). Without
+# --version, a fresh install gets the image's own version
+# (NITROBASE_INSTALLER_VERSION).
+#
 # Release channel: installing a pre-release (1.0.0-rc.1) sets
 # RELEASE_CHANNEL=prerelease when .env has no channel, marked as set by
 # this installer; installing a stable release later removes only a channel
@@ -68,10 +80,19 @@ readonly HEALTH_TIMEOUT="${NITROBASE_HEALTH_TIMEOUT:-300}"     # seconds
 readonly HEALTH_POLL_SECONDS=3
 readonly SETUP_TOKEN_LENGTH=32                                 # hex characters
 readonly RELEASES_PAGE_SIZE=10                                 # releases read when none is stable
+readonly DOCKER_SOCKET="/var/run/docker.sock"                  # mounted into the installer image
+# Set by the installer image (installer/Dockerfile): container mode, the
+# image's own release (default --version of a fresh install) and its name
+# (default: the panel image + -installer).
+readonly CONTAINER_MODE="${NITROBASE_INSTALLER_CONTAINER:-0}"
+readonly IMAGE_VERSION="${NITROBASE_INSTALLER_VERSION:-}"
+INSTALLER_IMAGE="${NITROBASE_INSTALLER_IMAGE:-$DEFAULT_IMAGE_REGISTRY/$(printf '%s' "$DEFAULT_REPO" | tr '[:upper:]' '[:lower:]')-installer}"
+readonly INSTALLER_IMAGE
 # Overridable for tests only.
 readonly OS_RELEASE_FILE="${NITROBASE_OS_RELEASE:-/etc/os-release}"
 readonly MEMINFO_FILE="${NITROBASE_MEMINFO:-/proc/meminfo}"
 readonly APT_ETC="${NITROBASE_APT_ETC:-/etc/apt}"
+readonly MOUNTINFO_FILE="${NITROBASE_MOUNTINFO:-/proc/self/mountinfo}"
 # -------------------------------------------------------------------------------
 
 VERSION=""
@@ -245,12 +266,21 @@ print_config() {
 	say "compose_url=$COMPOSE_URL"
 	say "uninstall=$UNINSTALL"
 	say "purge=$PURGE"
+	say "container=$CONTAINER_MODE"
+	say "image_version=$IMAGE_VERSION"
+}
+
+in_container() {
+	[ "$CONTAINER_MODE" = 1 ]
 }
 
 # --- checks -----------------------------------------------------------------
 
 check_root() {
-	[ "$(id -u)" = "0" ] || die "run as root (sudo bash install.sh ...)"
+	if [ "$(id -u)" != "0" ]; then
+		if in_container; then die "run the installer image as root (without --user)"; fi
+		die "run as root (sudo bash install.sh ...)"
+	fi
 }
 
 check_os() {
@@ -291,7 +321,14 @@ check_resources() {
 	fi
 }
 
+# In a container, ss would only see the container's own network: the
+# containers that publish the port are listed through the socket instead
+# (a host process on it makes `compose up` fail with a clear message).
 port_in_use() {
+	if in_container; then
+		[ -n "$(docker ps --filter "publish=$1" --format '{{.Names}}' 2>/dev/null)" ]
+		return
+	fi
 	command -v ss >/dev/null 2>&1 || return 1
 	ss -ltnH "sport = :$1" 2>/dev/null | grep -q .
 }
@@ -358,6 +395,74 @@ install_docker() {
 	apt-get install -y -qq $DOCKER_PACKAGES >/dev/null
 	if command -v systemctl >/dev/null 2>&1; then systemctl enable --now docker >/dev/null 2>&1 || true; fi
 	docker compose version >/dev/null 2>&1 || die "Docker was installed but 'docker compose' does not work"
+}
+
+# --- container mode -----------------------------------------------------------
+
+# Docker through the mounted socket (the image brings the CLI and compose).
+require_docker() {
+	command -v docker >/dev/null 2>&1 || die "the docker CLI is missing from this installer image"
+	local server
+	server="$(docker version --format '{{.Server.Version}}' 2>/dev/null)" ||
+		die "cannot reach the Docker daemon: mount its socket with -v $DOCKER_SOCKET:$DOCKER_SOCKET"
+	docker compose version >/dev/null 2>&1 || die "'docker compose' (Compose v2) does not work in this installer image"
+	info "Docker ${server:-?} reached through $DOCKER_SOCKET"
+}
+
+mount_hint() {
+	local hint="-v $DIR:$DIR"
+	if [ "$DIR" != "$DEFAULT_DIR" ]; then hint="$hint (and --dir $DIR)"; fi
+	printf '%s' "$hint"
+}
+
+# Ids this container may have: the one in its own mounts (/etc/hostname,
+# /etc/resolv.conf come from /var/lib/docker/containers/<id>/), then the
+# hostname (the id prefix unless --hostname is set).
+self_container_ids() {
+	sed -n 's|.*/containers/\([0-9a-f]\{64\}\)/.*|\1|p' "$MOUNTINFO_FILE" 2>/dev/null | head -n 1 || true
+	hostname 2>/dev/null || true
+}
+
+# compose resolves --project-directory (and the in-panel updater mounts it)
+# on the host: $DIR must be the same folder on both sides.
+check_mount() {
+	local id mounts="" found=0 src dst best_src="" best_dst=""
+	[ -d "$DIR" ] || die "$DIR is not mounted into the installer: add $(mount_hint) to docker run"
+	if [ -r "$MOUNTINFO_FILE" ] &&
+		! awk -v d="$DIR" '$5 != "/" && (d == $5 || index(d, $5 "/") == 1) { f = 1 } END { exit !f }' "$MOUNTINFO_FILE"; then
+		die "$DIR is not a mount of the host: add $(mount_hint) to docker run"
+	fi
+	for id in $(self_container_ids); do
+		if mounts="$(docker inspect -f '{{range .Mounts}}{{.Source}}|{{.Destination}}{{println}}{{end}}' "$id" 2>/dev/null)"; then
+			found=1
+			break
+		fi
+	done
+	if [ "$found" = 0 ]; then
+		warn "could not find this container through the Docker socket (is --hostname set?): make sure $DIR is mounted at the same path with $(mount_hint)"
+		return
+	fi
+	# The innermost mount holding $DIR.
+	while IFS='|' read -r src dst; do
+		[ -n "$dst" ] && [ "$dst" != "/" ] || continue
+		case "$DIR/" in "$dst"/*) ;; *) continue ;; esac
+		if [ "${#dst}" -gt "${#best_dst}" ]; then
+			best_src="$src"
+			best_dst="$dst"
+		fi
+	done <<<"$mounts"
+	[ -n "$best_dst" ] || die "$DIR is not mounted from the host: add $(mount_hint) to docker run"
+	# Docker Desktop may name a shared macOS/Windows folder /host_mnt/<path>.
+	if [ "$best_src" != "$best_dst" ] && [ "$best_src" != "/host_mnt$best_dst" ]; then
+		die "$best_dst is mounted from $best_src on the host, but compose resolves $DIR on the host: mount the same path with $(mount_hint)"
+	fi
+}
+
+# The same run again through the installer image (summary, hints).
+rerun_command() {
+	local cmd="docker run --rm -it -v $DOCKER_SOCKET:$DOCKER_SOCKET -v $DIR:$DIR $INSTALLER_IMAGE"
+	if [ "$DIR" != "$DEFAULT_DIR" ]; then cmd="$cmd --dir $DIR"; fi
+	printf '%s %s' "$cmd" "$*"
 }
 
 # --- release & files ----------------------------------------------------------
@@ -530,7 +635,8 @@ panel_url() {
 	local host="${PANEL_BIND%:*}" port="${PANEL_BIND##*:}" ip=""
 	case "$host" in
 	0.0.0.0)
-		ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+		# A container only knows its own address, not the host's.
+		if ! in_container; then ip="$(hostname -I 2>/dev/null | awk '{print $1}')"; fi
 		printf 'http://%s:%s' "${ip:-<server-ip>}" "$port"
 		;;
 	*) printf 'http://%s:%s' "$host" "$port" ;;
@@ -551,6 +657,10 @@ print_summary() {
 		;;
 	*)
 		say "  1. Open $(panel_url) (plain HTTP: sign up from a trusted network or an SSH tunnel)"
+		if in_container; then
+			say "     <server-ip> is the address of the machine running Docker; on that machine (or with"
+			say "     Docker Desktop) use http://localhost:$port"
+		fi
 		;;
 	esac
 	say "  2. Create the administrator account (the first account), or restore a $PRODUCT_NAME self-backup there."
@@ -561,7 +671,12 @@ print_summary() {
 		say "     served at https://$DOMAIN automatically (Let's Encrypt)."
 	fi
 	say ""
-	say "Upgrade later from Settings → Instance, or re-run this installer with --version <v>."
+	if in_container; then
+		say "Upgrade later from Settings → Instance, or run this image again with --version <v>:"
+		say "  $(rerun_command --version '<v>')"
+	else
+		say "Upgrade later from Settings → Instance, or re-run this installer with --version <v>."
+	fi
 }
 
 # --- uninstall ----------------------------------------------------------------
@@ -579,12 +694,20 @@ uninstall() {
 		elif has_tty; then
 			printf 'Type "purge %s" to confirm: ' "$DIR" >/dev/tty
 			read -r typed </dev/tty || true
+		elif in_container; then
+			die "no terminal to confirm on: run docker run with -it, or pass -e NITROBASE_PURGE_CONFIRM=\"purge $DIR\""
 		fi
 		[ "$typed" = "purge $DIR" ] || die "not confirmed: nothing was deleted"
 		docker rm -f "$UPDATER_CONTAINER" >/dev/null 2>&1 || true
 		compose down --volumes --remove-orphans
-		rm -rf -- "$DIR"
-		info "$PRODUCT_NAME and its data were removed."
+		if in_container; then
+			# $DIR is a mount point here: empty it; the host folder stays.
+			find "$DIR" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+			info "$PRODUCT_NAME and its data were removed. The empty folder $DIR stays on the host (rmdir $DIR)."
+		else
+			rm -rf -- "$DIR"
+			info "$PRODUCT_NAME and its data were removed."
+		fi
 	else
 		docker rm -f "$UPDATER_CONTAINER" >/dev/null 2>&1 || true
 		compose down --remove-orphans
@@ -600,18 +723,33 @@ main() {
 		exit 0
 	fi
 	check_root
+	if in_container; then
+		require_docker
+		check_mount
+	fi
 	if [ "$UNINSTALL" = 1 ]; then
 		uninstall
 		exit 0
 	fi
-	check_os
+	if ! in_container; then check_os; fi
 	check_arch
 	check_resources
-	install_docker
+	if ! in_container; then install_docker; fi
 	check_ports
+	# --version, else the installed version (never a silent up/downgrade),
+	# else the installer image's own release, else the latest release.
 	if [ -z "$VERSION" ]; then
 		VERSION="$(env_get NITROBASE_VERSION)"
-		if [ -n "$VERSION" ]; then validate_version "$VERSION" "$DIR/.env"; fi
+		if [ -n "$VERSION" ]; then
+			validate_version "$VERSION" "$DIR/.env"
+			if [ -n "$IMAGE_VERSION" ] && [ "$IMAGE_VERSION" != "$VERSION" ]; then
+				info "Keeping the installed $VERSION (this installer is $IMAGE_VERSION: pass --version $IMAGE_VERSION to switch)"
+			fi
+		fi
+	fi
+	if [ -z "$VERSION" ] && [ -n "$IMAGE_VERSION" ]; then
+		VERSION="$IMAGE_VERSION"
+		validate_version "$VERSION" "the installer image (NITROBASE_INSTALLER_VERSION)"
 	fi
 	if [ -z "$VERSION" ]; then
 		VERSION="$(latest_version)"
@@ -625,7 +763,8 @@ main() {
 	# A locally loaded image (air-gapped install) is fine: `up` reports a
 	# missing one.
 	compose pull --quiet --ignore-pull-failures || true
-	compose up -d --remove-orphans || die "could not start $PRODUCT_NAME (is $IMAGE:$VERSION available?)"
+	compose up -d --remove-orphans ||
+		die "could not start $PRODUCT_NAME (is $IMAGE:$VERSION available? is port ${PANEL_BIND##*:} free? choose another with --panel-bind)"
 	wait_healthy
 	print_summary
 }

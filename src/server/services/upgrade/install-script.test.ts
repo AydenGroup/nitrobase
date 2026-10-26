@@ -66,8 +66,11 @@ beforeEach(() => {
 			log,
 			'case "$*" in',
 			'  "compose version") exit 0;;',
-			"  version*) echo 27.3.1;;",
+			'  version*) [ -z "$MOCK_NO_DAEMON" ] || exit 1; echo 27.3.1;;',
+			// The installer container's own mounts ("source|destination" lines).
+			'  "inspect -f"*Mounts*) [ -n "$MOCK_MOUNTS" ] || exit 1; printf "%b\\n" "$MOCK_MOUNTS";;',
 			'  "inspect -f"*) echo healthy;;',
+			'  ps*) [ -z "$MOCK_PS" ] || echo "$MOCK_PS";;',
 			"  inspect*) exit 1;;",
 			"  *) exit 0;;",
 			"esac",
@@ -551,6 +554,206 @@ describe("installer run (mocked system)", () => {
 		expect(purged.code).toBe(0);
 		expect(purged.calls).toMatch(/down --volumes/);
 		expect(existsSync(dir())).toBe(false);
+	});
+});
+
+describe("installer in a container (installer image, mocked system)", () => {
+	const SOCKET = "/var/run/docker.sock";
+
+	/** The installer image's environment, with $DIR mounted at the same path. */
+	function inContainer(
+		env: Record<string, string> = {},
+	): Record<string, string> {
+		const mountinfo = path.join(root, "mountinfo");
+		writeFileSync(
+			mountinfo,
+			[
+				"1 0 0:1 / / rw - overlay overlay rw",
+				`2 1 0:2 / ${dir()} rw - ext4 /dev/x rw`,
+				`3 1 0:3 /var/lib/docker/containers/${"a".repeat(64)}/hostname /etc/hostname rw - ext4 /dev/x rw`,
+				"",
+			].join("\n"),
+		);
+		return {
+			NITROBASE_INSTALLER_CONTAINER: "1",
+			NITROBASE_MOUNTINFO: mountinfo,
+			MOCK_MOUNTS: `${SOCKET}|${SOCKET}\\n${dir()}|${dir()}`,
+			...env,
+		};
+	}
+
+	beforeEach(() => {
+		// `docker run -v` creates the folder on both sides.
+		mkdirSync(dir(), { recursive: true });
+		mock("ss", `echo "ss $*" >> ${JSON.stringify(callLog)}`);
+	});
+
+	it("skips the OS check, the Docker install and ss, and prints a host-neutral summary", () => {
+		writeFileSync(path.join(root, "os-release"), "ID=alpine\n");
+		const result = run(base(), inContainer());
+		expect(result.err).toBe("");
+		expect(result.code).toBe(0);
+		expect(result.calls).not.toMatch(/apt-get/);
+		expect(result.calls).not.toMatch(/^ss /m);
+		// Busy ports are looked up through the socket.
+		expect(result.calls).toMatch(/docker ps --filter publish=3000/);
+		expect(result.calls).toMatch(
+			/docker compose --project-directory \S+ --project-name nitrobase .* up -d/,
+		);
+		// Its own container is found from its mounts.
+		expect(result.calls).toContain(`docker inspect -f`);
+		expect(result.calls).toContain("a".repeat(64));
+		const env = envOf();
+		expect(env.NITROBASE_VERSION).toBe("1.4.2");
+		// The container's address is not the host's.
+		expect(result.out).not.toMatch(/203\.0\.113\.7/);
+		expect(result.out).toMatch(/http:\/\/<server-ip>:3000/);
+		expect(result.out).toMatch(/http:\/\/localhost:3000/);
+		expect(result.out).toMatch(/Back up the secrets/);
+		expect(result.out).toContain(
+			`Setup token (asked once, until the first account exists): ${env.SETUP_TOKEN}`,
+		);
+		expect(result.out).toContain(
+			`docker run --rm -it -v ${SOCKET}:${SOCKET} -v ${dir()}:${dir()} ghcr.io/${RELEASE_REPO_DEFAULT.toLowerCase()}-installer --version <v>`,
+		);
+	});
+
+	it("needs the Docker socket", () => {
+		const result = run(base(), inContainer({ MOCK_NO_DAEMON: "1" }));
+		expect(result.code).not.toBe(0);
+		expect(result.err).toContain(
+			`mount its socket with -v ${SOCKET}:${SOCKET}`,
+		);
+		expect(result.calls).not.toMatch(/apt-get/);
+		expect(existsSync(path.join(dir(), ".env"))).toBe(false);
+	});
+
+	it("refuses a missing or mismatched install folder mount with the -v to use", () => {
+		const hint = `-v ${dir()}:${dir()}`;
+		rmSync(dir(), { recursive: true });
+		const missing = run(base(), inContainer());
+		expect(missing.code).not.toBe(0);
+		expect(missing.err).toContain(
+			`is not mounted into the installer: add ${hint}`,
+		);
+
+		mkdirSync(dir(), { recursive: true });
+		const env = inContainer();
+		writeFileSync(
+			env.NITROBASE_MOUNTINFO,
+			"1 0 0:1 / / rw - overlay overlay rw\n",
+		);
+		const notMounted = run(base(), env);
+		expect(notMounted.code).not.toBe(0);
+		expect(notMounted.err).toContain(`is not a mount of the host: add ${hint}`);
+
+		const other = run(
+			base(),
+			inContainer({
+				MOCK_MOUNTS: `${SOCKET}|${SOCKET}\\n/srv/elsewhere|${dir()}`,
+			}),
+		);
+		expect(other.code).not.toBe(0);
+		expect(other.err).toContain("mounted from /srv/elsewhere on the host");
+		expect(other.err).toContain(hint);
+		expect(existsSync(path.join(dir(), ".env"))).toBe(false);
+
+		// A parent folder mounted at the same path holds it as well.
+		const parent = path.dirname(dir());
+		const viaParent = inContainer({
+			MOCK_MOUNTS: `${SOCKET}|${SOCKET}\\n${parent}|${parent}`,
+		});
+		writeFileSync(
+			viaParent.NITROBASE_MOUNTINFO,
+			`2 1 0:2 / ${parent} rw - ext4 /dev/x rw\n`,
+		);
+		expect(run(base(), viaParent).code).toBe(0);
+	});
+
+	it("refuses a busy panel port published by another container", () => {
+		const result = run(base(), inContainer({ MOCK_PS: "someone_else" }));
+		expect(result.code).not.toBe(0);
+		expect(result.err).toMatch(/port 3000 is already in use/);
+	});
+
+	it("needs root in the container", () => {
+		const result = run(base(), inContainer({ MOCK_UID: "1000" }));
+		expect(result.code).not.toBe(0);
+		expect(result.err).toMatch(/installer image as root \(without --user\)/);
+	});
+
+	it("installs the image's own version unless --version or an install says otherwise", () => {
+		const pinned = inContainer({
+			NITROBASE_INSTALLER_VERSION: "0.1.0-beta.0",
+		});
+		const fresh = run(base(), pinned);
+		expect(fresh.code).toBe(0);
+		expect(envOf().NITROBASE_VERSION).toBe("0.1.0-beta.0");
+		expect(fresh.calls).not.toMatch(/releases\/latest/);
+		expect(fresh.calls).toMatch(
+			/\/v0\.1\.0-beta\.0\/docker-compose\.prod\.yml/,
+		);
+
+		// --version wins (the upgrade path).
+		expect(run([...base(), "--version", "1.5.0"], pinned).code).toBe(0);
+		expect(envOf().NITROBASE_VERSION).toBe("1.5.0");
+		// An older installer image never moves an install silently.
+		const again = run(base(), pinned);
+		expect(again.code).toBe(0);
+		expect(envOf().NITROBASE_VERSION).toBe("1.5.0");
+		expect(again.out).toMatch(
+			/Keeping the installed 1\.5\.0 .*--version 0\.1\.0-beta\.0/,
+		);
+	});
+
+	it("passes the other options through and uninstalls, keeping the mounted folder on purge", () => {
+		expect(
+			run(
+				[
+					...base(),
+					"--panel-bind",
+					"0.0.0.0:8080",
+					"--image",
+					"registry.example.com/me/nitrobase",
+				],
+				inContainer(),
+			).code,
+		).toBe(0);
+		expect(envOf()).toMatchObject({
+			PANEL_BIND: "0.0.0.0:8080",
+			NITROBASE_IMAGE: "registry.example.com/me/nitrobase",
+		});
+		expect(config(["--dir", dir()], inContainer())).toMatchObject({
+			container: "1",
+			image: "registry.example.com/me/nitrobase",
+		});
+
+		const keep = run(["--dir", dir(), "--uninstall"], inContainer());
+		expect(keep.code).toBe(0);
+		expect(keep.calls).toMatch(
+			/--project-name nitrobase .* down --remove-orphans/,
+		);
+		expect(existsSync(path.join(dir(), ".env"))).toBe(true);
+
+		const purged = run(
+			["--dir", dir(), "--uninstall", "--purge"],
+			inContainer({ NITROBASE_PURGE_CONFIRM: `purge ${dir()}` }),
+		);
+		expect(purged.code).toBe(0);
+		expect(purged.calls).toMatch(/down --volumes/);
+		// A mount point cannot be removed from inside: it is emptied.
+		expect(existsSync(dir())).toBe(true);
+		expect(readdirSync(dir())).toEqual([]);
+		expect(purged.out).toContain(`The empty folder ${dir()} stays on the host`);
+	});
+
+	it("uninstall needs the socket too", () => {
+		const result = run(
+			["--dir", dir(), "--uninstall"],
+			inContainer({ MOCK_NO_DAEMON: "1" }),
+		);
+		expect(result.code).not.toBe(0);
+		expect(result.err).toMatch(/mount its socket/);
 	});
 });
 
