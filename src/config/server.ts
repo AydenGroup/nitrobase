@@ -875,7 +875,7 @@ const ConfigSchema = z.object({
 	/** Web host of GitHub repositories (release notes, README links). */
 	GITHUB_WEB_URL: z.url().default("https://github.com"),
 	/** Section of the repository README with the install guide. */
-	DOCS_INSTALL_ANCHOR: z.string().default("#install-on-a-vps"),
+	DOCS_INSTALL_ANCHOR: z.string().default("#install"),
 	/** "Install on a VPS" guide (default: the repository README, else /install.sh). */
 	DOCS_INSTALL_URL: z
 		.url()

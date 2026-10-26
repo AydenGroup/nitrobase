@@ -67,14 +67,17 @@ Templates are plain folders (`template.toml` + `docker-compose.yml`) under [`tem
 
 ## Install
 
-On a fresh **Ubuntu or Debian** VPS (amd64 or arm64, 2 GB RAM recommended), as root:
+Releases are published on [GitHub](https://github.com/AydenGroup/nitrobase/releases), with multi-arch images (amd64 and arm64) at `ghcr.io/aydengroup/nitrobase`. There are two ways to install, and both produce the same layout: a `.env` and a compose file in one folder, with the compose project `nitrobase`.
+
+### With the install script (Ubuntu or Debian VPS)
+
+On a fresh **Ubuntu or Debian** VPS (amd64 or arm64, 2 GB RAM recommended):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<owner>/<repo>/main/scripts/install.sh \
-  | sudo bash -s -- --repo <owner>/<repo>
+curl -fsSL https://nitrobase.app/install.sh | sudo bash
 ```
 
-Replace `<owner>/<repo>` with the repository that publishes Nitrobase releases and images. A Gitea or Forgejo host works too: add `--api-url https://<host>/api/v1 --raw-url https://<host>/<owner>/<repo>/raw/tag`. A running Nitrobase also serves the installer of its own version at `https://<panel>/api/install.sh`.
+If nitrobase.app is unreachable, use the copy attached to the latest release: `https://github.com/AydenGroup/nitrobase/releases/latest/download/install.sh`. A running Nitrobase also serves the installer of its own version at `https://<panel>/api/install.sh`.
 
 The installer is idempotent. It:
 
@@ -82,6 +85,8 @@ The installer is idempotent. It:
 2. creates `/opt/nitrobase` with a `0600` `.env` holding generated secrets, and reminds you to **back them up off the server**;
 3. generates a one-time **setup token**, so nobody who reaches the fresh panel before you can claim it;
 4. downloads the release's `docker-compose.prod.yml`, starts it, waits until the panel is healthy and prints the next steps.
+
+Without `--version` it installs the latest release. Until the first stable release exists, it installs the newest pre-release and sets `RELEASE_CHANNEL=prerelease`, so the panel then offers the next pre-releases.
 
 <details>
 <summary>Installer options</summary>
@@ -93,15 +98,35 @@ The installer is idempotent. It:
 | `--panel-bind <addr:port>` | Where the panel listens (default `0.0.0.0:3000`). |
 | `--domain <host>` | Serve the panel on a domain with Let's Encrypt; binds it to `127.0.0.1:3000` and sets `APP_URL` and `TRUST_PROXY`. |
 | `--image <name>`, `--compose-url <url>` | Use another image or compose file. |
+| `--repo <owner/name>` | Install the releases of a fork (default `AydenGroup/nitrobase`; image `ghcr.io/<owner/name>`). For Gitea or Forgejo, add `--api-url https://<host>/api/v1 --raw-url https://<host>/<owner>/<name>/raw/tag`. |
 | `--uninstall` | Stop Nitrobase, keep data and `.env`. |
 | `--uninstall --purge` | Also delete the data (asks you to type `purge <dir>`). |
 | `--print-config`, `--help` | Show the resolved settings or the help. |
 
 </details>
 
+### With Docker Compose (any OS with Docker)
+
+In an empty folder, with [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2. Pick `VERSION` from the [releases](https://github.com/AydenGroup/nitrobase/releases); the compose file and `.env` must come from the same release.
+
+```bash
+mkdir nitrobase && cd nitrobase
+VERSION=0.1.0-beta.0
+BASE=https://github.com/AydenGroup/nitrobase/releases/download/v$VERSION
+curl -fsSL -o compose.yaml "$BASE/docker-compose.prod.yml" && curl -fsSL -o .env "$BASE/env.example"
+for key in ENCRYPTION_KEY SESSION_SECRET POSTGRES_PASSWORD; do sed -i.bak "s|^$key=.*|$key=$(openssl rand -hex 32)|" .env; done
+sed -i.bak "s|^NITROBASE_VERSION=.*|NITROBASE_VERSION=$VERSION|" .env && rm .env.bak && chmod 600 .env
+docker compose up -d
+docker compose logs app | grep "Setup token"
+```
+
+The last command prints the one-time setup token (it can take a minute while the database migrates). Then open `http://localhost:3000`, or `http://<server-ip>:3000` on a server. Back up `.env`, especially `ENCRYPTION_KEY`, somewhere other than this machine.
+
+On **Docker Desktop** (macOS, Windows), the panel's *Localhost* server is Docker's Linux VM, not your computer: apps deployed to it run inside that VM.
+
 ### First steps
 
-Open `http://<server-ip>:3000`, ideally through an SSH tunnel (`ssh -L 3000:localhost:3000 root@<server-ip>`), enter the setup token and create the first account: it becomes the administrator. Moving an existing Nitrobase here? Choose **Restore from a backup** instead.
+Open `http://<server-ip>:3000`, ideally through an SSH tunnel (`ssh -L 3000:localhost:3000 root@<server-ip>`), enter the setup token and create the first account: it becomes the administrator. The install script printed the token (it is `SETUP_TOKEN` in `.env`). Without `SETUP_TOKEN`, the panel generates one and prints it to its logs until the first account exists: `docker compose logs app | grep "Setup token"`. Moving an existing Nitrobase here? Choose **Restore from a backup** instead.
 
 The dashboard's **Getting started** checklist then walks you through:
 
@@ -114,7 +139,7 @@ The dashboard's **Getting started** checklist then walks you through:
 <summary>Install from a checkout instead</summary>
 
 ```bash
-git clone <this repo> nitrobase && cd nitrobase
+git clone https://github.com/AydenGroup/nitrobase.git && cd nitrobase
 cp .env.example .env
 for key in ENCRYPTION_KEY SESSION_SECRET POSTGRES_PASSWORD; do
   sed -i "s|^$key=.*|$key=$(openssl rand -hex 32)|" .env
@@ -158,7 +183,7 @@ flowchart LR
 
 ### Upgrading
 
-**From the panel:** Settings → Instance shows the running version and the latest release (`RELEASE_REPO`; a Gitea/Forgejo host through `RELEASE_API_URL`; `RELEASE_CHANNEL=stable|prerelease`). **Upgrade** then:
+**From the panel** (both install methods): Settings → Instance shows the running version and the latest release. By default it checks `AydenGroup/nitrobase`. A fork sets `RELEASE_REPO=owner/name`, and a Gitea or Forgejo host also sets `RELEASE_API_URL`. `UPDATE_CHECK_ENABLED=false` turns the check off. Pre-releases are offered only with `RELEASE_CHANNEL=prerelease`. **Upgrade** then:
 
 1. waits until no job runs, and refuses new jobs until it ends;
 2. takes a mandatory self-backup to the destination you choose;
@@ -167,7 +192,7 @@ flowchart LR
 
 The database is not rolled back automatically: if a new version migrated it and then failed, restore the self-backup from step 2.
 
-**From the shell:** re-run the installer with `--version <v>`, or edit `NITROBASE_VERSION` in `.env` and run `docker compose up -d`.
+**From the shell:** re-run the installer with `--version <v>`. Or, in the install folder, download the new release's compose file, set `NITROBASE_VERSION` in `.env` and run `docker compose up -d`.
 
 ### Backups and disaster recovery
 
@@ -266,6 +291,20 @@ bun run dev                       # http://localhost:3000
 | `bun run test` | Vitest |
 | `bun run i18n:extract && bun run i18n:compile` | Update and compile the translation catalogs |
 | `bun run db:generate` | New Drizzle migration from the schema |
+
+### Releasing
+
+Releases are built by GitHub Actions (`.github/workflows/release.yml`) from a version tag:
+
+1. Bump `version` in `package.json` (semver, e.g. `0.1.0` or `0.2.0-beta.1`) and the `VERSION=` example under [Install](#install). Commit and push to `main`.
+2. Tag the commit and push the tag to GitHub: `git tag v0.2.0 && git push origin v0.2.0`.
+
+The workflow then:
+
+- runs the CI checks;
+- fails if the tag is not `v` + the `package.json` version;
+- builds `linux/amd64` and `linux/arm64` and pushes `ghcr.io/aydengroup/nitrobase:<version>`, plus `:latest` for a version without a `-` suffix;
+- creates the GitHub Release, marked as a pre-release for `-` versions, with generated notes and `docker-compose.prod.yml`, `install.sh` and `env.example` attached.
 
 ### Database migrations
 

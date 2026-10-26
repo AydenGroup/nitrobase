@@ -28,6 +28,12 @@ describe("release pipeline", () => {
 		);
 	});
 
+	it("README installs the current version and has no placeholders", () => {
+		const readme = read("README.md");
+		expect(readme).toContain(`\nVERSION=${packageJson.version}\n`);
+		expect(readme).not.toMatch(/<owner>\/<repo>/);
+	});
+
 	it("CI uses the Dockerfile's Bun version", () => {
 		const bun = /^FROM oven\/bun:([\d.]+)-alpine$/m.exec(
 			read("Dockerfile"),
