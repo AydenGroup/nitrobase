@@ -12,6 +12,13 @@
 #
 # Running it again keeps the secrets and data: it updates the compose file
 # and the options you pass (e.g. --version to move to another release).
+# Without --repo / --image / --api-url, a re-run keeps the ones in .env
+# (RELEASE_REPO, NITROBASE_IMAGE, RELEASE_API_URL), else the defaults.
+#
+# Release channel: installing a pre-release (1.0.0-rc.1) sets
+# RELEASE_CHANNEL=prerelease when .env has no channel, marked as set by
+# this installer; installing a stable release later removes only a channel
+# the installer set. A RELEASE_CHANNEL you set yourself is never changed.
 #
 # Options (all optional):
 #   --version <v>       Release to install (default: latest release, or the
@@ -71,9 +78,10 @@ VERSION=""
 DIR=""
 PANEL_BIND=""
 DOMAIN=""
-REPO="${NITROBASE_REPO:-$DEFAULT_REPO}"
+# Empty: resolved from .env, else the defaults (resolve_sources).
+REPO="${NITROBASE_REPO:-}"
 IMAGE="${NITROBASE_IMAGE:-}"
-API_URL="${NITROBASE_API_URL:-$DEFAULT_API_URL}"
+API_URL="${NITROBASE_API_URL:-}"
 RAW_URL="${NITROBASE_RAW_URL:-}"
 COMPOSE_URL="${NITROBASE_COMPOSE_URL:-}"
 ASSUME_YES=0
@@ -196,19 +204,33 @@ validate_args() {
 		if [ -n "$DOMAIN" ]; then PANEL_BIND="$DEFAULT_PANEL_BIND_WITH_DOMAIN"; else PANEL_BIND="$DEFAULT_PANEL_BIND"; fi
 	fi
 	[[ "$PANEL_BIND" =~ ^([0-9]{1,3}(\.[0-9]{1,3}){3}|\[[0-9a-fA-F:]+\]):[0-9]{1,5}$ ]] || die "invalid --panel-bind (address:port): $PANEL_BIND"
-	if [ -n "$REPO" ]; then
-		[[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die "invalid --repo (owner/name): $REPO"
+	if [ "$PURGE" = 1 ] && [ "$UNINSTALL" = 0 ]; then die "--purge only goes with --uninstall"; fi
+	resolve_sources
+}
+
+# Repository, image and releases API: the option (or NITROBASE_* variable),
+# else what .env of an existing install holds, else the defaults. A
+# --repo other than the installed one (without --image) derives the image
+# from that repo.
+resolve_sources() {
+	local installed_repo
+	# An install without RELEASE_REPO follows the official releases.
+	installed_repo="$(env_get RELEASE_REPO)"
+	installed_repo="${installed_repo:-$DEFAULT_REPO}"
+	if [ -z "$IMAGE" ] && { [ -z "$REPO" ] || [ "$REPO" = "$installed_repo" ]; }; then
+		IMAGE="$(env_get NITROBASE_IMAGE)"
 	fi
-	if [ -z "$IMAGE" ] && [ -n "$REPO" ]; then
+	REPO="${REPO:-$installed_repo}"
+	[[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die "invalid --repo (owner/name): $REPO"
+	if [ -z "$IMAGE" ]; then
 		IMAGE="$DEFAULT_IMAGE_REGISTRY/$(printf '%s' "$REPO" | tr '[:upper:]' '[:lower:]')"
 	fi
-	if [ -n "$IMAGE" ]; then
-		[[ "$IMAGE" =~ ^[a-z0-9][a-z0-9._/:-]*[a-z0-9]$ ]] || die "invalid --image: $IMAGE"
-	fi
+	[[ "$IMAGE" =~ ^[a-z0-9][a-z0-9._/:-]*[a-z0-9]$ ]] || die "invalid --image: $IMAGE"
+	if [ -z "$API_URL" ]; then API_URL="$(env_get RELEASE_API_URL)"; fi
+	API_URL="${API_URL:-$DEFAULT_API_URL}"
 	API_URL="${API_URL%/}"
-	if [ -z "$RAW_URL" ] && [ -n "$REPO" ]; then RAW_URL="$DEFAULT_RAW_BASE/$REPO"; fi
+	if [ -z "$RAW_URL" ]; then RAW_URL="$DEFAULT_RAW_BASE/$REPO"; fi
 	RAW_URL="${RAW_URL%/}"
-	if [ "$PURGE" = 1 ] && [ "$UNINSTALL" = 0 ]; then die "--purge only goes with --uninstall"; fi
 }
 
 print_config() {
@@ -345,27 +367,67 @@ first_tag() {
 	tr ',' '\n' | sed -n 's/^[[:space:]{[]*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
 }
 
+# GET a releases API URL: prints the body, then the HTTP status on the last
+# line (000: no answer).
+api_get() {
+	curl -sSL -H 'Accept: application/json' -w '\n%{http_code}' "$1" 2>/dev/null || printf '\n000'
+}
+
 latest_version() {
-	[ -n "$REPO" ] || die "no --version given and no --repo to look up the latest release"
-	local json tag
-	if json="$(curl -fsSL -H 'Accept: application/json' "$API_URL/repos/$REPO/releases/latest" 2>/dev/null)"; then
-		tag="$(printf '%s' "$json" | first_tag)"
-		[ -n "$tag" ] || die "the latest release of $REPO has no tag"
-	else
+	local answer status tag
+	answer="$(api_get "$API_URL/repos/$REPO/releases/latest")"
+	status="${answer##*$'\n'}"
+	case "$status" in
+	200) tag="$(printf '%s' "${answer%$'\n'*}" | first_tag)" ;;
+	404)
 		# "latest" skips pre-releases: before the first stable release, the
 		# newest pre-release is installed.
-		json="$(curl -fsSL -H 'Accept: application/json' "$API_URL/repos/$REPO/releases?per_page=$RELEASES_PAGE_SIZE")" ||
-			die "could not read the releases of $REPO from $API_URL"
-		tag="$(printf '%s' "$json" | first_tag)"
-		[ -n "$tag" ] || die "$REPO has no release yet"
+		answer="$(api_get "$API_URL/repos/$REPO/releases?per_page=$RELEASES_PAGE_SIZE")"
+		status="${answer##*$'\n'}"
+		[ "$status" = 200 ] || die "could not list the releases of $REPO from $API_URL (HTTP $status)"
+		tag="$(printf '%s' "${answer%$'\n'*}" | first_tag)"
+		[ -n "$tag" ] || die "$REPO has no release yet (or $API_URL does not know it)"
 		warn "$REPO has no stable release yet: installing the pre-release $tag"
-	fi
+		;;
+	*) die "could not read the latest release of $REPO from $API_URL (HTTP $status); pass --version to skip the lookup" ;;
+	esac
+	[ -n "$tag" ] || die "the latest release of $REPO has no tag"
 	printf '%s' "${tag#v}"
 }
 
 env_get() {
-	[ -f "$DIR/.env" ] || return 0
+	[ -r "$DIR/.env" ] || return 0
 	sed -n "s/^$1=//p" "$DIR/.env" | tail -n 1 | tr -d '"'
+}
+
+# Remove KEY=… lines (and, with a second argument, that exact line).
+env_unset() {
+	local tmp
+	[ -f "$DIR/.env" ] || return 0
+	tmp="$(mktemp "$DIR/.env.XXXXXX")"
+	chmod 600 "$tmp"
+	grep -v "^$1=" "$DIR/.env" | { if [ -n "${2:-}" ]; then grep -vxF -- "$2"; else cat; fi; } >"$tmp" || true
+	mv -f "$tmp" "$DIR/.env"
+}
+
+# Marks a RELEASE_CHANNEL that this installer wrote (not the user).
+readonly CHANNEL_MARKER="# RELEASE_CHANNEL set by install.sh for a pre-release"
+
+# Pre-release installs follow the pre-release channel (see the header).
+apply_channel() {
+	case "$VERSION" in
+	*-*)
+		if [ -z "$(env_get RELEASE_CHANNEL)" ]; then
+			env_set RELEASE_CHANNEL prerelease
+			printf '%s\n' "$CHANNEL_MARKER" >>"$DIR/.env"
+		fi
+		;;
+	*)
+		if grep -qxF "$CHANNEL_MARKER" "$DIR/.env" 2>/dev/null; then
+			env_unset RELEASE_CHANNEL "$CHANNEL_MARKER"
+		fi
+		;;
+	esac
 }
 
 # Set KEY=value in .env (replace or append) without echoing the value.
@@ -402,11 +464,9 @@ write_env() {
 	env_set NITROBASE_VERSION "$VERSION"
 	env_set PANEL_BIND "$PANEL_BIND"
 	# The panel checks the official releases (DEFAULT_REPO) by default.
-	if [ -n "$REPO" ] && [ "$REPO" != "$DEFAULT_REPO" ]; then env_set RELEASE_REPO "$REPO"; fi
-	if [ "$API_URL" != "$DEFAULT_API_URL" ]; then env_set RELEASE_API_URL "$API_URL"; fi
-	# A pre-release (1.0.0-rc.1) is only upgraded to newer pre-releases on
-	# the pre-release channel; an explicit RELEASE_CHANNEL is kept.
-	case "$VERSION" in *-*) if [ -z "$(env_get RELEASE_CHANNEL)" ]; then env_set RELEASE_CHANNEL prerelease; fi ;; esac
+	if [ "$REPO" != "$DEFAULT_REPO" ]; then env_set RELEASE_REPO "$REPO"; else env_unset RELEASE_REPO; fi
+	if [ "$API_URL" != "$DEFAULT_API_URL" ]; then env_set RELEASE_API_URL "$API_URL"; else env_unset RELEASE_API_URL; fi
+	apply_channel
 	if [ -n "$DOMAIN" ]; then
 		env_set PANEL_DOMAIN "$DOMAIN"
 		env_set APP_URL "https://$DOMAIN"
@@ -557,9 +617,6 @@ main() {
 		VERSION="$(latest_version)"
 		validate_version "$VERSION" "the latest release"
 	fi
-	if [ -z "$IMAGE" ]; then IMAGE="$(env_get NITROBASE_IMAGE)"; fi
-	[ -n "$IMAGE" ] || die "no --image or --repo: which image should run?"
-	[[ "$IMAGE" =~ ^[a-z0-9][a-z0-9._/:-]*[a-z0-9]$ ]] || die "invalid image: $IMAGE"
 	info "Installing $PRODUCT_NAME $VERSION ($IMAGE) in $DIR"
 	write_env
 	download_compose

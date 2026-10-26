@@ -57,20 +57,7 @@ beforeEach(() => {
 	mock("hostname", 'echo "203.0.113.7"');
 	mock("sleep", "exit 0");
 	mock("apt-get", `${log}\nexit 0`);
-	mock(
-		"curl",
-		[
-			log,
-			'out=""; url=""',
-			'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2;; -H) shift 2;; -*) shift;; *) url="$1"; shift;; esac; done',
-			'case "$url" in',
-			`  *docker-compose.prod.yml) cp ${JSON.stringify(COMPOSE)} "$out";;`,
-			'  */gpg) echo "-----BEGIN PGP PUBLIC KEY BLOCK-----" > "$out";;',
-			'  */releases/latest) echo \'{"url":"x","tag_name":"v1.4.2","name":"Nitrobase 1.4.2"}\';;',
-			"  *) exit 22;;",
-			"esac",
-		].join("\n"),
-	);
+	mockCurl();
 	mock(
 		"docker",
 		[
@@ -85,6 +72,39 @@ beforeEach(() => {
 		].join("\n"),
 	);
 });
+
+/** One releases API answer: HTTP status (0: no connection) and body. */
+type Answer = [status: number, body: string];
+
+/**
+ * curl: compose files, Docker's key and the releases API. Honors `-o`,
+ * `-f` (exit 22 from HTTP 400) and `-w` (the status on a last line).
+ */
+function mockCurl(api: { latest?: Answer; list?: Answer } = {}): void {
+	const latest = api.latest ?? [
+		200,
+		'{"url":"x","tag_name":"v1.4.2","name":"Nitrobase 1.4.2"}',
+	];
+	const list = api.list ?? [404, '{"message":"Not Found"}'];
+	const answer = ([status, body]: Answer) =>
+		status === 0 ? "exit 7" : `answer ${status} '${body}'`;
+	mock(
+		"curl",
+		[
+			`echo "$(basename "$0") $*" >> ${JSON.stringify(callLog)}`,
+			'out=""; url=""; fmt=""',
+			'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2;; -H) shift 2;; -w) fmt="$2"; shift 2;; -*) shift;; *) url="$1"; shift;; esac; done',
+			'answer() { printf "%s" "$2"; if [ -n "$fmt" ]; then printf "\\n%s" "$1"; elif [ "$1" -ge 400 ]; then exit 22; fi; }',
+			'case "$url" in',
+			`  *docker-compose.prod.yml) cp ${JSON.stringify(COMPOSE)} "$out";;`,
+			'  */gpg) echo "-----BEGIN PGP PUBLIC KEY BLOCK-----" > "$out";;',
+			`  */releases/latest) ${answer(latest)};;`,
+			`  */releases\\?per_page=*) ${answer(list)};;`,
+			"  *) exit 22;;",
+			"esac",
+		].join("\n"),
+	);
+}
 
 afterEach(() => {
 	rmSync(root, { recursive: true, force: true });
@@ -318,30 +338,20 @@ describe("installer run (mocked system)", () => {
 		expect(bad.code).not.toBe(0);
 		expect(bad.err).toMatch(/invalid version from .*\.env/);
 		rmSync(dir(), { recursive: true, force: true });
-		mock(
-			"curl",
-			`echo "$(basename "$0") $*" >> ${JSON.stringify(callLog)}\necho '{"tag_name":"v1.0 && reboot"}'`,
-		);
+		mockCurl({ latest: [200, '{"tag_name":"v1.0 && reboot"}'] });
 		const api = run(base());
 		expect(api.code).not.toBe(0);
 		expect(api.err).toMatch(/invalid version from the latest release/);
 	});
 
 	it("installs the newest pre-release while no stable release exists", () => {
-		mock(
-			"curl",
-			[
-				`echo "$(basename "$0") $*" >> ${JSON.stringify(callLog)}`,
-				'out=""; url=""',
-				'while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2;; -H) shift 2;; -*) shift;; *) url="$1"; shift;; esac; done',
-				'case "$url" in',
-				`  *docker-compose.prod.yml) cp ${JSON.stringify(COMPOSE)} "$out";;`,
-				"  */releases/latest) exit 22;;",
-				'  */releases?per_page=*) echo \'[{"url":"x","tag_name":"v0.1.0-beta.1","prerelease":true},{"tag_name":"v0.1.0-beta.0"}]\';;',
-				"  *) exit 22;;",
-				"esac",
-			].join("\n"),
-		);
+		mockCurl({
+			latest: [404, '{"message":"Not Found"}'],
+			list: [
+				200,
+				'[{"url":"x","tag_name":"v0.1.0-beta.1","prerelease":true},{"tag_name":"v0.1.0-beta.0"}]',
+			],
+		});
 		const result = run(base());
 		expect(result.code).toBe(0);
 		expect(result.err).toMatch(/no stable release yet.*v0\.1\.0-beta\.1/);
@@ -369,6 +379,82 @@ describe("installer run (mocked system)", () => {
 	it("keeps the stable channel for a stable release", () => {
 		expect(run(base()).code).toBe(0);
 		expect(envOf().RELEASE_CHANNEL).toBeUndefined();
+	});
+
+	it("drops only a pre-release channel it set itself on a stable install", () => {
+		expect(run([...base(), "--version", "0.1.0-beta.0"]).code).toBe(0);
+		expect(envOf().RELEASE_CHANNEL).toBe("prerelease");
+		expect(run([...base(), "--version", "0.1.0"]).code).toBe(0);
+		expect(envOf().RELEASE_CHANNEL).toBeUndefined();
+		expect(readFileSync(path.join(dir(), ".env"), "utf8")).not.toMatch(
+			/install\.sh/,
+		);
+		// Chosen by the user: kept on a stable install.
+		const envFile = path.join(dir(), ".env");
+		writeFileSync(
+			envFile,
+			`${readFileSync(envFile, "utf8")}RELEASE_CHANNEL=prerelease\n`,
+		);
+		expect(run([...base(), "--version", "0.2.0"]).code).toBe(0);
+		expect(envOf().RELEASE_CHANNEL).toBe("prerelease");
+	});
+
+	it("falls back to the release list only when latest is 404", () => {
+		mockCurl({
+			latest: [500, '{"message":"Server Error"}'],
+			list: [200, '[{"tag_name":"v0.1.0-beta.1"}]'],
+		});
+		const failed = run(base());
+		expect(failed.code).not.toBe(0);
+		expect(failed.err).toMatch(/could not read the latest release .*HTTP 500/);
+		expect(failed.calls).not.toMatch(/per_page/);
+
+		mockCurl({ latest: [0, ""] });
+		const offline = run(base());
+		expect(offline.code).not.toBe(0);
+		expect(offline.err).toMatch(/HTTP 000/);
+
+		mockCurl({
+			latest: [404, '{"message":"Not Found"}'],
+			list: [200, "[]"],
+		});
+		const none = run(base());
+		expect(none.code).not.toBe(0);
+		expect(none.err).toMatch(/has no release yet/);
+	});
+
+	it("keeps a custom image and repository on a re-run", () => {
+		expect(
+			run([...base(), "--image", "registry.example.com/me/nitrobase"]).code,
+		).toBe(0);
+		expect(run(base()).code).toBe(0);
+		expect(envOf().NITROBASE_IMAGE).toBe("registry.example.com/me/nitrobase");
+
+		rmSync(dir(), { recursive: true, force: true });
+		const fork = ["--dir", dir(), "--yes"];
+		expect(run([...fork, "--repo", "Me/Fork"]).code).toBe(0);
+		expect(envOf()).toMatchObject({
+			RELEASE_REPO: "Me/Fork",
+			NITROBASE_IMAGE: "ghcr.io/me/fork",
+		});
+		// Re-run without --repo: the fork stays, its releases are read.
+		const again = run(fork);
+		expect(again.code).toBe(0);
+		expect(envOf()).toMatchObject({
+			RELEASE_REPO: "Me/Fork",
+			NITROBASE_IMAGE: "ghcr.io/me/fork",
+		});
+		expect(config(["--dir", dir()])).toMatchObject({
+			repo: "Me/Fork",
+			image: "ghcr.io/me/fork",
+			raw_url: "https://raw.githubusercontent.com/Me/Fork",
+		});
+		// Back to the official releases: RELEASE_REPO goes away.
+		expect(run([...fork, "--repo", RELEASE_REPO_DEFAULT]).code).toBe(0);
+		expect(envOf().RELEASE_REPO).toBeUndefined();
+		expect(envOf().NITROBASE_IMAGE).toBe(
+			`ghcr.io/${RELEASE_REPO_DEFAULT.toLowerCase()}`,
+		);
 	});
 
 	it("never purges a folder that is not a panel install", () => {
