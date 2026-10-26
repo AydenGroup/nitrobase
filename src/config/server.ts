@@ -810,6 +810,9 @@ const ConfigSchema = z.object({
 	LOGIN_RATE_WINDOW_MS: int(15 * 60_000),
 	TWO_FACTOR_RATE_PER_USER: int(6),
 	TWO_FACTOR_RATE_WINDOW_MS: int(15 * 60_000),
+	/** Failed sign-ups (bad setup token, invite, email) per client IP per window. */
+	REGISTER_RATE_PER_IP: int(10),
+	REGISTER_RATE_WINDOW_MS: int(15 * 60_000),
 	/** Removes stored sign-in/2FA counters whose window is over. */
 	RATE_LIMIT_PRUNE_CRON: z.string().min(1).default("*/15 * * * *"),
 

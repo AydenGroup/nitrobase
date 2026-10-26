@@ -16,6 +16,10 @@ import {
 	type InviteClaim,
 } from "#/features/teams/teams.server.ts";
 import { normalizeEmail } from "#/libs/email.ts";
+import {
+	createRateLimiter,
+	type RateLimiter,
+} from "#/server/services/rate-limit.ts";
 import { AppError } from "#/utils/error.ts";
 import {
 	type PersistentRateLimiter,
@@ -201,6 +205,29 @@ export async function getUserByEmail(
 	return user;
 }
 
+let registerLimiter: RateLimiter | null = null;
+/** Failed sign-ups per client IP (in memory: a restart forgets them). */
+function registrationLimiter(): RateLimiter {
+	const config = getConfig();
+	registerLimiter ??= createRateLimiter({
+		limit: config.REGISTER_RATE_PER_IP,
+		windowMs: config.REGISTER_RATE_WINDOW_MS,
+	});
+	return registerLimiter;
+}
+
+/** null when the client may try to sign up, else the minutes to wait. */
+export function registerRetryMinutes(ip: string | null): string | null {
+	const limiter = registrationLimiter();
+	const key = ip ?? "unknown";
+	if (!limiter.isLimited(key)) return null;
+	return String(Math.max(1, Math.ceil(limiter.retryAfterMs(key) / 60_000)));
+}
+
+export function recordRegisterFailure(ip: string | null): void {
+	registrationLimiter().hit(ip ?? "unknown");
+}
+
 // Arbitrary constant key for pg_advisory_xact_lock around first-admin setup.
 export const REGISTRATION_LOCK_KEY = 4_242_001;
 
@@ -216,6 +243,15 @@ export async function createUser(
 	data: RegisterInput,
 	invite: InviteClaim | undefined,
 ): Promise<UserDTO> {
+	// The first account needs the one-time setup token (SETUP_TOKEN, else
+	// the one the panel generated and logged). Checked before the
+	// transaction: it reads the pool, and a pool connection requested while
+	// holding another one (under the lock) could starve the pool when many
+	// sign-ups arrive at once. A wrong token also skips the bcrypt cost.
+	const tokenOk = !invite && (await setupTokenMatches(data.setupToken));
+	if (!invite && !tokenOk && !(await getExistedUser())) {
+		throw new AppError("SETUP_TOKEN_INVALID");
+	}
 	const passwordHash = await bcrypt.hash(
 		data.password,
 		getConfig().PASSWORD_BCRYPT_COST,
@@ -228,11 +264,8 @@ export async function createUser(
 			const existing = await tx.select({ id: users.id }).from(users).limit(1);
 			const bootstrap = existing.length === 0;
 			if (!bootstrap && !invite) throw new AppError("INVITE_REQUIRED");
-			// The first account needs the one-time setup token (SETUP_TOKEN,
-			// else the one the panel generated and logged).
-			if (bootstrap && !(await setupTokenMatches(data.setupToken))) {
-				throw new AppError("SETUP_TOKEN_INVALID");
-			}
+			// Only the transaction's connection from here on.
+			if (bootstrap && !tokenOk) throw new AppError("SETUP_TOKEN_INVALID");
 
 			const [newUser] = await tx
 				.insert(users)

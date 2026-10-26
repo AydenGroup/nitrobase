@@ -21,6 +21,8 @@ import {
 	loginRetryMinutes,
 	recordLoginFailure,
 	recordLoginSuccess,
+	recordRegisterFailure,
+	registerRetryMinutes,
 	updateUser,
 } from "./auth.server";
 import { authMiddleware } from "./authMiddleware";
@@ -174,14 +176,24 @@ export const registerFn = createServerFn({ method: "POST" })
 			data && typeof data === "object" && "invite" in data && data.invite
 				? InviteTokenSchema.parse(data.invite)
 				: null;
+		// Unauthenticated: failed attempts (setup token, invite) are limited
+		// per client address.
+		const { ip } = currentRequestInfo();
+		const minutes = registerRetryMinutes(ip);
+		if (minutes) throw new AppError("AUTH_RATE_LIMITED", { minutes });
 
+		let newUser: Awaited<ReturnType<typeof createUser>>;
 		let claim: Awaited<ReturnType<typeof findInvite>> | undefined;
-		if (await getExistedUser()) {
-			if (!token) throw new AppError("INVITE_REQUIRED");
-			claim = await findInvite(token);
+		try {
+			if (await getExistedUser()) {
+				if (!token) throw new AppError("INVITE_REQUIRED");
+				claim = await findInvite(token);
+			}
+			newUser = await createUser(parsed, claim);
+		} catch (error) {
+			recordRegisterFailure(ip);
+			throw error;
 		}
-
-		const newUser = await createUser(parsed, claim);
 		audit({
 			userId: newUser.id,
 			teamId: claim?.teamId ?? null,
