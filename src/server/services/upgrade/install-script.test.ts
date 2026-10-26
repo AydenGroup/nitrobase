@@ -506,6 +506,11 @@ describe("installer run (mocked system)", () => {
 		});
 		expect(result.out).toMatch(/ssh -L 3000:127\.0\.0\.1:3000/);
 		expect(result.out).toMatch(/https:\/\/panel\.example\.com/);
+		// An upgrade without the options keeps the panel on the loopback.
+		expect(run([...base(), "--version", "1.5.0"]).code).toBe(0);
+		expect(envOf().PANEL_BIND).toBe("127.0.0.1:3000");
+		expect(run([...base(), "--panel-bind", "0.0.0.0:8080"]).code).toBe(0);
+		expect(envOf().PANEL_BIND).toBe("0.0.0.0:8080");
 	});
 
 	it("installs Docker from the official repository when missing", () => {

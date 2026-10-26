@@ -12,8 +12,9 @@
 #
 # Running it again keeps the secrets and data: it updates the compose file
 # and the options you pass (e.g. --version to move to another release).
-# Without --repo / --image / --api-url, a re-run keeps the ones in .env
-# (RELEASE_REPO, NITROBASE_IMAGE, RELEASE_API_URL), else the defaults.
+# Without --repo / --image / --api-url / --panel-bind, a re-run keeps the
+# ones in .env (RELEASE_REPO, NITROBASE_IMAGE, RELEASE_API_URL, PANEL_BIND),
+# else the defaults.
 #
 # In a container (the installer image, NITROBASE_INSTALLER_CONTAINER=1):
 #
@@ -220,6 +221,9 @@ validate_args() {
 		DOMAIN="$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')"
 		[[ "$DOMAIN" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,62}$ ]] || die "invalid --domain: $DOMAIN"
 	fi
+	# A re-run keeps the address of the install (a loopback-only panel never
+	# becomes public by an upgrade); --domain picks its own default.
+	if [ -z "$PANEL_BIND" ] && [ -z "$DOMAIN" ]; then PANEL_BIND="$(env_get PANEL_BIND)"; fi
 	if [ -z "$PANEL_BIND" ]; then
 		# Behind the panel domain, plain HTTP stays on the loopback only.
 		if [ -n "$DOMAIN" ]; then PANEL_BIND="$DEFAULT_PANEL_BIND_WITH_DOMAIN"; else PANEL_BIND="$DEFAULT_PANEL_BIND"; fi

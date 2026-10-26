@@ -134,7 +134,7 @@ The installer is idempotent. It:
 3. generates a one-time **setup token**, so nobody who reaches the fresh panel before you can claim it;
 4. downloads the release's `docker-compose.prod.yml`, starts it, waits until the panel is healthy and prints the next steps.
 
-Without `--version` it installs the latest release. Until the first stable release exists, it installs the newest pre-release. When it installs a pre-release and `.env` has no `RELEASE_CHANNEL`, it sets `RELEASE_CHANNEL=prerelease` so the panel offers the next pre-releases. A later stable install removes that setting again, but only if the installer wrote it; a channel you set yourself is kept. A re-run keeps the `--repo`, `--image` and `--api-url` of the existing install (`RELEASE_REPO`, `NITROBASE_IMAGE` and `RELEASE_API_URL` in `.env`).
+Without `--version` it installs the latest release. Until the first stable release exists, it installs the newest pre-release. When it installs a pre-release and `.env` has no `RELEASE_CHANNEL`, it sets `RELEASE_CHANNEL=prerelease` so the panel offers the next pre-releases. A later stable install removes that setting again, but only if the installer wrote it; a channel you set yourself is kept. A re-run keeps the `--repo`, `--image`, `--api-url` and `--panel-bind` of the existing install (`RELEASE_REPO`, `NITROBASE_IMAGE`, `RELEASE_API_URL` and `PANEL_BIND` in `.env`).
 
 <details id="installer-options">
 <summary>Installer options</summary>
