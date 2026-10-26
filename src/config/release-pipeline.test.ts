@@ -45,6 +45,18 @@ describe("release pipeline", () => {
 		expect(String(setup?.with?.["bun-version"])).toBe(bun);
 	});
 
+	it("pins third-party actions to a commit", () => {
+		for (const name of ["ci.yml", "release.yml"]) {
+			const text = read(`.github/workflows/${name}`);
+			for (const [, action, ref] of text.matchAll(
+				/uses:\s*([\w.-]+\/[\w.-]+)@(\S+)/g,
+			)) {
+				if (/^(actions|docker)\//.test(action)) continue;
+				expect(ref, `${name}: ${action}`).toMatch(/^[0-9a-f]{40}$/);
+			}
+		}
+	});
+
 	it("runs scripts that exist", () => {
 		const text = read(".github/workflows/ci.yml");
 		for (const [, script] of text.matchAll(/bun run ([\w:-]+)/g)) {

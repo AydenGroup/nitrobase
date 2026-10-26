@@ -23,13 +23,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
+      # Third-party actions are pinned to a commit.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           # Same Bun as the Dockerfile's base image (oven/bun:<version>-alpine).
           bun-version: 1.3.2
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # The tests need no database or Docker. `attr` (setfattr/getfattr)
+      # lets the xattr round trip of the storage-metadata tests run; it
+      # skips itself where the tools are missing.
+      - name: Test tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq attr
 
       - name: Typecheck
         run: bun run typecheck

@@ -2,9 +2,12 @@ name: Release
 
 # Push a tag `v<package.json version>` (e.g. v0.1.0-beta.0) to publish:
 #   - ghcr.io/<owner>/<repo>:<version> for linux/amd64 and linux/arm64
-#     (plus :latest for versions without a pre-release suffix);
+#     (plus :latest for the highest stable version, as for the Release);
 #   - a GitHub Release with docker-compose.prod.yml, install.sh and
-#     env.example attached (marked pre-release for `-` versions).
+#     env.example attached (marked pre-release for `-` versions). It becomes
+#     the repository's "latest" release only when it is the highest stable
+#     version, so tagging a backport (v1.2.4 after v1.3.0) keeps v1.3.0
+#     as latest.
 on:
   push:
     tags: ["v*"]
@@ -27,6 +30,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      make_latest: ${{ steps.version.outputs.make_latest }}
       image: ${{ steps.version.outputs.image }}
       license: ${{ steps.version.outputs.license }}
     steps:
@@ -34,6 +38,8 @@ jobs:
 
       - id: version
         name: Compare the tag with package.json
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           version="$(jq -r .version package.json)"
           tag="${GITHUB_REF_NAME}"
@@ -45,9 +51,17 @@ jobs:
             *-*) prerelease=true ;;
             *) prerelease=false ;;
           esac
+          # "Latest" only for the highest stable version (not a backport).
+          make_latest=false
+          if [ "$prerelease" = false ]; then
+            current="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)"
+            highest="$(printf '%s\n%s\n' "$current" "$tag" | sed '/^$/d' | sort -V | tail -n 1)"
+            if [ "$highest" = "$tag" ]; then make_latest=true; fi
+          fi
           {
             echo "version=$version"
             echo "prerelease=$prerelease"
+            echo "make_latest=$make_latest"
             # The image is named after the repository (lowercase for OCI).
             echo "image=ghcr.io/${GITHUB_REPOSITORY,,}"
             echo "license=$(jq -r .license package.json)"
@@ -78,12 +92,15 @@ jobs:
 
       - id: meta
         uses: docker/metadata-action@v5
+        env:
+          # Annotations on the image manifests and the multi-arch index.
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: ${{ needs.version.outputs.image }}
           flavor: latest=false
           tags: |
             type=raw,value=${{ needs.version.outputs.version }}
-            type=raw,value=latest,enable=${{ needs.version.outputs.prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.version.outputs.make_latest == 'true' }}
           labels: |
             org.opencontainers.image.title=Nitrobase
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -121,11 +138,13 @@ jobs:
           # No leading dot: download it as .env (README, Install).
           cp .env.example dist/env.example
 
-      - uses: softprops/action-gh-release@v2
+      # Third-party actions are pinned to a commit.
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: ${{ github.ref_name }}
           name: Nitrobase ${{ needs.version.outputs.version }}
           prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.version.outputs.make_latest }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |

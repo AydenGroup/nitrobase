@@ -304,8 +304,8 @@ The workflow then:
 
 - runs the CI checks;
 - fails if the tag is not `v` + the `package.json` version;
-- builds `linux/amd64` and `linux/arm64` and pushes `ghcr.io/aydengroup/nitrobase:<version>`, plus `:latest` for a version without a `-` suffix;
-- creates the GitHub Release, marked as a pre-release for `-` versions, with generated notes and `docker-compose.prod.yml`, `install.sh` and `env.example` attached.
+- builds `linux/amd64` and `linux/arm64` and pushes `ghcr.io/aydengroup/nitrobase:<version>`, plus `:latest` when it is the highest stable version;
+- creates the GitHub Release, marked as a pre-release for `-` versions, with generated notes and `docker-compose.prod.yml`, `install.sh` and `env.example` attached. It becomes the "latest" release only when it is the highest stable version, so a backport tag (`v1.2.4` after `v1.3.0`) leaves `v1.3.0` as latest, for both the Release and the `:latest` image.
 
 ### Database migrations
 
