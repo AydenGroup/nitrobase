@@ -14,9 +14,9 @@ dist-ssr
 __unconfig*
 todos.json
 
-# Agent worktrees
-.claude/worktrees/
 .data
 
-.claude/settings.local.json
-.claude/plan.md
+# AI agent tooling (local only)
+.agents/
+.claude/
+skills-lock.json

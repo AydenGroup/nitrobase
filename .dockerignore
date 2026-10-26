@@ -9,3 +9,5 @@ node_modules
 .vscode
 .agents
 .github
+.claude
+skills-lock.json

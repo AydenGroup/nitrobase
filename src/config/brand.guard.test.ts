@@ -19,7 +19,6 @@ const oldBrandIn = (text: string) =>
 
 /** Folders scanned recursively (the tracked content of the repository). */
 const SCANNED_DIRS = [
-	".agents",
 	".github",
 	".vscode",
 	"drizzle",
