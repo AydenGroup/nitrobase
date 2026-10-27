@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	compareSemVer,
+	isDowngrade,
 	isPrerelease,
 	parseVersion,
 	updateKind,
@@ -81,5 +82,28 @@ describe("updateKind", () => {
 		expect(updateKind("1.2.4", "1.2.3")).toBeNull();
 		expect(updateKind("1.2.3", "v1.2.3")).toBeNull();
 		expect(updateKind("latest", "1.0.0")).toBeNull();
+	});
+});
+
+describe("isDowngrade", () => {
+	it("is true when the target is an older release", () => {
+		expect(isDowngrade("2.4.5", "2.3.0")).toBe(true);
+		expect(isDowngrade("v1.10.0", "v1.9.9")).toBe(true);
+		expect(isDowngrade("n8n@2.0.0", "n8n@1.99.1")).toBe(true);
+		expect(isDowngrade("2.0.0", "2.0.0-rc.1")).toBe(true);
+	});
+
+	it("is false for upgrades and the same version", () => {
+		expect(isDowngrade("2.3.0", "2.4.5")).toBe(false);
+		expect(isDowngrade("2.4.5", "2.4.5")).toBe(false);
+		expect(isDowngrade("2.0.0-rc.1", "2.0.0")).toBe(false);
+	});
+
+	it("makes no claim for branches, commits or bare numbers", () => {
+		expect(isDowngrade("main", "develop")).toBe(false);
+		expect(isDowngrade("2.4.5", "main")).toBe(false);
+		expect(isDowngrade("9f8e7d6c5b4a", "1a2b3c4d5e6f")).toBe(false);
+		expect(isDowngrade("2.4.5", "1234567")).toBe(false);
+		expect(isDowngrade("20", "19")).toBe(false);
 	});
 });

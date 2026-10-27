@@ -100,3 +100,19 @@ export function updateKind(from: string, to: string): UpdateKind | null {
 	if (b.patch !== a.patch) return "patch";
 	return "prerelease";
 }
+
+/** A commit SHA (short or full): never read as a version number. */
+const COMMIT_SHA = /^[0-9a-f]{7,40}$/i;
+
+/**
+ * Whether moving from `from` to `to` goes back to an older release. Only
+ * claimed when both read as versions with at least `major.minor` (a bare
+ * number, a branch name or a commit SHA says nothing about order).
+ */
+export function isDowngrade(from: string, to: string): boolean {
+	if (COMMIT_SHA.test(from.trim()) || COMMIT_SHA.test(to.trim())) return false;
+	const a = parseVersion(from);
+	const b = parseVersion(to);
+	if (!a || !b || a.parts < 2 || b.parts < 2) return false;
+	return compareSemVer(b, a) < 0;
+}
