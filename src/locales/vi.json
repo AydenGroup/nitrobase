@@ -1614,6 +1614,7 @@
 	"Probing {url}...": "Đang kiểm tra {url}...",
 	"Health check passed (HTTP {code})": "Kiểm tra sức khỏe đạt (HTTP {code})",
 	"Health check passed (HTTP {code}, expected {expected})": "Kiểm tra sức khỏe đạt (HTTP {code}, mong đợi {expected})",
+	"Restarting {services}: they depend on {changed}, which this deploy recreated or restarted...": "Đang khởi động lại {services}: chúng phụ thuộc vào {changed}, vừa được lần triển khai này tạo lại hoặc khởi động lại...",
 	"Routes updated: {hosts}": "Đã cập nhật route: {hosts}",
 	"SUCCESS: {app} is running": "THÀNH CÔNG: {app} đang chạy",
 	"Hint: {hint}": "Gợi ý: {hint}",

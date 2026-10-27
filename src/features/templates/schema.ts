@@ -825,6 +825,14 @@ export const TemplateManifestSchema = z
 		 */
 		no_default_restart: z.array(serviceName).default([]),
 		/**
+		 * After a deploy's `up` recreated or (re)started a service, restart
+		 * the running services that depend on it (`depends_on`,
+		 * transitively), once the app is ready: compose leaves them on
+		 * their connections to the old container (BUG-023). `false` for an
+		 * app whose services reconnect by themselves.
+		 */
+		restart_dependents: z.boolean().default(true),
+		/**
 		 * Opt-in text substitutions in the fetched files, applied only when
 		 * the variable `when` is set (non-empty): e.g. pointing an upstream
 		 * file's package imports at a mirror the owner configures. `find` is

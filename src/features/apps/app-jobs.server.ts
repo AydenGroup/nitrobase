@@ -48,10 +48,12 @@ import {
 	chmodExecutableCommand,
 	composeConfigCommand,
 	composeDownCommand,
+	composeIdentityCommand,
 	composeLogsCommand,
 	composeOomCommand,
 	composePrepareCommand,
 	composeRecreateServiceCommand,
+	composeRestartServicesCommand,
 	composeServiceCommand,
 	composeStatusCommand,
 	composeUpCommand,
@@ -71,6 +73,12 @@ import {
 	type ServiceAction,
 	type ServiceStatus,
 } from "#/server/services/apps/commands.ts";
+import {
+	composeDependsOn,
+	dependentsToRestart,
+	type ProjectIdentities,
+	parseContainerIdentities,
+} from "#/server/services/apps/dependents.ts";
 import {
 	diffEnvKeys,
 	diffLines,
@@ -1193,6 +1201,8 @@ export async function runDeploy(
 		if (options.beforeUp) {
 			await options.beforeUp({ executor, location, rendered, app });
 		}
+		// Which containers `up` recreates or (re)starts (BUG-023).
+		const before = await readIdentities(executor, location, ctx);
 		ctx.event("deploy.starting");
 		const upStartedAt = Date.now();
 		try {
@@ -1206,6 +1216,7 @@ export async function runDeploy(
 			}
 			throw error;
 		}
+		const after = before && (await readIdentities(executor, location, ctx));
 		await recheckBindSources(executor, location, ctx, rendered.fileBinds);
 		await (await linksModule()).pruneLinkNetworks(
 			executor,
@@ -1222,6 +1233,13 @@ export async function runDeploy(
 			server,
 		);
 		await waitUntilHealthy(executor, location, rendered, app, ctx, upStartedAt);
+		if (before && after) {
+			await restartDependents(executor, location, rendered, app, ctx, {
+				before,
+				after,
+				since: upStartedAt,
+			});
+		}
 
 		await setStatus(app.id, {
 			status: "running",
@@ -1256,6 +1274,65 @@ export async function runDeploy(
 	} finally {
 		executor?.close();
 	}
+}
+
+/**
+ * The project's containers (id, start time, state) per service; null when
+ * they cannot be read: the dependents are then left alone (a warning).
+ */
+async function readIdentities(
+	executor: Executor,
+	location: AppLocation,
+	ctx: JobContext,
+): Promise<ProjectIdentities | null> {
+	try {
+		return parseContainerIdentities(
+			await run(
+				executor,
+				ctx,
+				composeIdentityCommand(location),
+				"COMPOSE_PS_FAILED",
+				{ quiet: true },
+			),
+		);
+	} catch (error) {
+		logWarning(ctx, error);
+		return null;
+	}
+}
+
+/**
+ * Once the app is ready, restart the running services that depend on one
+ * `up` recreated or (re)started (they would keep their connections to the
+ * old container, BUG-023), then wait until it is ready again. Templates
+ * opt out with `restart_dependents = false`.
+ */
+async function restartDependents(
+	executor: Executor,
+	location: AppLocation,
+	rendered: RenderedTemplate,
+	app: AppRow,
+	ctx: JobContext,
+	input: { before: ProjectIdentities; after: ProjectIdentities; since: number },
+): Promise<void> {
+	if ((await getAppManifest(app)).restart_dependents === false) return;
+	const { restart, changed } = dependentsToRestart({
+		before: input.before,
+		after: input.after,
+		dependsOn: composeDependsOn(rendered.composeModel, { runtimeOnly: true }),
+	});
+	if (restart.length === 0) return;
+	ctx.event("deploy.restarting_dependents", {
+		changed: { $list: changed },
+		services: { $list: restart },
+	});
+	await run(
+		executor,
+		ctx,
+		composeRestartServicesCommand(location, restart),
+		"APP_RESTART_FAILED",
+	);
+	await waitUntilHealthy(executor, location, rendered, app, ctx, input.since);
 }
 
 /**

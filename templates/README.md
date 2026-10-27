@@ -35,6 +35,9 @@ limitation = "Functions are disabled in this template."  # optional: marketplace
 # data_binds = ["data/settings.json"]  # bind sources the app creates itself at runtime
 #                               # (exempt from the file checks, see "Bind mounts of files")
 # no_default_restart = ["init"] # services left without a restart policy (see "Compose rules")
+# restart_dependents = true     # after `up` recreated a service, restart the running services that
+#                               # depend on it (depends_on, transitively) once the app is ready
+#                               # (default true; false when they reconnect by themselves)
 
 [source]
 # type = "github"               # "github" (default) | "inline" (custom compose: the owner pastes it)

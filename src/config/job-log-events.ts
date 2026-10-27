@@ -182,6 +182,14 @@ export const jobLogEvents = {
 	"deploy.health_ok_expected": success<{ code: number; expected: string }>(
 		msg({ id: "Health check passed (HTTP {code}, expected {expected})" }),
 	),
+	"deploy.restarting_dependents": info<{
+		changed: CodedValue;
+		services: CodedValue;
+	}>(
+		msg({
+			id: "Restarting {services}: they depend on {changed}, which this deploy recreated or restarted...",
+		}),
+	),
 	"deploy.routes_updated": info<{ hosts: CodedValue }>(
 		msg({ id: "Routes updated: {hosts}" }),
 	),

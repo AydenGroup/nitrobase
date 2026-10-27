@@ -20,6 +20,12 @@ const state = vi.hoisted(() => ({
 	failPull: false,
 	/** The render fails (unknown version): nothing reaches the server. */
 	failRender: false,
+	/** Container identities before / after `up` (BUG-023); empty: none. */
+	identities: [] as string[],
+	/** The compose has an `api` service depending on `db`. */
+	withApi: false,
+	/** Template `restart_dependents` (undefined: the default). */
+	restartDependents: undefined as boolean | undefined,
 	ps: "db\trunning\t0\t0\thealthy\n",
 	/** Successive `ps` outputs (the last one repeats); empty: `ps`. */
 	psSeq: [] as string[],
@@ -199,6 +205,13 @@ const fakeExecutor = {
 		if (command.includes(" pull") && state.pullDelayMs > 0) {
 			await new Promise((resolve) => setTimeout(resolve, state.pullDelayMs));
 		}
+		if (command.includes(".State.StartedAt")) {
+			return ok(
+				state.identities.length > 1
+					? state.identities.shift()
+					: (state.identities[0] ?? ""),
+			);
+		}
 		// The status sample also runs `docker inspect`: match the OOM format.
 		if (command.includes("OOMKilled")) return ok(state.oomRows);
 		if (command.includes(" up -d") && state.failUp) {
@@ -249,6 +262,7 @@ vi.mock("./apps.server", async (importOriginal) => {
 		// Access checks are not under test here.
 		getAppRow: async () => ({ ...state.row }),
 		getAppManifest: async () => ({
+			restart_dependents: state.restartDependents,
 			variables: VARIABLES,
 			failure_hints: { jsr_unreachable: { variable: "FUNCTIONS_JSR_MIRROR" } },
 		}),
@@ -335,6 +349,13 @@ vi.mock("#/features/templates/templates.server.ts", async () => {
 								`${APP_ROOT}/volumes/db/init.sql:/docker-entrypoint-initdb.d/init.sql`,
 							],
 						},
+						...(state.withApi
+							? {
+									api: {
+										depends_on: { db: { condition: "service_healthy" } },
+									},
+								}
+							: {}),
 					},
 				},
 				containerNames: { db: "demo-db" },
@@ -403,6 +424,9 @@ beforeEach(() => {
 	state.volumes = 0;
 	state.failPull = false;
 	state.failRender = false;
+	state.identities = [];
+	state.withApi = false;
+	state.restartDependents = undefined;
 	state.ps = "db\trunning\t0\t0\thealthy\n";
 	state.psSeq = [];
 	state.stableSamples = 1;
@@ -1222,5 +1246,62 @@ describe("a deploy that fails before touching the server (BUG-020)", () => {
 		const outcome = await runDeploy("app-1", "update", "v2", ctx());
 		expect(outcome).toMatchObject({ success: false, untouched: false });
 		expect(state.row.status).toBe("error");
+	});
+});
+
+describe("dependents of a service up recreated restart (BUG-023)", () => {
+	/** `composeIdentityCommand` output: db's `id@startedAt`, api unchanged. */
+	const ids = (db: string) => {
+		const [id, startedAt] = db.split("@");
+		return `db\t${id}\t${startedAt}\trunning\napi\ta1\tt0\trunning`;
+	};
+	const restarts = () =>
+		state.commands.filter((command) => /compose .* restart /.test(command));
+
+	beforeEach(() => {
+		state.withApi = true;
+		state.ps = "db\trunning\t0\t0\thealthy\napi\trunning\t0\t0\t\n";
+	});
+
+	it("restarts api once db is ready again, then waits for readiness", async () => {
+		// up recreated db (new id) and left api alone.
+		state.identities = [ids("d1@t0"), ids("d2@t1")];
+		const outcome = await runDeploy("app-1", "redeploy", undefined, ctx());
+		expect(outcome.success).toBe(true);
+		expect(restarts()).toHaveLength(1);
+		expect(restarts()[0]).toMatch(/restart 'api'$/);
+		const order = codes();
+		const restarting = order.indexOf("deploy.restarting_dependents");
+		expect(restarting).toBeGreaterThan(order.indexOf("deploy.waiting_ready"));
+		// Readiness is awaited again after the restart, before success.
+		expect(order.indexOf("deploy.waiting_ready", restarting)).toBeGreaterThan(
+			restarting,
+		);
+		expect(order.indexOf("deploy.running")).toBeGreaterThan(restarting);
+		expect(
+			state.events.find(
+				(event) => event.code === "deploy.restarting_dependents",
+			)?.params,
+		).toEqual({ changed: { $list: ["db"] }, services: { $list: ["api"] } });
+	});
+
+	it("restarts nothing when up left every container alone", async () => {
+		state.identities = [ids("d1@t0")];
+		await runDeploy("app-1", "redeploy", undefined, ctx());
+		expect(restarts()).toEqual([]);
+		expect(codes()).not.toContain("deploy.restarting_dependents");
+	});
+
+	it("restarts nothing on a first deploy", async () => {
+		state.identities = ["", ids("d1@t0")];
+		await runDeploy("app-1", "deploy", undefined, ctx());
+		expect(restarts()).toEqual([]);
+	});
+
+	it("honours restart_dependents = false", async () => {
+		state.restartDependents = false;
+		state.identities = [ids("d1@t0"), ids("d2@t1")];
+		await runDeploy("app-1", "redeploy", undefined, ctx());
+		expect(restarts()).toEqual([]);
 	});
 });

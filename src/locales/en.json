@@ -1614,6 +1614,7 @@
 	"Probing {url}...": "Probing {url}...",
 	"Health check passed (HTTP {code})": "Health check passed (HTTP {code})",
 	"Health check passed (HTTP {code}, expected {expected})": "Health check passed (HTTP {code}, expected {expected})",
+	"Restarting {services}: they depend on {changed}, which this deploy recreated or restarted...": "Restarting {services}: they depend on {changed}, which this deploy recreated or restarted...",
 	"Routes updated: {hosts}": "Routes updated: {hosts}",
 	"SUCCESS: {app} is running": "SUCCESS: {app} is running",
 	"Hint: {hint}": "Hint: {hint}",
