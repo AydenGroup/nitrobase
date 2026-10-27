@@ -11,9 +11,8 @@ const {
 	newerDatabaseVersion,
 	newerTemplateVersion,
 } = await import("./candidates");
-const { autoUpdateAllowed, decideRollback, windowOpen } = await import(
-	"./policy"
-);
+const { autoUpdateAllowed, decideRollback, downgradeRisk, windowOpen } =
+	await import("./policy");
 const { databaseEngines } = await import("#/config/database-engines.ts");
 
 const version = (ref: string, extra: Partial<TemplateVersion> = {}) => ({
@@ -242,5 +241,30 @@ describe("template update targets", () => {
 		expect(check("v0.30.4")).toBe(false); // what runs
 		expect(check("v9.9.9")).toBe(false); // not listed
 		expect(check("main")).toBe(false);
+	});
+});
+
+describe("downgrade risk", () => {
+	const risk = (
+		from: string,
+		to: string,
+		extra: Partial<Parameters<typeof downgradeRisk>[0]> = {},
+	) =>
+		downgradeRisk({ from, to, ordered: true, rollback: "redeploy", ...extra });
+
+	it("flags an older target, stronger with irreversible migrations", () => {
+		expect(risk("2.4.5", "2.3.0")).toBe("downgrade");
+		expect(risk("2.4.5", "2.3.0", { rollback: "restore" })).toBe(
+			"irreversible",
+		);
+	});
+
+	it("says nothing for upgrades or versions that do not compare", () => {
+		expect(risk("2.3.0", "2.4.5", { rollback: "restore" })).toBeNull();
+		expect(risk("2.4.5", "2.3.0", { ordered: false })).toBeNull();
+		expect(risk("main", "develop")).toBeNull();
+		expect(
+			risk("2.4.5", "0123456789abcdef0123456789abcdef01234567"),
+		).toBeNull();
 	});
 });

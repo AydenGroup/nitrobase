@@ -1,4 +1,4 @@
-import type { UpdateKind } from "#/libs/semver.ts";
+import { isDowngrade, type UpdateKind } from "#/libs/semver.ts";
 
 /**
  * App update rules (pure, client-safe): which updates a policy applies by
@@ -69,6 +69,28 @@ export function decideRollback(input: {
 			: { action: "manual", reason: "no_backup" };
 	}
 	return { action: "redeploy" };
+}
+
+/**
+ * Risk of moving an app back to an older version: `downgrade` (data the
+ * newer version wrote may not be readable by the older one), or
+ * `irreversible` (the source declares that new versions migrate data
+ * irreversibly, rollback `restore`: only a backup brings the old state
+ * back). Null when it is not a downgrade, or when the versions do not
+ * compare (`ordered` false: branches, commits; names that are not
+ * versions).
+ */
+export type DowngradeRisk = "downgrade" | "irreversible";
+
+export function downgradeRisk(input: {
+	from: string;
+	to: string;
+	/** The source's version names are ordered releases (tags, releases). */
+	ordered: boolean;
+	rollback: RollbackMode;
+}): DowngradeRisk | null {
+	if (!input.ordered || !isDowngrade(input.from, input.to)) return null;
+	return input.rollback === "restore" ? "irreversible" : "downgrade";
 }
 
 /** Result of one update, as recorded on the app (and in bulk summaries). */
