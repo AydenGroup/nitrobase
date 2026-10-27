@@ -237,6 +237,9 @@ const fakeExecutor = {
 			);
 		}
 		if (command === "STATUS") {
+			if (state.failAt === "status") {
+				return { stdout: "", stderr: "boom", exitCode: 1 };
+			}
 			const running = state.running ?? state.services;
 			return ok(
 				state.services
@@ -536,6 +539,7 @@ describe("performAppBackup step order", () => {
 
 	it("an app that isn't running is not stopped or started", async () => {
 		state.status = "stopped";
+		state.running = [];
 		await backup(appwrite);
 		expect(state.steps).toEqual([
 			"pre_hook",
@@ -647,5 +651,41 @@ describe("performAppBackup failure restarts what it stopped", () => {
 		state.failAt = "pre_hook";
 		await expect(backup(appwrite)).rejects.toThrow();
 		expect(state.steps).toEqual(["pre_hook"]);
+	});
+});
+
+describe("what runs comes from the server, not apps.status (BUG-020)", () => {
+	it("stops the running containers of an app left in error", async () => {
+		// A failed update set `error`; every container still runs.
+		state.status = "error";
+		await backup(appwrite);
+		expect(state.steps).toEqual([
+			"pre_hook",
+			"stop:appwrite-worker-builds",
+			"stop:appwrite",
+			"stop:mongodb",
+			"dump",
+			"stop:postgresql",
+			"archive:appwrite-uploads",
+			"start:postgresql,mongodb,appwrite,appwrite-worker-builds",
+		]);
+		expect(state.events.map((event) => event.code)).toContain(
+			"backup.stopping",
+		);
+	});
+
+	it("stops what runs even when the row says stopped", async () => {
+		state.status = "stopped";
+		state.running = ["mongodb"];
+		await backup(appwrite);
+		expect(state.steps).toContain("stop:mongodb");
+		expect(state.steps.at(-1)).toBe("start:mongodb");
+	});
+
+	it("refuses to copy volumes when the container state is unknown", async () => {
+		state.status = "error";
+		state.failAt = "status";
+		await expect(backup(appwrite)).rejects.toThrow("COMPOSE_PS_FAILED");
+		expect(state.steps).not.toContain("archive:appwrite-uploads");
 	});
 });

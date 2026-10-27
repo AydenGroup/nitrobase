@@ -301,8 +301,12 @@ export async function performAppBackup(
 			}
 		};
 		const dumpService = strategy && databaseService ? databaseService : null;
+		// What runs is read from the server (compose ps), never from
+		// `apps.status`: an app left in `error` by a failed job may still run
+		// every container, and copying its live volumes corrupts the archive
+		// (BUG-020). A failed status read fails the backup (COMPOSE_PS_FAILED).
 		const phases =
-			app.status === "running" && plan.stop !== false
+			plan.stop !== false
 				? backupStopPhases(
 						plan,
 						await runningServices(executor, log, location, services),
