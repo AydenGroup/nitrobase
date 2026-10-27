@@ -101,6 +101,12 @@ const apiRoutes: ApiRoute[] = [
 				.regex(/^[\w][\w./@-]{0,199}$/)
 				.optional(),
 			backupFirst: z.boolean().optional(),
+			confirmDowngrade: z
+				.boolean()
+				.optional()
+				.describe(
+					"Required (true) when `version` is older than the deployed one: data migrations may not be reversible, so restore a backup if the app fails. A downgrade without it is refused (APP_DOWNGRADE_UNCONFIRMED).",
+				),
 		}),
 		handler: ({ actor, params, body }) =>
 			startAppAction(
@@ -111,6 +117,7 @@ const apiRoutes: ApiRoute[] = [
 							action: "update",
 							version: body.version,
 							backupFirst: body.backupFirst ?? false,
+							confirmDowngrade: body.confirmDowngrade ?? false,
 						}
 					: { appId: params.appId, action: "redeploy" },
 			),
