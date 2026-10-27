@@ -55,7 +55,15 @@ export type { JobOwner, JobRecoveryHooks };
  * shown in the reader's language) or raw text/Error (tool output, shown
  * as is).
  */
-export type JobOutcome = { success: boolean; error?: unknown };
+export type JobOutcome = {
+	success: boolean;
+	error?: unknown;
+	/**
+	 * A deploy failed before it changed anything on the server (render,
+	 * source fetch, build): the app runs as it did (BUG-020).
+	 */
+	untouched?: boolean;
+};
 
 /** Writes to a job log: panel events (coded) and raw output. */
 export interface JobLogger {

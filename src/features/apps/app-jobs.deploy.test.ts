@@ -18,6 +18,8 @@ const state = vi.hoisted(() => ({
 	files: new Map<string, string>(),
 	volumes: 0,
 	failPull: false,
+	/** The render fails (unknown version): nothing reaches the server. */
+	failRender: false,
 	ps: "db\trunning\t0\t0\thealthy\n",
 	/** Successive `ps` outputs (the last one repeats); empty: `ps`. */
 	psSeq: [] as string[],
@@ -285,6 +287,7 @@ vi.mock("#/server/services/templates/compose-policy.ts", () => ({
 }));
 
 vi.mock("#/features/templates/templates.server.ts", async () => {
+	const { AppError } = await import("#/utils/error.ts");
 	const { isGeneratedExpression } = await import(
 		"#/server/services/apps/env-state.ts"
 	);
@@ -297,6 +300,11 @@ vi.mock("#/features/templates/templates.server.ts", async () => {
 			domain: string;
 			version?: string;
 		}) => {
+			if (state.failRender) {
+				throw new AppError("TEMPLATE_VERSION_NOT_FOUND", {
+					version: input.version ?? "",
+				});
+			}
 			const definitions: Record<string, string> = Object.fromEntries(
 				Object.entries(VARIABLES).map(([name, v]) => [name, v.value]),
 			);
@@ -394,6 +402,7 @@ beforeEach(() => {
 	state.files.clear();
 	state.volumes = 0;
 	state.failPull = false;
+	state.failRender = false;
 	state.ps = "db\trunning\t0\t0\thealthy\n";
 	state.psSeq = [];
 	state.stableSamples = 1;
@@ -1162,5 +1171,56 @@ describe("initial_only values freeze once a deploy reaches compose up (BUG-014)"
 		const outcome = await runDeploy("app-1", "deploy", undefined, ctx());
 		expect(outcome.success).toBe(true);
 		expect(initialised()).toEqual([]);
+	});
+});
+
+describe("a deploy that fails before touching the server (BUG-020)", () => {
+	const uploads = () => [...state.files.keys()];
+
+	it("keeps a running app running (unknown version)", async () => {
+		await runDeploy("app-1", "deploy", undefined, ctx());
+		expect(state.row.status).toBe("running");
+		const files = uploads();
+		const commands = state.commands.length;
+
+		state.failRender = true;
+		const outcome = await runDeploy("app-1", "update", "9.9.9", ctx());
+		expect(outcome).toMatchObject({
+			success: false,
+			untouched: true,
+			error: { code: "TEMPLATE_VERSION_NOT_FOUND" },
+		});
+		expect(state.row.status).toBe("running");
+		expect(state.row.version).toBe("v1");
+		// The job's failure is recorded; nothing was written or run.
+		expect(state.row.lastErrorCode).toBe("TEMPLATE_VERSION_NOT_FOUND");
+		expect(uploads()).toEqual(files);
+		expect(
+			state.commands
+				.slice(commands)
+				.filter((command) => / up -d| pull| stop/.test(command)),
+		).toEqual([]);
+	});
+
+	it("keeps a stopped app stopped", async () => {
+		state.row.status = "stopped";
+		state.failRender = true;
+		await runDeploy("app-1", "update", "9.9.9", ctx());
+		expect(state.row.status).toBe("stopped");
+	});
+
+	it("shows the failure of an app that never ran", async () => {
+		state.row.status = "pending";
+		state.failRender = true;
+		await runDeploy("app-1", "deploy", undefined, ctx());
+		expect(state.row.status).toBe("error");
+	});
+
+	it("still marks an app whose files changed as error", async () => {
+		await runDeploy("app-1", "deploy", undefined, ctx());
+		state.failPull = true;
+		const outcome = await runDeploy("app-1", "update", "v2", ctx());
+		expect(outcome).toMatchObject({ success: false, untouched: false });
+		expect(state.row.status).toBe("error");
 	});
 });

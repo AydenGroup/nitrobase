@@ -128,7 +128,7 @@ export async function startAppUpdate(
 			const after = await freshApp(app.id);
 			const decision = decideRollback({
 				mode,
-				appTouched: after?.status === "error",
+				appTouched: !outcome.untouched && after?.status === "error",
 				backupTaken: !!backup,
 			});
 			let result: AppUpdateResult = "failed";

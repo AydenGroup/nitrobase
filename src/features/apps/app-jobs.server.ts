@@ -1089,6 +1089,9 @@ export async function runDeploy(
 	ctx.setCancelState?.("app_partly_updated");
 
 	let executor: Executor | null = null;
+	// Until the rendered files are uploaded, the server (its files and
+	// containers) is as it was: a failure keeps the app's status.
+	let touched = false;
 	try {
 		// Containers are labelled with this instance's id (ownership).
 		await requireInstanceId();
@@ -1157,6 +1160,7 @@ export async function runDeploy(
 		// compose untouched.
 		await driver.prepare?.(step);
 		await persistRenderedEnv(app.id, rendered);
+		touched = true;
 		await uploadRendered(executor, location, rendered, ctx);
 		await verifyResolvedCompose(executor, location, rendered, ctx);
 
@@ -1244,11 +1248,25 @@ export async function runDeploy(
 		recheckDomainsLater(app.id);
 		return { success: true };
 	} catch (error) {
-		await setStatus(app.id, { status: "error", ...lastErrorColumns(error) });
-		return { success: false, error };
+		await setStatus(app.id, {
+			status: touched ? "error" : untouchedStatus(app.status),
+			...lastErrorColumns(error),
+		});
+		return { success: false, error, untouched: !touched };
 	} finally {
 		executor?.close();
 	}
+}
+
+/**
+ * Status of an app whose deploy failed before it changed the server: a
+ * settled status stays (its containers run as before); an app that was
+ * never deployed (or mid-job) shows the failure.
+ */
+export function untouchedStatus(status: AppRow["status"]): AppRow["status"] {
+	return status === "running" || status === "stopped" || status === "error"
+		? status
+		: "error";
 }
 
 /**
