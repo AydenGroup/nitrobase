@@ -341,7 +341,9 @@ async function runCloudImport(
 		await opened.prepare(input.parts);
 
 		job.event("cloud_sync.deploying");
-		const deployed = await runDeploy(input.appId, "deploy", undefined, job);
+		const deployed = await runDeploy(input.appId, "deploy", undefined, job, {
+			nested: true,
+		});
 		if (!deployed.success) {
 			await finishSync(input.syncId, "failed", summary);
 			return deployed;

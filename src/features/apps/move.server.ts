@@ -397,9 +397,16 @@ export async function runMove(
 			fetched.manifest.template.commitSha ? "redeploy" : "deploy",
 			undefined,
 			redacting,
-			{ beforeUp: restoreData(session, fetched, redacting), server: target },
+			{
+				beforeUp: restoreData(session, fetched, redacting),
+				server: target,
+				nested: true,
+			},
 		);
 		if (!outcome.success) {
+			// The deploy's own state ("partly updated") does not apply: the
+			// rollback below undoes the move.
+			ctx.setCancelState?.("move_rolled_back");
 			return await rollback(
 				outcome.error ?? new AppError("APP_MOVE_DEPLOY_FAILED"),
 			);

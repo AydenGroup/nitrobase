@@ -1091,6 +1091,11 @@ export async function runDeploy(
 		server?: ServerRow;
 		/** Owner-defined sources (git): what to deploy and whether to build. */
 		source?: SourceRequest;
+		/**
+		 * Inside a bigger job (move, restore, cloud import): its cancel state
+		 * stands until this deploy changes the server.
+		 */
+		nested?: boolean;
 	} = {},
 ): Promise<JobOutcome> {
 	const [app] = await db.select().from(apps).where(eq(apps.id, appId)).limit(1);
@@ -1099,7 +1104,7 @@ export async function runDeploy(
 	const location = appLocation(app);
 	await setStatus(app.id, { status: "deploying", ...lastErrorColumns(null) });
 	// Until the upload starts, a cancel leaves the server as it was.
-	ctx.setCancelState?.("deploy_nothing_changed");
+	if (!options.nested) ctx.setCancelState?.("deploy_nothing_changed");
 
 	let executor: Executor | null = null;
 	// Until the rendered files are uploaded, the server (its files and

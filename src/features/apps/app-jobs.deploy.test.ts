@@ -1262,6 +1262,26 @@ describe("a deploy that fails before touching the server (BUG-020)", () => {
 		expect(cancel).toEqual(["deploy_nothing_changed", "app_partly_updated"]);
 	});
 
+	it("keeps the caller's cancel state when nested, until the upload", async () => {
+		const cancel: string[] = [];
+		const withCancel = () =>
+			({
+				...(ctx() as object),
+				setCancelState: (value: string) => cancel.push(value),
+			}) as never;
+		state.failRender = true;
+		await runDeploy("app-1", "redeploy", undefined, withCancel(), {
+			nested: true,
+		});
+		expect(cancel).toEqual([]);
+
+		state.failRender = false;
+		await runDeploy("app-1", "redeploy", undefined, withCancel(), {
+			nested: true,
+		});
+		expect(cancel).toEqual(["app_partly_updated"]);
+	});
+
 	it("still marks an app whose files changed as error", async () => {
 		await runDeploy("app-1", "deploy", undefined, ctx());
 		state.failPull = true;

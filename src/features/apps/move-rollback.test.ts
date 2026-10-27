@@ -20,6 +20,10 @@ const state = vi.hoisted(() => ({
 	patches: [] as Record<string, unknown>[],
 	stopped: [] as string[],
 	started: [] as string[],
+	/** The rclone session on the target fails (else: the deploy fails). */
+	targetUnreachable: true,
+	cancelStates: [] as string[],
+	deployOptions: [] as unknown[],
 }));
 
 vi.mock("#/db/index.ts", () => ({
@@ -44,12 +48,19 @@ vi.mock("#/features/backups/rclone.server.ts", () => ({
 	newWorkDir: () => "/work",
 	// The target side fails: the move rolls back.
 	openRclone: async () => {
-		throw new Error("target unreachable");
+		if (state.targetUnreachable) throw new Error("target unreachable");
+		return {
+			workDir: "/work",
+			redact: (text: string) => text,
+			close: async () => {},
+		};
 	},
 }));
 vi.mock("#/features/backups/restore.server.ts", () => ({
 	applyArchiveState: async () => {},
-	fetchArchive: async () => ({}),
+	fetchArchive: async () => ({
+		manifest: { template: { commitSha: "a".repeat(40) } },
+	}),
 	restoreData: () => async () => {},
 }));
 vi.mock("#/features/deployments/deployments.server.ts", () => ({
@@ -77,7 +88,10 @@ vi.mock("./app-jobs.server", () => ({
 		_ctx: unknown,
 		command: string,
 	) => (await executor.exec(command)).stdout,
-	runDeploy: async () => ({ success: false }),
+	runDeploy: async (...args: unknown[]) => {
+		state.deployOptions.push(args[4]);
+		return { success: false };
+	},
 	setStatus: async (_id: string, patch: Record<string, unknown>) => {
 		state.patches.push(patch);
 	},
@@ -102,7 +116,9 @@ const ctx = {
 	deploymentId: "dep-1",
 	event: () => {},
 	log: () => {},
-	setCancelState: () => {},
+	setCancelState: (value: string) => {
+		state.cancelStates.push(value);
+	},
 	setRollback: async () => {},
 	setWorkDir: async () => {},
 	servicesStopped: async (services: string[]) => {
@@ -138,6 +154,9 @@ beforeEach(() => {
 	state.patches = [];
 	state.stopped = [];
 	state.started = [];
+	state.targetUnreachable = true;
+	state.cancelStates = [];
+	state.deployOptions = [];
 });
 
 describe("a failed move restarts what ran on the source", () => {
@@ -161,5 +180,19 @@ describe("a failed move restarts what ran on the source", () => {
 		expect(starts()).toEqual([]);
 		expect(state.started).toEqual([]);
 		expect(state.patches.at(-1)).toMatchObject({ status: "stopped" });
+	});
+});
+
+describe("a failed deploy on the target", () => {
+	it("runs nested and leaves the move's cancel state at rolled back", async () => {
+		state.status = "running";
+		state.running = ["db"];
+		state.targetUnreachable = false;
+		await move();
+		expect(state.deployOptions).toEqual([
+			expect.objectContaining({ nested: true }),
+		]);
+		expect(state.cancelStates.at(-1)).toBe("move_rolled_back");
+		expect(starts()[0]).toMatch(/ start 'db'$/);
 	});
 });
