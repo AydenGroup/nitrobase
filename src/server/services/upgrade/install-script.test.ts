@@ -517,6 +517,42 @@ describe("installer run (mocked system)", () => {
 		expect(envOf().PANEL_BIND).toBe("127.0.0.1:3000");
 		expect(run([...base(), "--panel-bind", "0.0.0.0:8080"]).code).toBe(0);
 		expect(envOf().PANEL_BIND).toBe("0.0.0.0:8080");
+		// --domain again: a public address goes back to the loopback, a
+		// loopback port of the user's is kept.
+		const domain = [...base(), "--domain", "panel.example.com"];
+		expect(run(domain).code).toBe(0);
+		expect(envOf().PANEL_BIND).toBe("127.0.0.1:3000");
+		expect(run([...base(), "--panel-bind", "127.0.0.1:4000"]).code).toBe(0);
+		expect(run(domain).code).toBe(0);
+		expect(envOf().PANEL_BIND).toBe("127.0.0.1:4000");
+	});
+
+	it("keeps a PANEL_BIND edited by hand and never fails uninstall on it", () => {
+		expect(run(base()).code).toBe(0);
+		const envFile = path.join(dir(), ".env");
+		writeFileSync(
+			envFile,
+			readFileSync(envFile, "utf8").replace(
+				/^PANEL_BIND=.*$/m,
+				"PANEL_BIND=localhost:3000",
+			),
+		);
+		const again = run([...base(), "--version", "1.5.0"]);
+		expect(again.code).toBe(0);
+		expect(again.err).toMatch(/PANEL_BIND=localhost:3000 .* kept as is/);
+		expect(envOf().PANEL_BIND).toBe("localhost:3000");
+		// A bad --panel-bind is still refused.
+		expect(run([...base(), "--panel-bind", "localhost:3000"]).err).toMatch(
+			/invalid --panel-bind/,
+		);
+		const keep = run(["--dir", dir(), "--uninstall"]);
+		expect(keep.code).toBe(0);
+		expect(keep.err).toBe("");
+		const purged = run(["--dir", dir(), "--uninstall", "--purge"], {
+			NITROBASE_PURGE_CONFIRM: `purge ${dir()}`,
+		});
+		expect(purged.code).toBe(0);
+		expect(existsSync(dir())).toBe(false);
 	});
 
 	it("installs Docker from the official repository when missing", () => {

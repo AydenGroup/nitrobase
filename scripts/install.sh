@@ -211,6 +211,32 @@ validate_version() {
 	[[ "$1" =~ ^[0-9A-Za-z][0-9A-Za-z._-]{0,127}$ ]] || die "invalid version from $2: $1"
 }
 
+valid_bind() {
+	[[ "$1" =~ ^([0-9]{1,3}(\.[0-9]{1,3}){3}|\[[0-9a-fA-F:]+\]):[0-9]{1,5}$ ]]
+}
+
+# Without --panel-bind, a re-run keeps the address of the install, so a
+# loopback-only panel never becomes public by an upgrade. With --domain,
+# a loopback address (any port) is kept, else the loopback default. A
+# value in .env is the user's: it is kept even when this script would not
+# accept it as --panel-bind (compose reports a broken one).
+resolve_panel_bind() {
+	local installed
+	installed="$(env_get PANEL_BIND)"
+	if [ -n "$installed" ] && ! valid_bind "$installed" && [ "$UNINSTALL" = 0 ] && [ "$PRINT_CONFIG" = 0 ]; then
+		warn "PANEL_BIND=$installed in $DIR/.env is not address:port: kept as is"
+	fi
+	if [ -n "$DOMAIN" ]; then
+		# Behind the panel domain, plain HTTP stays on the loopback only.
+		case "$installed" in
+		127.0.0.1:* | \[::1\]:*) PANEL_BIND="$installed" ;;
+		*) PANEL_BIND="$DEFAULT_PANEL_BIND_WITH_DOMAIN" ;;
+		esac
+	else
+		PANEL_BIND="${installed:-$DEFAULT_PANEL_BIND}"
+	fi
+}
+
 validate_args() {
 	DIR="${DIR:-$DEFAULT_DIR}"
 	case "$DIR" in
@@ -229,14 +255,11 @@ validate_args() {
 		DOMAIN="$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')"
 		[[ "$DOMAIN" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,62}$ ]] || die "invalid --domain: $DOMAIN"
 	fi
-	# A re-run keeps the address of the install (a loopback-only panel never
-	# becomes public by an upgrade); --domain picks its own default.
-	if [ -z "$PANEL_BIND" ] && [ -z "$DOMAIN" ]; then PANEL_BIND="$(env_get PANEL_BIND)"; fi
-	if [ -z "$PANEL_BIND" ]; then
-		# Behind the panel domain, plain HTTP stays on the loopback only.
-		if [ -n "$DOMAIN" ]; then PANEL_BIND="$DEFAULT_PANEL_BIND_WITH_DOMAIN"; else PANEL_BIND="$DEFAULT_PANEL_BIND"; fi
+	if [ -n "$PANEL_BIND" ]; then
+		valid_bind "$PANEL_BIND" || die "invalid --panel-bind (address:port): $PANEL_BIND"
+	else
+		resolve_panel_bind
 	fi
-	[[ "$PANEL_BIND" =~ ^([0-9]{1,3}(\.[0-9]{1,3}){3}|\[[0-9a-fA-F:]+\]):[0-9]{1,5}$ ]] || die "invalid --panel-bind (address:port): $PANEL_BIND"
 	if [ "$PURGE" = 1 ] && [ "$UNINSTALL" = 0 ]; then die "--purge only goes with --uninstall"; fi
 	resolve_sources
 }
