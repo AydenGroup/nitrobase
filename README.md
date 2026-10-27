@@ -69,9 +69,24 @@ Templates are plain folders (`template.toml` + `docker-compose.yml`) under [`tem
 
 Releases are published on [GitHub](https://github.com/AydenGroup/nitrobase/releases), with multi-arch images (amd64 and arm64) at `ghcr.io/aydengroup/nitrobase` and the installer image at `ghcr.io/aydengroup/nitrobase-installer`. Every method below produces the same layout: a `.env` and a compose file in one folder, with the compose project `nitrobase` and the container `nitrobase_app`, so the in-panel upgrade works the same way for each.
 
+### Requirements
+
+The panel and its Postgres use about **300 MB of RAM and 1 GB of disk**. The rest is for the apps you deploy: a Supabase stack alone takes 1–1.5 GB of RAM. So:
+
+- **RAM:** 2 GB recommended. Below that the installer warns and goes on.
+- **Disk:** 5 GB free recommended. Below 5 GB the installer warns; below 2 GB it stops.
+- `--skip-resource-check` skips both checks, for a test machine where you know what fits.
+
+On a small VPS, add swap so a memory peak slows things down instead of killing a container:
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
 ### With Docker (any OS with Docker)
 
-On any machine with [Docker](https://docs.docker.com/get-docker/) (amd64 or arm64, 2 GB RAM recommended), one command installs Nitrobase:
+On any machine with [Docker](https://docs.docker.com/get-docker/) (amd64 or arm64; see [requirements](#requirements)), one command installs Nitrobase:
 
 ```bash
 docker run --rm -it \
@@ -87,7 +102,7 @@ The two mounts:
 - `-v /var/run/docker.sock:/var/run/docker.sock` lets the installer drive your Docker. Without it, the installer stops with an error that names this flag.
 - `-v /opt/nitrobase:/opt/nitrobase` is the install folder. It **must be the same path on both sides**: Docker resolves the compose project folder on the host, and the in-panel upgrade mounts that folder again later. The installer checks this and prints the exact `-v` to use if it is missing or different. For another folder, change both sides and pass `--dir`: `-v /srv/nitrobase:/srv/nitrobase ... --dir /srv/nitrobase`.
 
-**Version.** Nitrobase is in beta, so the commands here use `:beta`, which always installs the newest pre-release. `:latest` installs the latest stable release and exists from the first stable release on. `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.2`) installs exactly that release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
+**Version.** Nitrobase is in beta, so the commands here use `:beta`, which always installs the newest pre-release. `:latest` installs the latest stable release and exists from the first stable release on. `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.3`) installs exactly that release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
 
 **Docker Hub.** Both images are also published on Docker Hub as [`jimmyphong/nitrobase`](https://hub.docker.com/r/jimmyphong/nitrobase) and [`jimmyphong/nitrobase-installer`](https://hub.docker.com/r/jimmyphong/nitrobase-installer), with the same tags: `jimmyphong/nitrobase-installer:beta` works in the commands above. GHCR stays the default source, which the installer and the in-panel upgrade use (Docker Hub limits anonymous pulls).
 
@@ -121,7 +136,7 @@ The path may only contain letters, digits, `.`, `_`, `-` and `/`. Then open `htt
 
 ### With the install script (Ubuntu or Debian VPS)
 
-On a fresh **Ubuntu or Debian** VPS (amd64 or arm64, 2 GB RAM recommended):
+On a fresh **Ubuntu or Debian** VPS (amd64 or arm64; see [requirements](#requirements)):
 
 ```bash
 curl -fsSL https://nitrobase.app/install.sh | sudo bash
@@ -149,6 +164,7 @@ Without `--version` it installs the latest release. Until the first stable relea
 | `--domain <host>` | Serve the panel on a domain with Let's Encrypt; binds it to `127.0.0.1:3000` and sets `APP_URL` and `TRUST_PROXY`. |
 | `--image <name>`, `--compose-url <url>` | Use another image or compose file. |
 | `--repo <owner/name>` | Install the releases of a fork (default `AydenGroup/nitrobase`; image `ghcr.io/<owner/name>`). For Gitea or Forgejo, add `--api-url https://<host>/api/v1 --raw-url https://<host>/<owner>/<name>/raw/tag`. |
+| `--skip-resource-check` | Install below the RAM and disk minimums (see [requirements](#requirements)). |
 | `--uninstall` | Stop Nitrobase, keep data and `.env`. |
 | `--uninstall --purge` | Also delete the data (asks you to type `purge <dir>`). |
 | `--print-config`, `--help` | Show the resolved settings or the help. |
@@ -161,7 +177,7 @@ In an empty folder, with [Docker](https://docs.docker.com/get-docker/) and Docke
 
 ```bash
 mkdir nitrobase && cd nitrobase
-VERSION=0.1.0-beta.2
+VERSION=0.1.0-beta.3
 BASE=https://github.com/AydenGroup/nitrobase/releases/download/v$VERSION
 curl -fsSL -o compose.yaml "$BASE/docker-compose.prod.yml" && curl -fsSL -o .env "$BASE/env.example"
 for key in ENCRYPTION_KEY SESSION_SECRET POSTGRES_PASSWORD; do sed -i.bak "s|^$key=.*|$key=$(openssl rand -hex 32)|" .env; done

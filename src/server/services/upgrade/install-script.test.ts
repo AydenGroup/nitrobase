@@ -53,7 +53,7 @@ beforeEach(() => {
 	mock("uname", 'echo "${MOCK_ARCH:-x86_64}"');
 	mock(
 		"df",
-		'echo "Filesystem 1024-blocks Used Available Capacity Mounted"; echo "/dev/x 100000000 1 90000000 1% /"',
+		'echo "Filesystem 1024-blocks Used Available Capacity Mounted"; echo "/dev/x 100000000 1 ${MOCK_DISK_KB:-90000000} 1% /"',
 	);
 	mock("ss", "exit 0");
 	mock("hostname", 'echo "203.0.113.7"');
@@ -293,6 +293,21 @@ describe("installer run (mocked system)", () => {
 		expect(run(base()).err).toMatch(/unsupported OS/);
 		writeFileSync(path.join(root, "os-release"), "ID=debian\n");
 		expect(run(base(), { MOCK_ARCH: "riscv64" }).err).toMatch(/architecture/);
+	});
+
+	it("refuses a nearly full disk, warns on a small one, and --skip-resource-check skips both", () => {
+		const full = run(base(), { MOCK_DISK_KB: String(1500 * 1024) });
+		expect(full.code).not.toBe(0);
+		expect(full.err).toMatch(/only 1500 MB free .*--skip-resource-check/);
+		const small = run(base(), { MOCK_DISK_KB: String(4558 * 1024) });
+		expect(small.code).toBe(0);
+		expect(small.err).toMatch(/warning: only 4558 MB free/);
+		writeFileSync(path.join(root, "meminfo"), "MemTotal:        1000000 kB\n");
+		const skipped = run([...base(), "--skip-resource-check"], {
+			MOCK_DISK_KB: String(1500 * 1024),
+		});
+		expect(skipped.code).toBe(0);
+		expect(skipped.err).not.toMatch(/MB (free|of RAM)/);
 	});
 
 	it("installs the latest release with generated secrets that never reach the output", () => {
