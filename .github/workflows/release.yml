@@ -7,6 +7,10 @@ name: Release
 #   - the installer image ghcr.io/<owner>/<repo>-installer with the same
 #     tags (installer/Dockerfile: install.sh run through the Docker socket,
 #     installing <version> by default);
+#   - both images also on Docker Hub (<namespace>/<repo>, same tags) when the
+#     DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets are set (namespace: the
+#     DOCKERHUB_NAMESPACE variable, else the username); GHCR stays the
+#     source the installer and the in-panel upgrade use;
 #   - a GitHub Release with docker-compose.prod.yml, install.sh and
 #     env.example attached (marked pre-release for `-` versions). It becomes
 #     the repository's "latest" release only when it is the highest stable
@@ -116,13 +120,49 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Docker Hub mirror, when the repository has the DOCKERHUB_USERNAME and
+      # DOCKERHUB_TOKEN secrets: <namespace>/<GHCR image name>, the namespace
+      # being the DOCKERHUB_NAMESPACE variable (an organization) or the user.
+      # Computed here: job outputs cannot carry values derived from secrets.
+      - id: images
+        name: Image names
+        env:
+          GHCR_IMAGE: ${{ matrix.name }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+        run: |
+          namespace="$(printf '%s' "${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}" | tr '[:upper:]' '[:lower:]')"
+          {
+            echo "list<<EOF"
+            echo "$GHCR_IMAGE"
+            if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+              echo "docker.io/$namespace/${GHCR_IMAGE##*/}"
+            fi
+            echo "EOF"
+            if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+              echo "dockerhub=true"
+            else
+              echo "dockerhub=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+          if [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::notice::No DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets: publishing to GHCR only."
+          fi
+
+      - if: steps.images.outputs.dockerhub == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - id: meta
         uses: docker/metadata-action@v5
         env:
           # Annotations on the image manifests and the multi-arch index.
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
-          images: ${{ matrix.name }}
+          images: ${{ steps.images.outputs.list }}
           flavor: latest=false
           tags: |
             type=raw,value=${{ needs.version.outputs.version }}

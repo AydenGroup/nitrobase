@@ -91,7 +91,17 @@ describe("release pipeline", () => {
 		const meta = image.steps?.find((step) =>
 			step.uses?.startsWith("docker/metadata-action@"),
 		);
-		expect(meta?.with?.images).toBe("${{ matrix.name }}");
+		// The GHCR image (matrix.name), plus the Docker Hub mirror when its
+		// secrets are set.
+		expect(meta?.with?.images).toBe("${{ steps.images.outputs.list }}");
+		const names = image.steps?.find(
+			(step) => (step as { id?: string }).id === "images",
+		) as { env?: Record<string, string>; run?: string } | undefined;
+		expect(names?.env?.GHCR_IMAGE).toBe("${{ matrix.name }}");
+		expect(names?.run).toContain('echo "$GHCR_IMAGE"');
+		expect(names?.run).toContain(
+			'echo "docker.io/$namespace/${GHCR_IMAGE##*/}"',
+		);
 		const build = image.steps?.find((step) =>
 			step.uses?.startsWith("docker/build-push-action@"),
 		);

@@ -89,6 +89,8 @@ The two mounts:
 
 **Version.** Nitrobase is in beta, so the commands here use `:beta`, which always installs the newest pre-release. `:latest` installs the latest stable release and exists from the first stable release on. `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.1`) installs exactly that release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
 
+**Docker Hub.** Both images are also published on Docker Hub as [`jimmyphong/nitrobase`](https://hub.docker.com/r/jimmyphong/nitrobase) and [`jimmyphong/nitrobase-installer`](https://hub.docker.com/r/jimmyphong/nitrobase-installer), with the same tags: `jimmyphong/nitrobase-installer:beta` works in the commands above. GHCR stays the default source, which the installer and the in-panel upgrade use (Docker Hub limits anonymous pulls).
+
 **Upgrade and uninstall** use the same image and mounts:
 
 ```bash
