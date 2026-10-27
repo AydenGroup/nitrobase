@@ -714,10 +714,12 @@ uninstall() {
 		compose down --volumes --remove-orphans
 		if in_container; then
 			# $DIR is a mount point here: empty it; the host folder stays.
-			find "$DIR" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+			find "$DIR" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + ||
+				die "the data volumes were removed, but some files in $DIR could not be deleted: remove the folder on the host (sudo rm -rf $DIR)"
 			info "$PRODUCT_NAME and its data were removed. The empty folder $DIR stays on the host (rmdir $DIR)."
 		else
-			rm -rf -- "$DIR"
+			rm -rf -- "$DIR" ||
+				die "the data volumes were removed, but $DIR could not be deleted: remove it yourself (sudo rm -rf $DIR)"
 			info "$PRODUCT_NAME and its data were removed."
 		fi
 	else

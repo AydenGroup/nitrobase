@@ -777,6 +777,29 @@ describe("installer in a container (installer image, mocked system)", () => {
 		expect(purged.out).toContain(`The empty folder ${dir()} stays on the host`);
 	});
 
+	it("reports a purge that cannot delete the folder", () => {
+		const confirm = { NITROBASE_PURGE_CONFIRM: `purge ${dir()}` };
+		expect(run(base(), inContainer()).code).toBe(0);
+		mock("find", "exit 1");
+		const inImage = run(
+			["--dir", dir(), "--uninstall", "--purge"],
+			inContainer(confirm),
+		);
+		expect(inImage.code).not.toBe(0);
+		expect(inImage.err).toContain(
+			`some files in ${dir()} could not be deleted: remove the folder on the host`,
+		);
+		expect(inImage.out).not.toMatch(/were removed\./);
+
+		rmSync(path.join(bin, "find"));
+		mock("rm", "exit 1");
+		const onHost = run(["--dir", dir(), "--uninstall", "--purge"], confirm);
+		expect(onHost.code).not.toBe(0);
+		expect(onHost.err).toContain(
+			`${dir()} could not be deleted: remove it yourself`,
+		);
+	});
+
 	it("uninstall needs the socket too", () => {
 		const result = run(
 			["--dir", dir(), "--uninstall"],
