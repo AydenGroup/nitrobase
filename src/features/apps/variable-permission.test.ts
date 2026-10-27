@@ -266,6 +266,8 @@ describe("env editor: reset to the template", () => {
 				SITE: "mine",
 				KEY: "owner-chosen-password",
 				SIGNED: "signed-override",
+				GEN: "owner-chosen-gen",
+				TOKEN: "token-override",
 				EXTRA: "1",
 			}),
 			inputs: {
@@ -274,6 +276,9 @@ describe("env editor: reset to the template", () => {
 					SITE: "mine",
 					KEY: "owner-chosen-password",
 					SIGNED: "signed-override",
+					// Locked by the template: an override stored before it was.
+					GEN: "owner-chosen-gen",
+					TOKEN: "token-override",
 					EXTRA: "1",
 				},
 			},
@@ -303,6 +308,23 @@ describe("env editor: reset to the template", () => {
 		expect(overrides).not.toHaveProperty("KEY");
 		expect(overrides.SIGNED).toBe("signed-override");
 		// Nothing changes on the next deploy.
+		expect(update.needsRedeploy).toBe(false);
+	});
+
+	it("hands a locked generated variable's override back to the template", async () => {
+		const view = await updateAppEnv(
+			actor(["app.env.edit"]),
+			APP,
+			edit({ reset: ["GEN"] }),
+		);
+		expect(view.changed).toEqual(["GEN"]);
+		const update = state.updates[0];
+		expect(JSON.parse(update.envEncrypted as string).GEN).toBe(
+			"owner-chosen-gen",
+		);
+		const overrides = storedOverrides(update);
+		expect(overrides).not.toHaveProperty("GEN");
+		expect(overrides.TOKEN).toBe("token-override");
 		expect(update.needsRedeploy).toBe(false);
 	});
 

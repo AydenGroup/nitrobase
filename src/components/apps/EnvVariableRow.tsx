@@ -312,10 +312,11 @@ export const EnvVariableRow: React.FC<{
 							onClick={onUndo}
 						/>
 					)}
+					{/* Locked ones too while overridden: back to the template. */}
 					{canEdit &&
 						template &&
 						variable?.overridden &&
-						!locked &&
+						initialOnly !== "applied" &&
 						state === "unchanged" &&
 						!missingPermission && (
 							<RowAction

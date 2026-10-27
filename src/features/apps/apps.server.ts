@@ -973,11 +973,13 @@ export async function updateAppEnv(
 			...reverted
 		} = applyEnvReset(edited, edit.reset, { templateKeys, definitions });
 		// Locked by the template (e.g. an encryption key): never replaced
-		// by hand, from the form or the raw view alike.
+		// by hand, from the form or the raw view alike. Resetting an
+		// override one still has (stored before it was locked) only hands
+		// it back to the template, so that stays possible.
 		assertEditableVariables(manifest.variables, [
 			...edited.changed,
 			...edit.remove,
-			...edit.reset,
+			...edit.reset.filter((name) => !(name in overrides)),
 		]);
 		// The app read its `initial_only` values on its first start and
 		// ignores later ones: they can't be changed here any more.
@@ -1117,9 +1119,10 @@ export function assertVariablePermissions(
 
 /**
  * Template variables the template does not let the owner set (`editable`
- * unset: generated keys, values derived from others) are refused, whether
- * set, removed or reset. Their values come from the template only:
- * rotation (`rotatable`) and renders replace them through their own paths.
+ * unset: generated keys, values derived from others) are refused (set,
+ * removed, or reset without an override to drop). Their values come from
+ * the template only: rotation (`rotatable`) and renders replace them
+ * through their own paths.
  * Names that are not template variables (custom env) are not checked.
  */
 export function assertEditableVariables(

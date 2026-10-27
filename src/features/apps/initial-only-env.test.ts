@@ -156,6 +156,15 @@ describe("initial_only variables of a deployed app", () => {
 		expect(state.updates).toEqual([]);
 	});
 
+	it("refuses to reset one, even with an override", async () => {
+		state.row.inputs = { overrides: { PB_ADMIN_PASSWORD: "first-password" } };
+		await expect(save({}, ["PB_ADMIN_PASSWORD"])).rejects.toMatchObject({
+			code: "ENV_INITIAL_ONLY",
+			params: { name: "PB_ADMIN_PASSWORD" },
+		});
+		expect(state.updates).toEqual([]);
+	});
+
 	it("still saves other variables", async () => {
 		await save({ PB_SMTP_HOST: "smtp.test" });
 		expect(state.updates[0]).toMatchObject({ needsRedeploy: true });

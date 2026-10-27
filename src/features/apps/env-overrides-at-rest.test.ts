@@ -314,7 +314,7 @@ describe("locked variables (BUG-019)", () => {
 		expect(state.updates).toEqual([]);
 	});
 
-	it("refuses to reset or remove one", async () => {
+	it("refuses to remove one, or reset one without an override", async () => {
 		await expect(save({ reset: ["OPENSSL_KEY"] })).rejects.toMatchObject({
 			code: "VARIABLE_NOT_EDITABLE",
 		});
@@ -322,6 +322,33 @@ describe("locked variables (BUG-019)", () => {
 			code: "VARIABLE_NOT_EDITABLE",
 		});
 		expect(state.updates).toEqual([]);
+	});
+
+	it("resets an owner-chosen override of a locked generated variable", async () => {
+		// Stored before the variable was locked (or through BUG-019).
+		state.row.envEncrypted = encrypt(
+			JSON.stringify({ ...deployed, OPENSSL_KEY: "owner-chosen-key" }),
+		);
+		state.row.inputs = patchAppInputs(
+			{ inputs: {} },
+			{ overrides: { OPENSSL_KEY: "owner-chosen-key", SMTP_PASSWORD } },
+		);
+		const before = await getAppEnv(editor, APP);
+		expect(
+			before.variables.find((variable) => variable.name === "OPENSSL_KEY"),
+		).toMatchObject({ locked: true, overridden: true });
+		const view = await save({ reset: ["OPENSSL_KEY"] });
+		expect(view.changed).toEqual(["OPENSSL_KEY"]);
+		// Handed back to the template, which carries the value over.
+		expect(appOverrides(state.row as never)).toEqual({ SMTP_PASSWORD });
+		expect(state.row.needsRedeploy).toBe(false);
+		expect(
+			view.variables.find((variable) => variable.name === "OPENSSL_KEY"),
+		).toMatchObject({ locked: true, overridden: false });
+		// ...but never replaced by hand.
+		await expect(
+			save({ set: { OPENSSL_KEY: "another-key" } }),
+		).rejects.toMatchObject({ code: "VARIABLE_NOT_EDITABLE" });
 	});
 
 	it("refuses a Developer view (raw .env) edit of one", async () => {
