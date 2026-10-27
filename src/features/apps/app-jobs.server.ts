@@ -1549,13 +1549,13 @@ export async function startAppAction(
 		  },
 ): Promise<{ deploymentId: string }> {
 	const app = await getAppRow(actor, input.appId);
+	// Server-computed: the audit never trusts the request's own claim.
+	let downgrade: DowngradeRisk | null = null;
 	if (input.action === "update") {
 		// Before the audit entry: a refused downgrade changes nothing.
 		const manifest = await assertVersioned(app);
-		if (
-			versionChangeRisk(app, input.version, manifest) &&
-			!input.confirmDowngrade
-		) {
+		downgrade = versionChangeRisk(app, input.version, manifest);
+		if (downgrade && !input.confirmDowngrade) {
 			throw new AppError("APP_DOWNGRADE_UNCONFIRMED", {
 				from: app.version,
 				to: input.version,
@@ -1570,8 +1570,13 @@ export async function startAppAction(
 		meta:
 			"service" in input && input.service
 				? { service: input.service }
-				: input.action === "update" && input.confirmDowngrade
-					? { from: app.version, to: input.version, downgrade: true }
+				: input.action === "update" && downgrade
+					? {
+							from: app.version,
+							to: input.version,
+							downgrade: true,
+							risk: downgrade,
+						}
 					: undefined,
 	});
 	if (input.action === "redeploy") {

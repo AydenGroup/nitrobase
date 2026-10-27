@@ -912,15 +912,30 @@ describe("changing to an older version (BUG-022)", () => {
 		expect(warningCodes(strong)[0]).toBe("APP_DOWNGRADE_WARN_IRREVERSIBLE");
 	});
 
-	it("makes no claim for upgrades or unordered version sources", async () => {
+	it("makes no claim for upgrades, commit sources or non-version names", async () => {
 		const { previewAppUpdate } = await import("./app-jobs.server");
 		const upgrade = await previewAppUpdate(actor, "app-1", "2.5.0");
 		expect(upgrade.downgrade).toBeNull();
 		expect(warningCodes(upgrade)).not.toContain("APP_DOWNGRADE_WARN");
 
 		state.templateManifest.source = { versions: "branches" };
-		const branch = await previewAppUpdate(actor, "app-1", "2.3.0");
-		expect(branch.downgrade).toBeNull();
+		expect(
+			(await previewAppUpdate(actor, "app-1", "main")).downgrade,
+		).toBeNull();
+
+		state.templateManifest.source = { versions: "commits" };
+		const commit = await previewAppUpdate(actor, "app-1", "2.3.0");
+		expect(commit.downgrade).toBeNull();
+	});
+
+	it("detects downgrades of version-named branches (Plausible)", async () => {
+		const { previewAppUpdate } = await import("./app-jobs.server");
+		// Plausible: versions = "branches", version_filter '^v3.x.y$'.
+		state.templateManifest.source = { versions: "branches" };
+		state.row.version = "v3.1.0";
+		const preview = await previewAppUpdate(actor, "app-1", "v3.0.1");
+		expect(preview.downgrade).toBe("downgrade");
+		expect(warningCodes(preview)[0]).toBe("APP_DOWNGRADE_WARN");
 	});
 
 	it("refuses an unconfirmed downgrade on the server", async () => {
@@ -946,6 +961,32 @@ describe("changing to an older version (BUG-022)", () => {
 		).rejects.toMatchObject({ code: "APP_DOWNGRADE_UNCONFIRMED" });
 		// Refused before anything is recorded.
 		expect(state.audits).toEqual([]);
+	});
+
+	it("audits a downgrade only when the server says it is one", async () => {
+		const { startAppAction } = await import("./app-jobs.server");
+		const start = (version: string) =>
+			startAppAction(actor, {
+				appId: "app-1",
+				action: "update",
+				version,
+				confirmDowngrade: true,
+			}).catch(() => null); // the job itself is not under test
+		state.audits = [];
+		await start("2.5.0"); // an upgrade, even with the tick
+		await start("2.3.0");
+		expect(state.audits).toEqual([
+			{ action: "app.update", meta: undefined },
+			{
+				action: "app.update",
+				meta: {
+					from: "2.4.5",
+					to: "2.3.0",
+					downgrade: true,
+					risk: "downgrade",
+				},
+			},
+		]);
 	});
 });
 
