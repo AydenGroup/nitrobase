@@ -24,6 +24,9 @@ const state = vi.hoisted(() => ({
 	identities: [] as string[],
 	/** The compose has an `api` service depending on `db`. */
 	withApi: false,
+	/** Template `[[domains]]` and `[health]` (service-env readiness). */
+	domains: [] as { service: string; port: number; https: boolean }[],
+	health: undefined as { path: string } | undefined,
 	/** `compose restart` of dependents fails. */
 	failRestart: false,
 	/** Template `restart_dependents` (undefined: the default). */
@@ -112,6 +115,7 @@ vi.mock("#/config/server.ts", () => ({
 		APP_UNHEALTHY_SAMPLES: 3,
 		APP_DEPLOY_RESTART_LIMIT: 3,
 		APP_HEALTH_PROBE_TIMEOUT_MS: 1000,
+		APP_HEALTH_IMAGE: "curl",
 		APP_HINT_LOG_LINES: 80,
 		APP_HINT_MAX_READS: 5,
 		NITROBASE_NETWORK: "nitrobase",
@@ -207,6 +211,7 @@ const fakeExecutor = {
 		if (command.includes(" pull") && state.pullDelayMs > 0) {
 			await new Promise((resolve) => setTimeout(resolve, state.pullDelayMs));
 		}
+		if (command.includes("%{http_code}")) return ok("200");
 		if (state.failRestart && / restart '/.test(command)) {
 			return { stdout: "", stderr: "restart failed", exitCode: 1 };
 		}
@@ -268,6 +273,8 @@ vi.mock("./apps.server", async (importOriginal) => {
 		getAppRow: async () => ({ ...state.row }),
 		getAppManifest: async () => ({
 			restart_dependents: state.restartDependents,
+			domains: state.domains,
+			health: state.health,
 			variables: VARIABLES,
 			failure_hints: { jsr_unreachable: { variable: "FUNCTIONS_JSR_MIRROR" } },
 		}),
@@ -438,6 +445,8 @@ beforeEach(() => {
 	state.withApi = false;
 	state.restartDependents = undefined;
 	state.failRestart = false;
+	state.domains = [];
+	state.health = undefined;
 	state.ps = "db\trunning\t0\t0\thealthy\n";
 	state.psSeq = [];
 	state.stableSamples = 1;
@@ -1426,6 +1435,37 @@ describe("dependents of a service up recreated restart (BUG-023)", () => {
 			expect(outcome.success).toBe(true);
 			expect(restarts()).toEqual([]);
 			expect(codes()).toContain("deploy.waiting_ready");
+		});
+
+		it("does not wait for services the owner stopped", async () => {
+			state.row.inputs = { stoppedServices: ["api"] };
+			state.ps = "db\trunning\t0\t0\thealthy\napi\texited\t137\t0\t\n";
+			const outcome = await apply();
+			expect(outcome.success).toBe(true);
+		});
+
+		it("on a stopped app, waits only for the recreated service", async () => {
+			state.row.status = "stopped";
+			state.identities = [
+				"db\td1\tt0\texited\napi\ta1\tt0\texited",
+				"db\td2\tt1\trunning\napi\ta1\tt0\texited",
+			];
+			state.ps = "db\trunning\t0\t0\thealthy\napi\texited\t1\t0\t\n";
+			const outcome = await apply();
+			expect(outcome.success).toBe(true);
+			expect(restarts()).toEqual([]);
+		});
+
+		it("probes [health] on the template's domain when the app has none", async () => {
+			state.domains = [{ service: "db", port: 8080, https: true }];
+			state.health = { path: "/health" };
+			const outcome = await apply();
+			expect(outcome.success).toBe(true);
+			expect(
+				state.commands.filter((command) => command.includes("%{http_code}")),
+			).toEqual([
+				expect.stringContaining("'http://demo-1234abcd-db:8080/health'"),
+			]);
 		});
 
 		it("fails when the recreated service does not become ready", async () => {

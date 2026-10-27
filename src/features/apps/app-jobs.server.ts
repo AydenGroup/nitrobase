@@ -868,6 +868,8 @@ export async function waitUntilHealthy(
 	ctx: JobContext,
 	/** When the deploy started the containers (ms; dates the OOM hints). */
 	since: number = Date.now(),
+	/** Services left out of the samples (stopped on purpose, not by a crash). */
+	ignore: ReadonlySet<string> = new Set(),
 ): Promise<void> {
 	const config = getConfig();
 	const manifest = await getAppManifest(app);
@@ -900,7 +902,7 @@ export async function waitUntilHealthy(
 				"COMPOSE_PS_FAILED",
 				{ quiet: true },
 			),
-		);
+		).filter((status) => !ignore.has(status.service));
 		const verdict = tracker.observe(statuses, Date.now());
 		if (verdict.detail !== lastDetail) {
 			if (verdict.detail) {
@@ -1333,6 +1335,8 @@ async function restartDependents(
 		since: number;
 		/** The compose model (`depends_on`). */
 		model: unknown;
+		/** Left out of the readiness samples (see `waitUntilHealthy`). */
+		ignore?: ReadonlySet<string>;
 	},
 ): Promise<void> {
 	if ((await getAppManifest(app)).restart_dependents === false) return;
@@ -1360,7 +1364,15 @@ async function restartDependents(
 	}
 	// A second full wait (its own timeout): the restarted services start
 	// from scratch, and the first wait's budget may be spent already.
-	await waitUntilHealthy(executor, location, rendered, app, ctx, input.since);
+	await waitUntilHealthy(
+		executor,
+		location,
+		rendered,
+		app,
+		ctx,
+		input.since,
+		input.ignore,
+	);
 }
 
 /**
@@ -2092,11 +2104,22 @@ async function dropRotatedValues(
 
 /**
  * The readiness target of the deployed app (no render): its domains'
- * routes, primary first, and its services' container names.
+ * routes, primary first (without any, the template's `[[domains]]`, as a
+ * deploy renders them), and its services' container names.
  */
 async function deployedReadinessTarget(app: AppRow): Promise<ReadinessTarget> {
+	const rows = await listAppDomains(app.id);
+	const routes = rows.length
+		? routesFromDomains(rows)
+		: (await getAppManifest(app)).domains.map((route) => ({
+				// Only the service and port are probed.
+				host: "",
+				service: route.service,
+				port: route.port,
+				https: route.https,
+			}));
 	return {
-		routes: routesFromDomains(await listAppDomains(app.id)),
+		routes,
 		containerNames: Object.fromEntries(
 			deployedServices(app).map((service) => [
 				service,
@@ -2104,6 +2127,31 @@ async function deployedReadinessTarget(app: AppRow): Promise<ReadinessTarget> {
 			]),
 		),
 	};
+}
+
+/**
+ * Services a service-env change must not wait for: those the owner
+ * stopped, and for a stopped app every service that was not running
+ * before (unknown: all of them), except the recreated `service`, which
+ * `up` just started.
+ */
+function notExpectedRunning(
+	app: AppRow,
+	service: string,
+	before: ProjectIdentities | null,
+): Set<string> {
+	const ignore = new Set(appInputs(app).stoppedServices ?? []);
+	if (app.status === "stopped") {
+		for (const name of deployedServices(app)) {
+			const containers = before?.get(name);
+			const ran = containers?.some(
+				(item) => item.state === "running" || item.state === "restarting",
+			);
+			if (!ran) ignore.add(name);
+		}
+	}
+	ignore.delete(service);
+	return ignore;
 }
 
 /** Write a service's env file, recreate it (exported for tests). */
@@ -2144,13 +2192,23 @@ export async function runApplyServiceEnv(
 		// Success only once the recreated service (and what depends on it,
 		// restarted like after a deploy, BUG-023) is ready again.
 		const target = await deployedReadinessTarget(app);
-		await waitUntilHealthy(executor, location, target, app, ctx, recreatedAt);
+		const ignore = notExpectedRunning(app, service, before);
+		await waitUntilHealthy(
+			executor,
+			location,
+			target,
+			app,
+			ctx,
+			recreatedAt,
+			ignore,
+		);
 		if (before && after) {
 			await restartDependents(executor, location, target, app, ctx, {
 				before,
 				after,
 				since: recreatedAt,
 				model: app.composeDeployed ? parseYaml(app.composeDeployed) : {},
+				ignore,
 			});
 		}
 		ctx.event("app.env_updated", { service });
