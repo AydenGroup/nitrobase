@@ -24,6 +24,8 @@ const state = vi.hoisted(() => ({
 	patchCompose: null as ((compose: string) => string) | null,
 	resolved: [] as string[],
 	releases: [] as string[],
+	/** GitHub's status for a ref naming no commit (null: resolves). */
+	refStatus: null as number | null,
 }));
 
 vi.mock("#/config/server.ts", async (importOriginal) => {
@@ -98,6 +100,16 @@ vi.mock("#/server/services/templates/github.ts", async (importOriginal) => {
 				})),
 			resolveCommit: async (_repo: string, ref: string) => {
 				state.resolved.push(ref);
+				if (state.refStatus) {
+					const { coded } = await import("#/utils/error.ts");
+					throw new actual.GitHubError(
+						coded("GITHUB_HTTP", {
+							status: state.refStatus,
+							path: `/repos/x/commits/${ref}`,
+						}),
+						state.refStatus,
+					);
+				}
 				return { sha: "c0ffee".padEnd(40, "0"), tree: "t".repeat(40) };
 			},
 			fetchDirectory: async (
@@ -151,6 +163,7 @@ const APP_ID = "0123abcd-0000-4000-8000-00000000c0de";
 beforeEach(() => {
 	state.patchCompose = null;
 	state.resolved = [];
+	state.refStatus = null;
 	state.releases = [
 		"v1.26.08",
 		"v1.26.07",
@@ -275,6 +288,31 @@ describe("supabase min_version (BUG-005)", () => {
 		expect(templateCheck({ error: new Error("network down") })).toMatchObject({
 			status: "warning",
 			message: { code: "template_unchecked" },
+		});
+	});
+});
+
+describe("a version GitHub does not know (BUG-020)", () => {
+	const render = () =>
+		renderTemplate({
+			templateId: "supabase",
+			version: "v9.9.9",
+			appId: APP_ID,
+			domain: "app.example.org",
+		});
+
+	it("is a coded 'version not found', not the raw GitHub answer", async () => {
+		state.refStatus = 422;
+		await expect(render()).rejects.toMatchObject({
+			code: "TEMPLATE_VERSION_NOT_FOUND",
+			params: { version: "v9.9.9" },
+		});
+	});
+
+	it("keeps other GitHub failures as source errors", async () => {
+		state.refStatus = 404;
+		await expect(render()).rejects.toMatchObject({
+			code: "TEMPLATE_SOURCE_ERROR",
 		});
 	});
 });

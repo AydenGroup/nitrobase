@@ -753,6 +753,7 @@
 	"No stable version is available.": "No stable version is available.",
 	"Invalid version {version}.": "Invalid version {version}.",
 	"Version {version} is not offered by this template.": "Version {version} is not offered by this template.",
+	"Version {version} was not found in the template's repository.": "Version {version} was not found in the template's repository.",
 	"Version {version} cannot be deployed: {reason} This version uses a setting {appName} blocks; pick a newer version.": "Version {version} cannot be deployed: {reason} This version uses a setting {appName} blocks; pick a newer version.",
 	"Invalid commit SHA.": "Invalid commit SHA.",
 	"template.toml is not valid.": "template.toml is not valid.",

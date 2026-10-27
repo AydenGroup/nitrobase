@@ -753,6 +753,7 @@
 	"No stable version is available.": "Không có phiên bản ổn định nào.",
 	"Invalid version {version}.": "Phiên bản {version} không hợp lệ.",
 	"Version {version} is not offered by this template.": "Template này không cung cấp phiên bản {version}.",
+	"Version {version} was not found in the template's repository.": "Không tìm thấy phiên bản {version} trong kho mã của template.",
 	"Version {version} cannot be deployed: {reason} This version uses a setting {appName} blocks; pick a newer version.": "Không thể triển khai phiên bản {version}: {reason} Phiên bản này dùng một thiết lập mà {appName} chặn; hãy chọn phiên bản mới hơn.",
 	"Invalid commit SHA.": "SHA của commit không hợp lệ.",
 	"template.toml is not valid.": "template.toml không hợp lệ.",

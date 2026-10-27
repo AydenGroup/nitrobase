@@ -583,7 +583,16 @@ export async function renderTemplate(
 		if (pinned && !/^[0-9a-f]{40}$/.test(pinned)) {
 			throw new TemplateError("TEMPLATE_COMMIT_INVALID");
 		}
-		const commit = await client.resolveCommit(repo, pinned ?? version);
+		const commit = await client
+			.resolveCommit(repo, pinned ?? version)
+			.catch((error: unknown) => {
+				// GitHub answers 422 for a ref that names no commit (a version
+				// typed by hand, a deleted tag): nothing was fetched or changed.
+				if (!pinned && error instanceof GitHubError && error.status === 422) {
+					throw new TemplateError("TEMPLATE_VERSION_NOT_FOUND", { version });
+				}
+				throw error;
+			});
 		const { files, warnings } = await templateFiles(
 			template,
 			client,

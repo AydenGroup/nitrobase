@@ -377,6 +377,7 @@ export interface ErrorParamsMap
 	TEMPLATE_NO_STABLE_VERSION: Record<never, never>;
 	TEMPLATE_VERSION_INVALID: { version: string };
 	TEMPLATE_VERSION_NOT_OFFERED: { version: string };
+	TEMPLATE_VERSION_NOT_FOUND: { version: string };
 	TEMPLATE_VERSION_BLOCKED: { version: string; reason: CodedValue };
 	TEMPLATE_COMMIT_INVALID: Record<never, never>;
 	TEMPLATE_MANIFEST_INVALID: { detail: string };
@@ -1813,6 +1814,9 @@ export const errorCodes = {
 	}),
 	TEMPLATE_VERSION_NOT_OFFERED: msg({
 		id: "Version {version} is not offered by this template.",
+	}),
+	TEMPLATE_VERSION_NOT_FOUND: msg({
+		id: "Version {version} was not found in the template's repository.",
 	}),
 	TEMPLATE_VERSION_BLOCKED: msg({
 		id: "Version {version} cannot be deployed: {reason} This version uses a setting {appName} blocks; pick a newer version.",
