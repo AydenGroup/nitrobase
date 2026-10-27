@@ -51,6 +51,8 @@
 #                       https://raw.githubusercontent.com/<repo>).
 #   --compose-url <u>   Exact URL of docker-compose.prod.yml to use.
 #   --yes               Do not ask before installing Docker.
+#   --skip-resource-check  Install even below the RAM and disk minimums
+#                       (a small test machine; apps may not fit).
 #   --uninstall         Stop and remove the containers; data and .env stay.
 #   --purge             With --uninstall: also delete the data volumes and
 #                       the install folder (asks you to type a confirmation).
@@ -76,7 +78,9 @@ readonly APP_CONTAINER="nitrobase_app"                         # container_name 
 readonly UPDATER_CONTAINER="nitrobase-updater"                 # in-panel upgrade helper
 readonly TRAEFIK_PORTS="80 443"                                # warned about when busy
 readonly MIN_RAM_MB=1800                                       # warning below
-readonly MIN_DISK_MB=5000                                      # refused below
+# The panel and Postgres need about 1 GB of disk; apps need the rest.
+readonly MIN_DISK_MB=2000                                      # refused below
+readonly RECOMMENDED_DISK_MB=5000                              # warning below
 readonly HEALTH_TIMEOUT="${NITROBASE_HEALTH_TIMEOUT:-300}"     # seconds
 readonly HEALTH_POLL_SECONDS=3
 readonly SETUP_TOKEN_LENGTH=32                                 # hex characters
@@ -112,6 +116,7 @@ API_URL="${NITROBASE_API_URL:-}"
 RAW_URL="${NITROBASE_RAW_URL:-}"
 COMPOSE_URL="${NITROBASE_COMPOSE_URL:-}"
 ASSUME_YES=0
+SKIP_RESOURCE_CHECK=0
 UNINSTALL=0
 PURGE=0
 PRINT_CONFIG=0
@@ -185,6 +190,10 @@ parse_args() {
 			;;
 		--yes | -y)
 			ASSUME_YES=1
+			shift
+			;;
+		--skip-resource-check)
+			SKIP_RESOURCE_CHECK=1
 			shift
 			;;
 		--uninstall)
@@ -354,7 +363,9 @@ check_resources() {
 	while [ ! -d "$parent" ]; do parent="$(dirname "$parent")"; done
 	disk_kb="$(df -Pk "$parent" | awk 'NR==2 {print $4}')"
 	if [ "${disk_kb:-0}" -lt $((MIN_DISK_MB * 1024)) ]; then
-		die "only $((disk_kb / 1024)) MB free on $parent: at least $MIN_DISK_MB MB needed"
+		die "only $((disk_kb / 1024)) MB free on $parent: at least $MIN_DISK_MB MB needed (--skip-resource-check to install anyway)"
+	elif [ "${disk_kb:-0}" -lt $((RECOMMENDED_DISK_MB * 1024)) ]; then
+		warn "only $((disk_kb / 1024)) MB free on $parent: apps want $RECOMMENDED_DISK_MB MB or more"
 	fi
 }
 
@@ -775,7 +786,7 @@ main() {
 	fi
 	if ! in_container; then check_os; fi
 	check_arch
-	check_resources
+	if [ "$SKIP_RESOURCE_CHECK" = 0 ]; then check_resources; fi
 	if ! in_container; then install_docker; fi
 	check_ports
 	# --version, else the installed version (never a silent up/downgrade),
