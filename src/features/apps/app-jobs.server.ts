@@ -1083,6 +1083,21 @@ export type BeforeUpHook = (input: {
 	app: AppRow;
 }) => Promise<void>;
 
+/** What a redeploy renders: the version, its pinned commit and compose. */
+export type PinnedVersion = Pick<
+	AppRow,
+	"version" | "commitSha" | "composeDeployed"
+>;
+
+/** The version `app` runs (an update captures it when its job starts). */
+export function pinnedVersion(app: AppRow): PinnedVersion {
+	return {
+		version: app.version,
+		commitSha: app.commitSha,
+		composeDeployed: app.composeDeployed,
+	};
+}
+
 export async function runDeploy(
 	appId: string,
 	mode: DeployMode,
@@ -1099,10 +1114,17 @@ export async function runDeploy(
 		 * stands until this deploy changes the server.
 		 */
 		nested?: boolean;
+		/**
+		 * Deploy this version instead of the one the row names (an update's
+		 * rollback: the version that ran before it, which the row may no
+		 * longer name once the new one went live).
+		 */
+		pin?: PinnedVersion;
 	} = {},
 ): Promise<JobOutcome> {
-	const [app] = await db.select().from(apps).where(eq(apps.id, appId)).limit(1);
-	if (!app) return { success: false, error: new AppError("APP_NOT_FOUND") };
+	const [row] = await db.select().from(apps).where(eq(apps.id, appId)).limit(1);
+	if (!row) return { success: false, error: new AppError("APP_NOT_FOUND") };
+	const app = options.pin ? { ...row, ...options.pin } : row;
 	const server = options.server ?? (await getAppServer(app));
 	const location = appLocation(app);
 	await setStatus(app.id, { status: "deploying", ...lastErrorColumns(null) });

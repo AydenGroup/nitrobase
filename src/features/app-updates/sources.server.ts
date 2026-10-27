@@ -88,9 +88,12 @@ const templateUpdates: UpdateSourceDriver = {
 		return (await appJobs()).runDeploy(app.id, "update", version, ctx);
 	},
 	async redeploy(previous, ctx) {
-		// A failed deploy never stores its version: the row still names the
-		// previous version and pinned commit.
-		return (await appJobs()).runDeploy(previous.id, "redeploy", undefined, ctx);
+		// The version captured when the update started, not the row's: the
+		// new version may be recorded already (it went live, then failed).
+		const jobs = await appJobs();
+		return jobs.runDeploy(previous.id, "redeploy", undefined, ctx, {
+			pin: jobs.pinnedVersion(previous),
+		});
 	},
 };
 
@@ -125,7 +128,10 @@ const databaseUpdates: UpdateSourceDriver = {
 		return (await appJobs()).runDeploy(app.id, "update", version, ctx);
 	},
 	async redeploy(previous, ctx) {
-		return (await appJobs()).runDeploy(previous.id, "redeploy", undefined, ctx);
+		const jobs = await appJobs();
+		return jobs.runDeploy(previous.id, "redeploy", undefined, ctx, {
+			pin: jobs.pinnedVersion(previous),
+		});
 	},
 };
 
@@ -167,19 +173,15 @@ const gitUpdates: UpdateSourceDriver = {
 				error: new AppError("APP_UPDATE_NO_PREVIOUS_COMMIT"),
 			};
 		}
-		return (await appJobs()).runDeploy(
-			previous.id,
-			"redeploy",
-			undefined,
-			ctx,
-			{
-				source: {
-					commitSha: previous.commitSha,
-					allowBuild: true,
-					trigger: "rollback",
-				},
+		const jobs = await appJobs();
+		return jobs.runDeploy(previous.id, "redeploy", undefined, ctx, {
+			pin: jobs.pinnedVersion(previous),
+			source: {
+				commitSha: previous.commitSha,
+				allowBuild: true,
+				trigger: "rollback",
 			},
-		);
+		});
 	},
 };
 

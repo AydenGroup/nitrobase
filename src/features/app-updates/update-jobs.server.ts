@@ -114,6 +114,9 @@ export async function startAppUpdate(
 		"app_update",
 		jobTitle("app_update", { app: app.name, version: target }),
 		async (ctx) => {
+			// What runs when the job starts: a rollback goes back to exactly
+			// this, whatever the row names after the update.
+			const previous = (await freshApp(app.id)) ?? app;
 			let backup: BackupRow | null = null;
 			if (first) backup = await first(ctx);
 			const outcome = await driver.apply(app, target, ctx);
@@ -144,9 +147,9 @@ export async function startAppUpdate(
 				const rolledBack = await rollBack(
 					actor,
 					decision,
-					app,
+					previous,
 					backup,
-					(job) => driver.redeploy(app, job),
+					(job) => driver.redeploy(previous, job),
 					ctx,
 				).catch((error) => {
 					ctx.event("update.rollback_error", {
@@ -156,7 +159,10 @@ export async function startAppUpdate(
 				});
 				result = rolledBack ? "rolled_back" : "failed";
 				if (rolledBack) {
-					ctx.event("update.rolled_back", { app: app.name, version: from });
+					ctx.event("update.rolled_back", {
+						app: app.name,
+						version: driver.current(previous),
+					});
 				} else {
 					ctx.event("update.rollback_failed");
 				}

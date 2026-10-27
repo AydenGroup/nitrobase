@@ -1381,6 +1381,41 @@ describe("dependents of a service up recreated restart (BUG-023)", () => {
 		expect(state.row.composeDeployed).toBe("services: {}\n");
 	});
 
+	it("an update failing in its second wait rolls back to the old version", async () => {
+		const { updateDrivers } = await import(
+			"#/features/app-updates/sources.server.ts"
+		);
+		await runDeploy("app-1", "deploy", undefined, ctx());
+		expect(state.row.version).toBe("v1");
+		// The update job captures what runs when it starts.
+		const previous = { ...state.row } as never;
+
+		state.identities = [ids("d1@t0"), ids("d2@t1")];
+		state.stableSamples = 3;
+		const ready = "db\trunning\t0\t0\thealthy\napi\trunning\t0\t0\t\n";
+		state.psSeq = [
+			ready,
+			ready,
+			ready,
+			ready,
+			ready,
+			"db\trunning\t0\t0\thealthy\napi\trestarting\t1\t1\t\n",
+			"db\trunning\t0\t0\thealthy\napi\trunning\t0\t2\t\n",
+			"db\trunning\t0\t0\thealthy\napi\trestarting\t1\t3\t\n",
+		];
+		const update = await runDeploy("app-1", "update", "v2", ctx());
+		expect(update.success).toBe(false);
+		// v2 went live before its dependents failed: the row names it.
+		expect(state.row.version).toBe("v2");
+
+		state.psSeq = [];
+		state.identities = [];
+		const rollback = await updateDrivers.template.redeploy(previous, ctx());
+		expect(rollback.success).toBe(true);
+		expect(state.row.version).toBe("v1");
+		expect(storedEnv()).not.toHaveProperty("NEW_KEY");
+	});
+
 	it("restarts nothing for a one-shot dependency up ran again", async () => {
 		state.dbOneShot = true;
 		state.identities = [ids("d1@t0"), ids("d1@t1")];
