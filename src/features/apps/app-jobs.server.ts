@@ -1244,15 +1244,9 @@ export async function runDeploy(
 			server,
 		);
 		await waitUntilHealthy(executor, location, rendered, app, ctx, upStartedAt);
-		if (before && after) {
-			await restartDependents(executor, location, rendered, app, ctx, {
-				before,
-				after,
-				since: upStartedAt,
-				model: rendered.composeModel,
-			});
-		}
 
+		// The new compose is live and ready: recorded before the dependents
+		// step, which only restarts services of this same version.
 		await setStatus(app.id, {
 			status: "running",
 			version: rendered.version,
@@ -1269,6 +1263,14 @@ export async function runDeploy(
 			needsRedeploy: false,
 			...lastErrorColumns(null),
 		});
+		if (before && after) {
+			await restartDependents(executor, location, rendered, app, ctx, {
+				before,
+				after,
+				since: upStartedAt,
+				model: rendered.composeModel,
+			});
+		}
 		try {
 			await driver.afterDeploy?.(step);
 		} catch (error) {
@@ -1344,12 +1346,18 @@ async function restartDependents(
 		changed: { $list: changed },
 		services: { $list: restart },
 	});
-	await run(
-		executor,
-		ctx,
-		composeRestartServicesCommand(location, restart),
-		"APP_RESTART_FAILED",
-	);
+	try {
+		await run(
+			executor,
+			ctx,
+			composeRestartServicesCommand(location, restart),
+			"APP_RESTART_FAILED",
+		);
+	} catch (error) {
+		// A warning: only the readiness below decides (a service that did
+		// restart, or never stopped, may well be ready).
+		logWarning(ctx, error);
+	}
 	// A second full wait (its own timeout): the restarted services start
 	// from scratch, and the first wait's budget may be spent already.
 	await waitUntilHealthy(executor, location, rendered, app, ctx, input.since);

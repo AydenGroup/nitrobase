@@ -24,6 +24,8 @@ const state = vi.hoisted(() => ({
 	identities: [] as string[],
 	/** The compose has an `api` service depending on `db`. */
 	withApi: false,
+	/** `compose restart` of dependents fails. */
+	failRestart: false,
 	/** Template `restart_dependents` (undefined: the default). */
 	restartDependents: undefined as boolean | undefined,
 	ps: "db\trunning\t0\t0\thealthy\n",
@@ -204,6 +206,9 @@ const fakeExecutor = {
 		}
 		if (command.includes(" pull") && state.pullDelayMs > 0) {
 			await new Promise((resolve) => setTimeout(resolve, state.pullDelayMs));
+		}
+		if (state.failRestart && / restart '/.test(command)) {
+			return { stdout: "", stderr: "restart failed", exitCode: 1 };
 		}
 		if (command.includes(".State.StartedAt")) {
 			return ok(
@@ -432,6 +437,7 @@ beforeEach(() => {
 	state.identities = [];
 	state.withApi = false;
 	state.restartDependents = undefined;
+	state.failRestart = false;
 	state.ps = "db\trunning\t0\t0\thealthy\n";
 	state.psSeq = [];
 	state.stableSamples = 1;
@@ -1325,6 +1331,40 @@ describe("dependents of a service up recreated restart (BUG-023)", () => {
 				(event) => event.code === "deploy.restarting_dependents",
 			)?.params,
 		).toEqual({ changed: { $list: ["db"] }, services: { $list: ["api"] } });
+	});
+
+	it("a failed restart is a warning; readiness decides", async () => {
+		state.failRestart = true;
+		state.identities = [ids("d1@t0"), ids("d2@t1")];
+		const outcome = await runDeploy("app-1", "update", "v2", ctx());
+		expect(outcome.success).toBe(true);
+		expect(restarts()).toHaveLength(1);
+		expect(codes()).toContain("job.warning");
+		expect(state.row.version).toBe("v2");
+	});
+
+	it("records the new version before the dependents step", async () => {
+		state.identities = [ids("d1@t0"), ids("d2@t1")];
+		// Ready after up; the restarted api then crash-loops.
+		state.stableSamples = 3;
+		const ready = "db\trunning\t0\t0\thealthy\napi\trunning\t0\t0\t\n";
+		state.psSeq = [
+			// First wait: three stable samples, then the post-probe one.
+			ready,
+			ready,
+			ready,
+			ready,
+			"db\trunning\t0\t0\thealthy\napi\trunning\t0\t0\t\n",
+			"db\trunning\t0\t0\thealthy\napi\trestarting\t1\t1\t\n",
+			"db\trunning\t0\t0\thealthy\napi\trunning\t0\t2\t\n",
+			"db\trunning\t0\t0\thealthy\napi\trestarting\t1\t3\t\n",
+		];
+		const outcome = await runDeploy("app-1", "update", "v2", ctx());
+		expect(outcome.success).toBe(false);
+		expect(codes()).toContain("deploy.restarting_dependents");
+		expect(outcome.error).toMatchObject({ code: "APP_RESTART_LOOP" });
+		expect(state.row.version).toBe("v2");
+		expect(state.row.composeDeployed).toBe("services: {}\n");
 	});
 
 	it("restarts nothing when up left every container alone", async () => {
