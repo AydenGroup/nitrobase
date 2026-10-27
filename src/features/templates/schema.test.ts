@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	extraDomainRule,
 	extraDomainRules,
+	isVersionRefForSource,
 	TemplateManifestSchema,
 } from "./schema";
 
@@ -242,6 +243,19 @@ describe("manifest checks", () => {
 				}).success,
 			).toBe(false);
 		}
+	});
+});
+
+describe("requested version refs", () => {
+	const sha = "0123456789abcdef0123456789abcdef01234567";
+
+	it("takes a commit SHA only from commit sources", () => {
+		for (const versions of ["releases", "tags", "branches"]) {
+			expect(isVersionRefForSource(sha, { versions })).toBe(false);
+			expect(isVersionRefForSource("0123abc", { versions })).toBe(false);
+			expect(isVersionRefForSource("v1.2.3", { versions })).toBe(true);
+		}
+		expect(isVersionRefForSource(sha, { versions: "commits" })).toBe(true);
 	});
 });
 

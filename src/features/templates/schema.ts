@@ -43,6 +43,25 @@ export function hasOrderedVersions(source: { versions: string }): boolean {
 	return !UNORDERED_VERSION_SOURCES.has(source.versions);
 }
 
+/** A commit SHA (short or full). */
+const COMMIT_SHA = /^[0-9a-f]{7,40}$/i;
+
+/**
+ * Whether a requested version ref fits the source: a commit SHA only for
+ * `commits` sources. Elsewhere it would deploy an arbitrary commit that
+ * no version list offers, and make no downgrade claim (`isDowngrade`).
+ * Limitation: a tag or branch name the `version_filter` lets through but
+ * that is not a version (e.g. `main` on a template without a filter) is
+ * still accepted, and makes no downgrade claim either; every shipped
+ * template filters its versions.
+ */
+export function isVersionRefForSource(
+	version: string,
+	source: { versions: string },
+): boolean {
+	return source.versions === "commits" || !COMMIT_SHA.test(version);
+}
+
 /**
  * `github` (default): versions and files from a GitHub repo. `inline`: the
  * compose file is supplied per app by its owner (custom compose). `git`:

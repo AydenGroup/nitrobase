@@ -66,6 +66,7 @@ import { AppError, coded } from "#/utils/error.ts";
 import {
 	allowedSecurity,
 	type CustomComposeSpec,
+	isVersionRefForSource,
 	type TemplateManifest,
 	TemplateManifestSchema,
 	type TemplateProblem,
@@ -570,6 +571,11 @@ export async function renderTemplate(
 				minVersion: pinned ? undefined : source.min_version,
 			})
 		) {
+			throw new TemplateError("TEMPLATE_VERSION_NOT_OFFERED", { version });
+		}
+		// A commit SHA is no version of a tags/releases/branches source (a
+		// redeploy pins its commit separately); see isVersionRefForSource.
+		if (!pinned && !isVersionRefForSource(version, source)) {
 			throw new TemplateError("TEMPLATE_VERSION_NOT_OFFERED", { version });
 		}
 
