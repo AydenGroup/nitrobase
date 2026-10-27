@@ -107,6 +107,8 @@ export interface ErrorParamsMap
 	APP_DOWNGRADE_WARN: { from: string; to: string };
 	APP_DOWNGRADE_WARN_IRREVERSIBLE: { from: string; to: string };
 	APP_DOWNGRADE_UNCONFIRMED: { from: string; to: string };
+	DOMAIN_EXTRA_REFUSED: { service: string; port: string; reason: CodedValue };
+	DOMAIN_EXTRA_LIMITED: { service: string; port: string; reason: CodedValue };
 	TASK_COMMAND_NUL: Record<never, never>;
 	TASK_COMMAND_TOO_LONG: Record<never, never>;
 	TASK_COMMAND_TOO_MANY_ARGS: { max: number };
@@ -1039,6 +1041,12 @@ export const errorCodes = {
 	}),
 	APP_DOWNGRADE_UNCONFIRMED: msg({
 		id: "{to} is older than {from}: confirm the downgrade (data migrations may not be reversible) to apply it.",
+	}),
+	DOMAIN_EXTRA_REFUSED: msg({
+		id: "{service}:{port} does not support an additional domain: {reason}",
+	}),
+	DOMAIN_EXTRA_LIMITED: msg({
+		id: "An additional domain on {service}:{port} is limited: {reason}",
 	}),
 	ORPHAN_FOREIGN: msg({
 		id: "This data is not managed by this panel (another {appName} instance or an unknown owner), so it cannot be wiped from here.",

@@ -15,6 +15,7 @@ import {
 import { jobTitles, titleFor } from "#/config/job-titles.ts";
 import { APP_NAME } from "#/config/shared.ts";
 import {
+	asTemplateText,
 	asTerms,
 	errorDetail,
 	errorInfo,
@@ -151,6 +152,23 @@ describe("job log events", () => {
 				error: { $error: coded("APP_NOT_FOUND") },
 			}),
 		).toBe("ERROR: App not found");
+	});
+
+	it("render a template text param through the catalogs", () => {
+		// A pseudo-locale: real translations live in src/locales only.
+		const pseudo = setupI18n({
+			locale: "en-XA",
+			messages: { "en-XA": { "Console only.": "[Console only!]" } },
+		});
+		const info = coded("DOMAIN_EXTRA_LIMITED", {
+			service: "web",
+			port: "3000",
+			reason: asTemplateText("Console only."),
+		});
+		expect(errorText(pseudo, info)).toContain("[Console only!]");
+		expect(errorText(i18n, info)).toBe(
+			"An additional domain on web:3000 is limited: Console only.",
+		);
 	});
 
 	it("carry a level", () => {

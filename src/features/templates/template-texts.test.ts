@@ -38,6 +38,12 @@ user = "admin"
 database = "app"
 sql = "delete from sessions;"
 
+[[domains]]
+service = "web"
+port = 3000
+primary = true
+extra_domains = { policy = "warn", reason = "Sign-in only works on the primary domain." }
+
 [[ports]]
 id = "db"
 service = "db"
@@ -74,6 +80,7 @@ describe("template extractor", () => {
 			"Sign out all users",
 			"Sessions are deleted.",
 			"Sessions stay valid.",
+			"Sign-in only works on the primary domain.",
 			"Database",
 			"psql access",
 		]);

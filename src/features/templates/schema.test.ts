@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { TemplateManifestSchema } from "./schema";
+import {
+	extraDomainRule,
+	extraDomainRules,
+	TemplateManifestSchema,
+} from "./schema";
 
 describe("template texts are English only", () => {
 	const base = {
@@ -202,6 +206,42 @@ describe("manifest checks", () => {
 		expect(() =>
 			TemplateManifestSchema.parse({ ...base, ports: [port, port] }),
 		).toThrow(/unique/);
+	});
+
+	it("reads additional-domain rules per routed service and port", () => {
+		const domain = { service: "web", port: 3000, primary: true };
+		const manifest = TemplateManifestSchema.parse({
+			...base,
+			domains: [
+				{
+					...domain,
+					extra_domains: { policy: "warn", reason: "Console only." },
+				},
+				{ service: "api", port: 80 },
+			],
+		});
+		const rules = extraDomainRules(manifest.domains);
+		expect(rules).toEqual([
+			{ service: "web", port: 3000, policy: "warn", reason: "Console only." },
+		]);
+		const at = (service: string, port: number, primary = false) =>
+			extraDomainRule(rules, { service, port, primary });
+		expect(at("web", 3000)?.policy).toBe("warn");
+		expect(at("web", 3000, true)).toBeNull(); // the primary domain
+		expect(at("web", 8080)).toBeNull();
+		expect(at("api", 80)).toBeNull();
+		for (const extra of [
+			{ policy: "block", reason: "x" },
+			{ policy: "warn" },
+			{ policy: "warn", reason: "Use {domain}" },
+		]) {
+			expect(
+				TemplateManifestSchema.safeParse({
+					...base,
+					domains: [{ ...domain, extra_domains: extra }],
+				}).success,
+			).toBe(false);
+		}
 	});
 });
 

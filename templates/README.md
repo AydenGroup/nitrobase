@@ -100,6 +100,11 @@ https = true                    # default
 # basic_auth = { username = "ADMIN_USER", password = "ADMIN_PASSWORD" }
 #   Traefik basic-auth middleware (bcrypt) on every domain routed to this
 #   service, with credentials from these variables (the file is written 0600).
+# extra_domains = { policy = "warn", reason = "Sign-in only works on the primary domain." }
+#   additional domains the owner adds on this service and port: "warn" adds
+#   them and shows the reason (Domains tab, after adding, "Limited" badge),
+#   "refuse" refuses them; the primary domain is never limited. The reason
+#   is English template text (extracted for translation).
 
 [[links]]                       # optional quick links on the app page
 label = "Admin console"         # button text (English; extracted for translation)

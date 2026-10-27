@@ -18,7 +18,9 @@ import {
  *   `{ $date }` → `formatDate`, `{ $list }` → `formatList`;
  * - `{ $error }` → a nested coded error (`errorText`);
  * - `{ $terms: { set, ids } }` → the labels of registry ids
- *   (`#/config/coded-terms.ts`) as a list; an unknown id shows as is.
+ *   (`#/config/coded-terms.ts`) as a list; an unknown id shows as is;
+ * - `{ $template }` → a template.toml text (English id in the catalogs,
+ *   see `translateTemplateText`); never user-written content.
  * Numbers stay numbers (ICU `plural` needs them). Everything is JSON, so it
  * is stored as is (jsonb) and travels through server functions and SSE.
  */
@@ -32,6 +34,7 @@ export type CodedValue =
 	| { $date: string }
 	| { $list: string[] }
 	| { $terms: { set: CodedTermSet; ids: string[] } }
+	| { $template: string }
 	| { $error: ErrorInfo };
 
 export type CodedParams = Record<string, CodedValue>;
@@ -57,6 +60,10 @@ export const asTerms = (
 	set: CodedTermSet,
 	ids: readonly string[],
 ): CodedValue => ({ $terms: { set, ids: [...ids] } });
+/** A template.toml text, translated where it is shown. */
+export const asTemplateText = (text: string): CodedValue => ({
+	$template: text,
+});
 
 function tagged<K extends string>(
 	value: unknown,
@@ -111,6 +118,13 @@ export function formatCodedValue(
 	}
 	if (tagged(value, "$list") && Array.isArray(value.$list)) {
 		return formatList(i18n.locale, value.$list.map(String));
+	}
+	if (tagged(value, "$template")) {
+		// Same as `translateTemplateText` (#/libs/i18n.ts, not imported here:
+		// it sets up the Lingui runtime and links): template texts are
+		// catalog ids, and an unknown one falls back to its English text.
+		const text = String(value.$template ?? "");
+		return text ? i18n._(text) : "";
 	}
 	if (tagged(value, "$terms")) {
 		const { set, ids } = (value.$terms ?? {}) as {

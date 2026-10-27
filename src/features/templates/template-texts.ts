@@ -58,6 +58,15 @@ export function templateTexts(raw: unknown): TemplateText[] {
 	if (Array.isArray(raw.tags)) {
 		for (const tag of raw.tags) add(tag, "tag");
 	}
+	if (Array.isArray(raw.domains)) {
+		for (const domain of raw.domains) {
+			if (!isTable(domain) || !isTable(domain.extra_domains)) continue;
+			add(
+				domain.extra_domains.reason,
+				`domain ${String(domain.service ?? "")}:${String(domain.port ?? "")} extra_domains reason`,
+			);
+		}
+	}
 	if (Array.isArray(raw.ports)) {
 		for (const port of raw.ports) {
 			if (!isTable(port)) continue;

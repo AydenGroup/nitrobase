@@ -317,6 +317,15 @@ export function validateVariableValue(
 
 const envName = z.string().regex(ENV_NAME_PATTERN);
 
+/**
+ * What happens to an additional domain on a service the app cannot fully
+ * serve on another host (e.g. a console that only accepts sign-ins from
+ * its configured domain): `warn` adds it and says why it is limited,
+ * `refuse` does not add it.
+ */
+export const EXTRA_DOMAIN_POLICIES = ["warn", "refuse"] as const;
+export type ExtraDomainPolicy = (typeof EXTRA_DOMAIN_POLICIES)[number];
+
 const TemplateDomainSchema = z.object({
 	service: z.string().min(1),
 	port: z.number().int().min(1).max(65535),
@@ -357,7 +366,65 @@ const TemplateDomainSchema = z.object({
 	 * service, with credentials taken from these variables.
 	 */
 	basic_auth: z.object({ username: envName, password: envName }).optional(),
+	/**
+	 * Additional domains (the owner's own, beyond the primary one) routed
+	 * to this service and port, when the app cannot serve them fully:
+	 * `warn` adds them with the reason shown, `refuse` refuses them. The
+	 * reason is template text (English, translated in the catalogs).
+	 * Absent: additional domains work like the primary one.
+	 */
+	extra_domains: z
+		.object({
+			policy: z.enum(EXTRA_DOMAIN_POLICIES),
+			reason: templateText().min(1),
+		})
+		.strict()
+		.optional(),
 });
+
+/** Rule for additional domains of one routed service and port. */
+export interface ExtraDomainRule {
+	service: string;
+	port: number;
+	policy: ExtraDomainPolicy;
+	/** Template text (English): translate with `translateTemplateText`. */
+	reason: string;
+}
+
+/** The template's additional-domain rules (`[[domains]] extra_domains`). */
+export function extraDomainRules(
+	domains: readonly z.infer<typeof TemplateDomainSchema>[],
+): ExtraDomainRule[] {
+	return domains.flatMap((domain) =>
+		domain.extra_domains
+			? [
+					{
+						service: domain.service,
+						port: domain.port,
+						policy: domain.extra_domains.policy,
+						reason: domain.extra_domains.reason,
+					},
+				]
+			: [],
+	);
+}
+
+/**
+ * The rule an additional domain on `service:port` falls under (null: it
+ * works like the primary domain). The primary domain itself is never
+ * limited: it is what the app is configured for.
+ */
+export function extraDomainRule(
+	rules: readonly ExtraDomainRule[],
+	target: { service: string; port: number; primary: boolean },
+): ExtraDomainRule | null {
+	if (target.primary) return null;
+	return (
+		rules.find(
+			(rule) => rule.service === target.service && rule.port === target.port,
+		) ?? null
+	);
+}
 
 /** A container port the owner may publish on the host (opt-in, off by default). */
 const TemplatePortSchema = z.object({
