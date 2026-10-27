@@ -13,7 +13,12 @@ import { defaultRestartOf } from "#/config/restart-policies.ts";
 import { appBaseUrl, getConfig, hostPaths } from "#/config/server.ts";
 import { isUniqueViolation } from "#/db/errors.ts";
 import { db } from "#/db/index.ts";
-import { type AppInputs, apps, domains } from "#/db/schema/apps.ts";
+import {
+	type AppInputs,
+	apps,
+	domains,
+	type StoredAppInputs,
+} from "#/db/schema/apps.ts";
 import { deployments, servers } from "#/db/schema/server.ts";
 import type { Actor } from "#/features/auth/access.ts";
 import { assertCanAccess } from "#/features/auth/access.ts";
@@ -259,8 +264,31 @@ export async function getAppManifest(
 	return (await sourceDriver(manifest)).manifest(manifest, app);
 }
 
+/**
+ * An app's inputs with its overrides decrypted. Rows written before the
+ * overrides were encrypted keep them in plain `overrides` (still read).
+ */
 export function appInputs(app: Pick<AppRow, "inputs">): AppInputs {
-	return { ...app.inputs, overrides: app.inputs?.overrides ?? {} };
+	const {
+		overridesEncrypted,
+		overrides: legacy,
+		...rest
+	} = app.inputs ?? ({} as StoredAppInputs);
+	const overrides: Record<string, string> = overridesEncrypted
+		? JSON.parse(decrypt(overridesEncrypted))
+		: { ...(legacy as Record<string, string> | undefined) };
+	return { ...rest, overrides };
+}
+
+/**
+ * The stored form of `inputs` (what `apps.inputs` is set to): the overrides
+ * (user-set values, secrets among them) encrypted, never in plain text.
+ */
+export function storedAppInputs(inputs: AppInputs): StoredAppInputs {
+	const { overrides, ...rest } = inputs;
+	return Object.keys(overrides).length
+		? { ...rest, overridesEncrypted: encrypt(JSON.stringify(overrides)) }
+		: rest;
 }
 
 /** Services of the deployed compose file (container names are derived). */
@@ -722,9 +750,11 @@ export async function createAppRecord(
 					version,
 					folder,
 					status: "pending",
-					inputs: extra.resources
-						? { overrides, resources: extra.resources }
-						: { overrides },
+					inputs: storedAppInputs(
+						extra.resources
+							? { overrides, resources: extra.resources }
+							: { overrides },
+					),
 					customSpecEncrypted: input.custom
 						? encryptCustomSpec(input.custom)
 						: null,
@@ -972,7 +1002,7 @@ export async function updateAppEnv(
 			await db
 				.update(apps)
 				.set({
-					inputs: { ...inputs, overrides: result.overrides },
+					inputs: storedAppInputs({ ...inputs, overrides: result.overrides }),
 					envEncrypted:
 						app.envEncrypted || Object.keys(keepStored).length
 							? encryptEnvValues(stored)
@@ -1215,14 +1245,14 @@ async function savePublishedPorts(
 	await db
 		.update(apps)
 		.set({
-			inputs: {
+			inputs: storedAppInputs({
 				...inputs,
 				publishedPorts: next,
 				// Only ports that are published can be loopback-bound.
 				loopbackPorts: (loopback ?? inputs.loopbackPorts ?? []).filter(
 					(id) => id in next,
 				),
-			},
+			}),
 			needsRedeploy: true,
 			updatedAt: new Date(),
 		})

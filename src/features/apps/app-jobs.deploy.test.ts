@@ -343,7 +343,7 @@ vi.mock("#/features/templates/templates.server.ts", async () => {
 
 const { runDeploy, deployThenRotateHook, rerunRotateHook, runRotateHook } =
 	await import("./app-jobs.server");
-const { deployedEnvValues } = await import("./apps.server");
+const { appInputs, deployedEnvValues } = await import("./apps.server");
 
 function ctx() {
 	return {
@@ -492,7 +492,7 @@ describe("JWT secret rotation signs users out (BUG-010)", () => {
 		await runRotateHook({} as never, "app-1", "JWT_SECRET", hook, ctx());
 		// Counted in the job's summary (success with warnings).
 		expect(state.warnings).toBe(1);
-		expect(state.row.inputs).toEqual({
+		expect(appInputs(state.row as never)).toEqual({
 			overrides: { A: "1" },
 			rotateHookFailed: ["JWT_SECRET"],
 		});
@@ -503,7 +503,7 @@ describe("JWT secret rotation signs users out (BUG-010)", () => {
 				rerun: true,
 			}),
 		).toBe(true);
-		expect(state.row.inputs).toEqual({ overrides: { A: "1" } });
+		expect(appInputs(state.row as never)).toEqual({ overrides: { A: "1" } });
 		expect(state.audits.at(-1)).toEqual({
 			action: "app.variable.rotate_hook",
 			meta: { name: "JWT_SECRET", service: "db", ok: true, rerun: true },

@@ -85,6 +85,23 @@ export interface AppInputs {
 	>;
 }
 
+/**
+ * How `apps.inputs` is stored: `AppInputs` with its `overrides` encrypted
+ * (they hold user-set secrets, e.g. an SMTP password). Read and written
+ * through `appInputs` / `storedAppInputs` (#/features/apps/apps.server.ts),
+ * never directly.
+ */
+export type StoredAppInputs = Omit<AppInputs, "overrides"> & {
+	/** Encrypted JSON of `AppInputs.overrides` (unset: none). */
+	overridesEncrypted?: string;
+	/**
+	 * Plaintext overrides of rows written before they were encrypted: still
+	 * read, never written (typed empty so a decoded `AppInputs` can't be
+	 * stored by mistake).
+	 */
+	overrides?: Record<string, never>;
+};
+
 // Apps deployed from templates. One folder per app on its server.
 export const apps = pgTable(
 	"apps",
@@ -134,7 +151,7 @@ export const apps = pgTable(
 		 */
 		customSpecEncrypted: text("custom_spec_encrypted"),
 		inputs: jsonb("inputs")
-			.$type<AppInputs>()
+			.$type<StoredAppInputs>()
 			.default({ overrides: {} })
 			.notNull(),
 		/** Last deployed (transformed) compose file; no secrets. */

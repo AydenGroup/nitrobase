@@ -82,8 +82,18 @@ vi.mock("#/utils/crypto.ts", async (importOriginal) => ({
 }));
 
 const { withImplied } = await import("#/config/permissions.ts");
-const { envVersion, getAppEnv, updateAppEnv, assertVariablePermissions } =
-	await import("./apps.server");
+const {
+	appInputs,
+	envVersion,
+	getAppEnv,
+	updateAppEnv,
+	assertVariablePermissions,
+} = await import("./apps.server");
+
+/** The overrides a save stored (decrypted). */
+function storedOverrides(patch: Record<string, unknown>) {
+	return appInputs(patch as never).overrides;
+}
 
 function actor(granted: Permission[]) {
 	return {
@@ -158,8 +168,8 @@ describe("variables with a template permission", () => {
 			APP,
 			edit({ set: { MIRROR: "https://m.test/jsr" } }),
 		);
-		expect(state.updates[0]).toMatchObject({
-			inputs: { overrides: { MIRROR: "https://m.test/jsr" } },
+		expect(storedOverrides(state.updates[0])).toMatchObject({
+			MIRROR: "https://m.test/jsr",
 		});
 	});
 
@@ -200,8 +210,10 @@ describe("env editor: changed variables only", () => {
 			APP,
 			edit({ set: { SITE: "y" } }),
 		);
-		expect(state.updates[0]).toMatchObject({
-			inputs: { overrides: { SECRET_KEY: "new", EXTRA: "1", SITE: "y" } },
+		expect(storedOverrides(state.updates[0])).toMatchObject({
+			SECRET_KEY: "new",
+			EXTRA: "1",
+			SITE: "y",
 		});
 	});
 
@@ -212,8 +224,9 @@ describe("env editor: changed variables only", () => {
 			edit({ set: { ADDED: "a" }, remove: ["EXTRA"] }),
 		);
 		expect(view.changed).toEqual(["ADDED", "EXTRA"]);
-		expect(state.updates[0]).toMatchObject({
-			inputs: { overrides: { SECRET_KEY: "new", ADDED: "a" } },
+		expect(storedOverrides(state.updates[0])).toMatchObject({
+			SECRET_KEY: "new",
+			ADDED: "a",
 		});
 	});
 
@@ -274,9 +287,7 @@ describe("env editor: reset to the template", () => {
 		expect(state.updates[0]).toMatchObject({ needsRedeploy: true });
 		const stored = JSON.parse(state.updates[0].envEncrypted as string);
 		expect(stored).not.toHaveProperty("SITE");
-		expect(
-			(state.updates[0].inputs as { overrides: object }).overrides,
-		).not.toHaveProperty("SITE");
+		expect(storedOverrides(state.updates[0])).not.toHaveProperty("SITE");
 	});
 
 	it("keeps a generated variable's exact value and its dependents' overrides", async () => {
@@ -285,8 +296,7 @@ describe("env editor: reset to the template", () => {
 		expect(JSON.parse(update.envEncrypted as string).GEN).toBe(
 			"owner-chosen-password",
 		);
-		const overrides = (update.inputs as { overrides: Record<string, string> })
-			.overrides;
+		const overrides = storedOverrides(update);
 		expect(overrides).not.toHaveProperty("GEN");
 		expect(overrides.TOKEN).toBe("token-override");
 		// Nothing changes on the next deploy.

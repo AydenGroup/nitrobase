@@ -106,6 +106,7 @@ vi.mock("#/utils/crypto.ts", async (importOriginal) => ({
 const { applyArchiveState, restoreClonePreview } = await import(
 	"./restore.server"
 );
+const { appInputs } = await import("#/features/apps/apps.server.ts");
 
 beforeEach(() => {
 	state.backup = {
@@ -176,11 +177,9 @@ describe("restored app state", () => {
 			} as never,
 			{ keepPorts: false, previousHost: "old.test" },
 		);
-		expect(state.patches[0]).toMatchObject({
-			inputs: {
-				initialised: ["PB_ADMIN_EMAIL", "PB_ADMIN_PASSWORD"],
-				overrides: { PB_ADMIN_EMAIL: "admin@old.test" },
-			},
+		expect(appInputs(state.patches[0] as never)).toMatchObject({
+			initialised: ["PB_ADMIN_EMAIL", "PB_ADMIN_PASSWORD"],
+			overrides: { PB_ADMIN_EMAIL: "admin@old.test" },
 		});
 	});
 });

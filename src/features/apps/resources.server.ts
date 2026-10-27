@@ -20,6 +20,7 @@ import {
 	getAppManifest,
 	getAppRow,
 	getAppServer,
+	storedAppInputs,
 } from "./apps.server";
 import type {
 	AppResourcesInput,
@@ -167,7 +168,7 @@ async function previewFor(
 		...validated(resources, known),
 	};
 	const effective = effectiveAppResources(
-		{ ...app, inputs: { ...appInputs(app), resources: next } },
+		{ ...app, inputs: storedAppInputs({ ...appInputs(app), resources: next }) },
 		manifest,
 	);
 	return { effective, next };
@@ -236,7 +237,7 @@ export async function updateAppResources(
 		await db
 			.update(apps)
 			.set({
-				inputs: { ...appInputs(app), resources: next },
+				inputs: storedAppInputs({ ...appInputs(app), resources: next }),
 				needsRedeploy: true,
 				updatedAt: new Date(),
 			})

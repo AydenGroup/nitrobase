@@ -48,6 +48,13 @@ export const encryptedColumns: EncryptedColumns[] = [
 		],
 	},
 	{
+		// The env editor's / deploy form's values (`StoredAppInputs`).
+		table: apps,
+		id: apps.id,
+		columns: [],
+		jsonField: { column: apps.inputs, key: "overridesEncrypted" },
+	},
+	{
 		table: databaseLinks,
 		id: databaseLinks.id,
 		columns: [databaseLinks.passwordEncrypted],

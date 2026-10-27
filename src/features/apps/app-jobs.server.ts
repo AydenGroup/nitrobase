@@ -148,6 +148,7 @@ import {
 	pendingEnvColumns,
 	readEnvValues,
 	readServiceEnv,
+	storedAppInputs,
 } from "./apps.server";
 import type {
 	AppRow,
@@ -466,7 +467,7 @@ export async function persistRenderedEnv(
 		// Pending until this deploy succeeds (the live env is kept aside).
 		...pendingEnvColumns(app, rendered.values),
 		// Those of this render: a rollback drops a failed version's keys.
-		inputs: { ...appInputs(app), templateKeys },
+		inputs: storedAppInputs({ ...appInputs(app), templateKeys }),
 	});
 }
 
@@ -1199,12 +1200,12 @@ export async function runDeploy(
 			envEncrypted: encryptEnvValues(rendered.values),
 			...deployedEnvColumns,
 			// Merge into a fresh read: never write back the job-start snapshot.
-			inputs: {
+			inputs: storedAppInputs({
 				...appInputs(await freshApp(app.id)),
 				templateKeys: Object.keys(rendered.definitions),
 				// `up` started every service again.
 				stoppedServices: undefined,
-			},
+			}),
 			needsRedeploy: false,
 			...lastErrorColumns(null),
 		});
@@ -1311,7 +1312,7 @@ async function runServiceAction(
 		);
 		await setStatus(app.id, {
 			...(service ? {} : { status: action === "stop" ? "stopped" : "running" }),
-			inputs: { ...inputs, stoppedServices },
+			inputs: storedAppInputs({ ...inputs, stoppedServices }),
 		});
 		ctx.event(steps.done);
 		return { success: true };
@@ -1756,7 +1757,9 @@ export async function runRotateHook(
 		else failed.add(name);
 		const { rotateHookFailed: _previous, ...rest } = inputs;
 		await setStatus(app.id, {
-			inputs: failed.size ? { ...rest, rotateHookFailed: [...failed] } : rest,
+			inputs: storedAppInputs(
+				failed.size ? { ...rest, rotateHookFailed: [...failed] } : rest,
+			),
 		});
 		return ok;
 	};
@@ -1854,10 +1857,10 @@ async function markInitialised(
 	if (appInputs(fresh).initialised) return;
 	const manifest = await getAppManifest(fresh);
 	await setStatus(app.id, {
-		inputs: {
+		inputs: storedAppInputs({
 			...appInputs(fresh),
 			initialised: initialisedNames(manifest.variables, values),
-		},
+		}),
 	});
 }
 
@@ -1894,7 +1897,7 @@ async function dropRotatedValues(
 	);
 	await setStatus(app.id, {
 		envEncrypted: app.envEncrypted ? encryptEnvValues(values) : null,
-		inputs: { ...inputs, overrides },
+		inputs: storedAppInputs({ ...inputs, overrides }),
 		needsRedeploy: true,
 	});
 	audit({
