@@ -481,7 +481,7 @@ check_mount() {
 	fi
 	# The innermost mount holding $DIR.
 	while IFS='|' read -r src dst; do
-		[ -n "$dst" ] && [ "$dst" != "/" ] || continue
+		if [ -z "$dst" ] || [ "$dst" = "/" ]; then continue; fi
 		case "$DIR/" in "$dst"/*) ;; *) continue ;; esac
 		if [ "${#dst}" -gt "${#best_dst}" ]; then
 			best_src="$src"
