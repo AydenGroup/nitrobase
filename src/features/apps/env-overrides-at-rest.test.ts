@@ -4,7 +4,8 @@ import type { Permission } from "#/config/permissions.ts";
 /**
  * The env editor's values (`apps.inputs` overrides) hold user-set secrets
  * (e.g. an SMTP password): they are stored encrypted like `env_encrypted`
- * (BUG-018).
+ * (BUG-018), and variables the template locks can't be replaced by hand
+ * (BUG-019).
  */
 
 vi.mock("@lingui/core/macro", () => ({
@@ -98,6 +99,7 @@ const { encryptedColumns } = await import("#/db/encrypted-columns.ts");
 const { reencryptAll } = await import("#/db/reencrypt.ts");
 const { apps } = await import("#/db/schema/apps.ts");
 const { encrypt } = await import("#/utils/crypto.ts");
+const { draftFromText, envSavePayload } = await import("./env-editor");
 const { appInputs, envVersion, getAppEnv, storedAppInputs, updateAppEnv } =
 	await import("./apps.server");
 
@@ -231,5 +233,78 @@ describe("env overrides at rest (BUG-018)", () => {
 		expect(appInputs(written[0] as never).overrides).toEqual({
 			SMTP_PASSWORD,
 		});
+	});
+});
+
+describe("locked variables (BUG-019)", () => {
+	it("refuses to set a variable the template does not let the owner edit", async () => {
+		await expect(
+			save({ set: { OPENSSL_KEY: "attacker-chosen-key" } }),
+		).rejects.toMatchObject({
+			code: "VARIABLE_NOT_EDITABLE",
+			params: { name: "OPENSSL_KEY" },
+		});
+		await expect(
+			save({ set: { SESSION_TOKEN: "forged" } }),
+		).rejects.toMatchObject({ code: "VARIABLE_NOT_EDITABLE" });
+		expect(state.updates).toEqual([]);
+	});
+
+	it("refuses to reset or remove one", async () => {
+		await expect(save({ reset: ["OPENSSL_KEY"] })).rejects.toMatchObject({
+			code: "VARIABLE_NOT_EDITABLE",
+		});
+		await expect(save({ remove: ["OPENSSL_KEY"] })).rejects.toMatchObject({
+			code: "VARIABLE_NOT_EDITABLE",
+		});
+		expect(state.updates).toEqual([]);
+	});
+
+	it("refuses a Developer view (raw .env) edit of one", async () => {
+		const text = Object.entries({
+			...deployed,
+			OPENSSL_KEY: "pasted-key",
+		})
+			.map(([name, value]) => `${name}=${value}`)
+			.join("\n");
+		const draft = draftFromText(text, deployed, new Set(Object.keys(deployed)));
+		const payload = envSavePayload(deployed, draft, new Set());
+		expect(payload.set).toEqual({ OPENSSL_KEY: "pasted-key" });
+		await expect(save(payload)).rejects.toMatchObject({
+			code: "VARIABLE_NOT_EDITABLE",
+		});
+		expect(state.updates).toEqual([]);
+	});
+
+	it("accepts a raw edit that leaves locked variables as they are", async () => {
+		const text = Object.entries({ ...deployed, SMTP_HOST: "mail.test" })
+			.map(([name, value]) => `${name}=${value}`)
+			.join("\n");
+		const draft = draftFromText(text, deployed, new Set(Object.keys(deployed)));
+		// Even a client re-sending the unchanged locked value is accepted.
+		await save({
+			set: {
+				...envSavePayload(deployed, draft, new Set()).set,
+				OPENSSL_KEY: deployed.OPENSSL_KEY,
+			},
+		});
+		expect(appInputs(state.row as never).overrides).toEqual({
+			SMTP_HOST: "mail.test",
+		});
+	});
+
+	it("keeps editable variables (generated ones too) editable", async () => {
+		const view = await save({
+			set: { SMTP_PASSWORD, ADMIN_PASSWORD: "owner-chosen" },
+		});
+		expect(view.changed).toEqual(["SMTP_PASSWORD", "ADMIN_PASSWORD"]);
+		expect(appInputs(state.row as never).overrides).toEqual({
+			SMTP_PASSWORD,
+			ADMIN_PASSWORD: "owner-chosen",
+		});
+		const locked = view.variables.find(
+			(variable) => variable.name === "OPENSSL_KEY",
+		);
+		expect(locked).toMatchObject({ locked: true, rotatable: true });
 	});
 });

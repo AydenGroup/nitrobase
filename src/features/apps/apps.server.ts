@@ -954,6 +954,13 @@ export async function updateAppEnv(
 			keepStored,
 			...reverted
 		} = applyEnvReset(edited, edit.reset, { templateKeys, definitions });
+		// Locked by the template (e.g. an encryption key): never replaced
+		// by hand, from the form or the raw view alike.
+		assertEditableVariables(manifest.variables, [
+			...edited.changed,
+			...edit.remove,
+			...edit.reset,
+		]);
 		// The app read its `initial_only` values on its first start and
 		// ignores later ones: they can't be changed here any more.
 		const frozen = frozenInitialValues(manifest.variables, appInitialised(app));
@@ -1087,6 +1094,25 @@ export function assertVariablePermissions(
 	for (const name of names) {
 		const permission = variables[name]?.permission;
 		if (permission) assertCanAccess(actor, permission);
+	}
+}
+
+/**
+ * Template variables the template does not let the owner set (`editable`
+ * unset: generated keys, values derived from others) are refused, whether
+ * set, removed or reset. Their values come from the template only:
+ * rotation (`rotatable`) and renders replace them through their own paths.
+ * Names that are not template variables (custom env) are not checked.
+ */
+export function assertEditableVariables(
+	variables: Record<string, { editable: boolean }>,
+	names: Iterable<string>,
+): void {
+	for (const name of names) {
+		const variable = variables[name];
+		if (variable && !variable.editable) {
+			throw new AppError("VARIABLE_NOT_EDITABLE", { name });
+		}
 	}
 }
 

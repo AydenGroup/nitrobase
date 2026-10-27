@@ -64,6 +64,9 @@ vi.mock("#/features/templates/templates.server.ts", async (importOriginal) => ({
 			SITE: { value: "x", editable: true, type: "string" },
 			GEN: { value: "${password:16}", type: "string", rotatable: true },
 			TOKEN: { value: "${jwt:GEN:anon}", type: "string" },
+			// Generated, but the owner may choose it (e.g. an admin password).
+			KEY: { value: "${password:16}", editable: true, type: "string" },
+			SIGNED: { value: "${jwt:KEY:anon}", type: "string" },
 		},
 	}),
 }));
@@ -261,16 +264,16 @@ describe("env editor: reset to the template", () => {
 			envEncrypted: JSON.stringify({
 				MIRROR: "https://m.test/jsr",
 				SITE: "mine",
-				GEN: "owner-chosen-password",
-				TOKEN: "token-override",
+				KEY: "owner-chosen-password",
+				SIGNED: "signed-override",
 				EXTRA: "1",
 			}),
 			inputs: {
 				overrides: {
 					MIRROR: "https://m.test/jsr",
 					SITE: "mine",
-					GEN: "owner-chosen-password",
-					TOKEN: "token-override",
+					KEY: "owner-chosen-password",
+					SIGNED: "signed-override",
 					EXTRA: "1",
 				},
 			},
@@ -291,14 +294,14 @@ describe("env editor: reset to the template", () => {
 	});
 
 	it("keeps a generated variable's exact value and its dependents' overrides", async () => {
-		await updateAppEnv(actor(["app.env.edit"]), APP, edit({ reset: ["GEN"] }));
+		await updateAppEnv(actor(["app.env.edit"]), APP, edit({ reset: ["KEY"] }));
 		const update = state.updates[0];
-		expect(JSON.parse(update.envEncrypted as string).GEN).toBe(
+		expect(JSON.parse(update.envEncrypted as string).KEY).toBe(
 			"owner-chosen-password",
 		);
 		const overrides = storedOverrides(update);
-		expect(overrides).not.toHaveProperty("GEN");
-		expect(overrides.TOKEN).toBe("token-override");
+		expect(overrides).not.toHaveProperty("KEY");
+		expect(overrides.SIGNED).toBe("signed-override");
 		// Nothing changes on the next deploy.
 		expect(update.needsRedeploy).toBe(false);
 	});

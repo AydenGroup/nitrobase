@@ -315,7 +315,7 @@ export const EnvVariableRow: React.FC<{
 					{canEdit &&
 						template &&
 						variable?.overridden &&
-						initialOnly !== "applied" &&
+						!locked &&
 						state === "unchanged" &&
 						!missingPermission && (
 							<RowAction
