@@ -30,17 +30,17 @@ const absolutePath = z
 const VERSION_SOURCES = ["tags", "releases", "commits", "branches"] as const;
 
 /**
- * Version sources whose names are ordered releases (`1.2.3` < `1.3.0`):
- * an older target is a downgrade. Branch and commit names say nothing
- * about order.
+ * Version sources whose names may be ordered (`1.2.3` < `1.3.0`): tags,
+ * releases and version-named branches (e.g. Plausible's `v3.0.1`). Only
+ * `commits` never is. Whether two names actually compare is decided per
+ * pair (`isDowngrade`: a branch like `main` or a SHA makes no claim).
  */
-const ORDERED_VERSION_SOURCES: ReadonlySet<string> = new Set([
-	"tags",
-	"releases",
+const UNORDERED_VERSION_SOURCES: ReadonlySet<string> = new Set([
+	"commits",
 ] satisfies (typeof VERSION_SOURCES)[number][]);
 
 export function hasOrderedVersions(source: { versions: string }): boolean {
-	return ORDERED_VERSION_SOURCES.has(source.versions);
+	return !UNORDERED_VERSION_SOURCES.has(source.versions);
 }
 
 /**
