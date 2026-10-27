@@ -355,6 +355,8 @@ The workflow then:
 - builds `linux/amd64` and `linux/arm64` and pushes `ghcr.io/aydengroup/nitrobase:<version>` and the installer image `ghcr.io/aydengroup/nitrobase-installer:<version>`, plus `:latest` when it is the highest stable version, or `:beta` for a pre-release (`:latest` stays on the latest stable);
 - creates the GitHub Release, marked as a pre-release for `-` versions, with generated notes and `docker-compose.prod.yml`, `install.sh` and `env.example` attached. It becomes the "latest" release only when it is the highest stable version, so a backport tag (`v1.2.4` after `v1.3.0`) leaves `v1.3.0` as latest, for both the Release and the `:latest` image.
 
+GHCR creates a new package as private. After the first release, make both packages public under the organization's **Packages** → package → **Package settings** → **Change visibility**: `nitrobase` (the panel) and `nitrobase-installer`. Until then, `docker run` and `docker compose pull` of these images fail for everyone else with "denied" or "manifest unknown".
+
 ### Database migrations
 
 The schema lives in `src/db/schema/*.ts`, and `drizzle/` starts from a single baseline (`0000_baseline.sql`). To change the schema, edit `src/db/schema/`, run `bun run db:generate` (commit the new SQL file and its snapshot), then `bun run db:migrate`. SQL that Drizzle cannot express from the schema, such as triggers or data fixes, goes into a custom migration: `bunx drizzle-kit generate --custom --name <name>`.
