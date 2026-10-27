@@ -162,21 +162,23 @@ function extraDomainParams(rule: ExtraDomainRule) {
 }
 
 /**
- * The template's rule for an additional domain on the requested service
+ * The template's rule for a domain the owner adds or demotes on a service
  * and port (`[[domains]] extra_domains`): `refuse` throws, `warn` is
- * returned so the caller can say why the domain is limited.
+ * returned so the caller can say why the domain is limited. Fails closed:
+ * when the app's manifest cannot be read, the error surfaces (a `refuse`
+ * rule must never be skipped).
  */
 async function extraDomainCheck(
 	app: AppRow,
-	input: Pick<AddDomainInput, "service" | "port">,
-	primary: boolean,
+	target: { service: string; port: number; primary: boolean; host: string },
+	primaryHost: string | null,
 ): Promise<ExtraDomainRule | null> {
-	const manifest = await getAppManifest(app).catch(() => null);
-	const rule = extraDomainRule(extraDomainRules(manifest?.domains ?? []), {
-		service: input.service,
-		port: input.port,
-		primary,
-	});
+	const manifest = await getAppManifest(app);
+	const rule = extraDomainRule(
+		extraDomainRules(manifest.domains),
+		target,
+		primaryHost,
+	);
 	if (rule?.policy === "refuse") {
 		throw new AppError("DOMAIN_EXTRA_REFUSED", extraDomainParams(rule));
 	}
@@ -199,7 +201,16 @@ async function insertDomain(
 		throw new AppError("APP_SERVICE_NOT_FOUND", { service: input.service });
 	}
 	// The first domain becomes the primary one: never limited.
-	const rule = await extraDomainCheck(app, input, existing.length === 0);
+	const rule = await extraDomainCheck(
+		app,
+		{
+			service: input.service,
+			port: input.port,
+			primary: existing.length === 0,
+			host,
+		},
+		existing.find((domain) => domain.primary)?.host ?? null,
+	);
 	const server = await getAppServer(app);
 	if (input.viaTunnel && !server.tunnelEnabled) {
 		throw new AppError("TUNNEL_NOT_CONFIGURED");
@@ -274,15 +285,17 @@ export async function removeDomain(
 
 /**
  * Make a domain primary. The primary host feeds template variables (URLs),
- * so the app needs a redeploy for env values to follow.
+ * so the app needs a redeploy for env values to follow. The old primary
+ * becomes an additional domain: the template's rules apply to it
+ * (`refuse`: the switch is refused; `warn`: the limitation is returned).
  */
 export async function setPrimaryDomain(
 	actor: Actor,
 	appId: string,
 	domainId: string,
-): Promise<void> {
+): Promise<{ limitation: ErrorInfo | null }> {
 	const app = await getAppRow(actor, appId);
-	await withAppServerLock(app, () =>
+	const rule = await withAppServerLock(app, () =>
 		db.transaction(async (tx) => {
 			const [domain] = await tx
 				.select()
@@ -290,6 +303,19 @@ export async function setPrimaryDomain(
 				.where(and(eq(domains.id, domainId), eq(domains.appId, app.id)))
 				.limit(1);
 			if (!domain) throw new AppError("DOMAIN_NOT_FOUND");
+			const [previous] = await tx
+				.select()
+				.from(domains)
+				.where(and(eq(domains.appId, app.id), eq(domains.primary, true)))
+				.limit(1);
+			const demoted =
+				previous && previous.id !== domain.id
+					? await extraDomainCheck(
+							app,
+							{ ...previous, primary: false },
+							domain.host,
+						)
+					: null;
 			await tx
 				.update(domains)
 				.set({ primary: false })
@@ -302,6 +328,7 @@ export async function setPrimaryDomain(
 				.update(apps)
 				.set({ needsRedeploy: true, updatedAt: new Date() })
 				.where(eq(apps.id, app.id));
+			return demoted;
 		}),
 	);
 	audit({
@@ -310,6 +337,11 @@ export async function setPrimaryDomain(
 		targetType: "app",
 		targetId: app.id,
 	});
+	return {
+		limitation: rule
+			? coded("DOMAIN_EXTRA_LIMITED", extraDomainParams(rule))
+			: null,
+	};
 }
 
 /** Run every registered checker for the app's domains and store results. */

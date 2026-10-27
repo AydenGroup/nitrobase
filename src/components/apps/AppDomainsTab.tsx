@@ -86,13 +86,20 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 		service: string;
 		port: number;
 		primary: boolean;
-	}) => extraDomainRule(overview.extraDomainRules, target);
+		host: string;
+	}) =>
+		extraDomainRule(overview.extraDomainRules, target, primary?.host ?? null);
 	const [target, setTarget] = useState({
 		service: primary?.service ?? services[0] ?? "",
 		port: primary?.port ?? 80,
 	});
 	// The first domain becomes primary: the template's rules never apply.
-	const targetRule = ruleFor({ ...target, primary: domains.length === 0 });
+	// (The host is not known yet: a hint, the server decides.)
+	const targetRule = ruleFor({
+		...target,
+		primary: domains.length === 0,
+		host: "",
+	});
 
 	const form = useForm<AddDomainInput>({
 		mode: "uncontrolled",
@@ -160,11 +167,15 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 	const makePrimary = useMutation({
 		mutationFn: async (domainId: string) =>
 			await setPrimaryDomainFn({ data: { appId: app.id, domainId } }),
-		onSuccess: () => {
+		onSuccess: ({ limitation: limited }) => {
 			refresh();
 			notifications.info({
 				message: i18n._("Primary domain changed. Redeploy to update app URLs."),
 			});
+			// The old primary is now an additional domain the template limits.
+			setLimitation(
+				limited && primary ? { host: primary.host, info: limited } : null,
+			);
 		},
 		onError,
 	});

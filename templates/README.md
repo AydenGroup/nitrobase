@@ -103,8 +103,11 @@ https = true                    # default
 # extra_domains = { policy = "warn", reason = "Sign-in only works on the primary domain." }
 #   additional domains the owner adds on this service and port: "warn" adds
 #   them and shows the reason (Domains tab, after adding, "Limited" badge),
-#   "refuse" refuses them; the primary domain is never limited. The reason
-#   is English template text (extracted for translation).
+#   "refuse" refuses them. Only domains the owner adds count: the primary
+#   domain and the row the template creates for this entry are never
+#   limited; making another domain primary re-checks the old primary (a
+#   "refuse" refuses the switch). The reason is English template text
+#   (extracted for translation).
 
 [[links]]                       # optional quick links on the app page
 label = "Admin console"         # button text (English; extracted for translation)

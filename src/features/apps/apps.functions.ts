@@ -156,8 +156,12 @@ export const setPrimaryDomainFn = createServerFn({ method: "POST" })
 	.validator((data: unknown) => DomainIdSchema.parse(data))
 	.middleware([requirePermission("domain.manage")])
 	.handler(async ({ context, data }) => {
-		await setPrimaryDomain(context.actor, data.appId, data.domainId);
-		return { success: true };
+		const { limitation } = await setPrimaryDomain(
+			context.actor,
+			data.appId,
+			data.domainId,
+		);
+		return { success: true, limitation };
 	});
 
 export const checkDomainsFn = createServerFn({ method: "POST" })

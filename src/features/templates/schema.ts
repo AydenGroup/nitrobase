@@ -408,12 +408,20 @@ export interface ExtraDomainRule {
 	policy: ExtraDomainPolicy;
 	/** Template text (English): translate with `translateTemplateText`. */
 	reason: string;
+	/**
+	 * Host label of the row the template itself creates for a secondary
+	 * `[[domains]]` entry (`<label>.<primary domain>`); null for the
+	 * primary entry, whose own row is the primary domain.
+	 */
+	ownLabel: string | null;
 }
 
 /** The template's additional-domain rules (`[[domains]] extra_domains`). */
 export function extraDomainRules(
 	domains: readonly z.infer<typeof TemplateDomainSchema>[],
 ): ExtraDomainRule[] {
+	// Same choice as app creation: the primary entry, else the first one.
+	const primaryEntry = domains.find((domain) => domain.primary) ?? domains[0];
 	return domains.flatMap((domain) =>
 		domain.extra_domains
 			? [
@@ -422,6 +430,10 @@ export function extraDomainRules(
 						port: domain.port,
 						policy: domain.extra_domains.policy,
 						reason: domain.extra_domains.reason,
+						ownLabel:
+							domain === primaryEntry
+								? null
+								: (domain.subdomain ?? domain.service),
 					},
 				]
 			: [],
@@ -429,20 +441,30 @@ export function extraDomainRules(
 }
 
 /**
- * The rule an additional domain on `service:port` falls under (null: it
- * works like the primary domain). The primary domain itself is never
- * limited: it is what the app is configured for.
+ * The rule a domain on `service:port` falls under (null: it works like
+ * the primary domain). Only domains the owner adds count: the primary
+ * domain is what the app is configured for, and the row the template
+ * creates for a secondary entry (`<label>.<primary host>`) is its own.
  */
 export function extraDomainRule(
 	rules: readonly ExtraDomainRule[],
-	target: { service: string; port: number; primary: boolean },
+	target: { service: string; port: number; primary: boolean; host: string },
+	/** The app's primary host (null: none yet). */
+	primaryHost: string | null,
 ): ExtraDomainRule | null {
 	if (target.primary) return null;
-	return (
-		rules.find(
-			(rule) => rule.service === target.service && rule.port === target.port,
-		) ?? null
+	const rule = rules.find(
+		(item) => item.service === target.service && item.port === target.port,
 	);
+	if (!rule) return null;
+	if (
+		rule.ownLabel !== null &&
+		primaryHost &&
+		target.host === `${rule.ownLabel}.${primaryHost}`
+	) {
+		return null;
+	}
+	return rule;
 }
 
 /** A container port the owner may publish on the host (opt-in, off by default). */

@@ -223,10 +223,20 @@ describe("manifest checks", () => {
 		});
 		const rules = extraDomainRules(manifest.domains);
 		expect(rules).toEqual([
-			{ service: "web", port: 3000, policy: "warn", reason: "Console only." },
+			{
+				service: "web",
+				port: 3000,
+				policy: "warn",
+				reason: "Console only.",
+				ownLabel: null,
+			},
 		]);
 		const at = (service: string, port: number, primary = false) =>
-			extraDomainRule(rules, { service, port, primary });
+			extraDomainRule(
+				rules,
+				{ service, port, primary, host: "other.example.org" },
+				"app.example.org",
+			);
 		expect(at("web", 3000)?.policy).toBe("warn");
 		expect(at("web", 3000, true)).toBeNull(); // the primary domain
 		expect(at("web", 8080)).toBeNull();
@@ -243,6 +253,33 @@ describe("manifest checks", () => {
 				}).success,
 			).toBe(false);
 		}
+	});
+
+	it("never counts the row the template creates for a secondary entry", () => {
+		const manifest = TemplateManifestSchema.parse({
+			...base,
+			domains: [
+				{ service: "web", port: 3000, primary: true },
+				{
+					service: "studio",
+					port: 8080,
+					subdomain: "console",
+					extra_domains: { policy: "refuse", reason: "One host only." },
+				},
+			],
+		});
+		const rules = extraDomainRules(manifest.domains);
+		expect(rules[0]?.ownLabel).toBe("console");
+		const studio = (host: string) =>
+			extraDomainRule(
+				rules,
+				{ service: "studio", port: 8080, primary: false, host },
+				"app.example.org",
+			);
+		// The auto-created <subdomain>.<primary> row is the template's own.
+		expect(studio("console.app.example.org")).toBeNull();
+		// A domain the owner adds on the same service is extra.
+		expect(studio("studio.example.net")?.policy).toBe("refuse");
 	});
 });
 

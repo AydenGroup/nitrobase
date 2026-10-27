@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Additional domains on a service the template limits (`[[domains]]
  * extra_domains`, BUG-021: Appwrite's console only accepts sign-ins from
- * its primary domain). `addDomain` runs for real against an in-memory
- * domain list; the database, routes job and checks are faked.
+ * its primary domain). `addDomain` and `setPrimaryDomain` run for real
+ * against an in-memory domain list; the database, routes job and checks
+ * are faked.
  */
 
 vi.mock("@lingui/core/macro", () => ({
@@ -17,6 +18,10 @@ const state = vi.hoisted(() => ({
 	domains: [] as Record<string, unknown>[],
 	extra: { policy: "warn", reason: "" } as { policy: string; reason: string },
 	audits: [] as string[],
+	/** Results of the next `select` queries, in order (default: none). */
+	selects: [] as Record<string, unknown>[][],
+	updates: 0,
+	manifestError: null as Error | null,
 }));
 
 vi.mock("#/config/server.ts", () => ({
@@ -45,8 +50,8 @@ vi.mock("#/db/index.ts", () => {
 	};
 	return {
 		db: {
-			// The "host taken" lookup: never taken in these tests.
-			select: () => chain(() => []),
+			// The "host taken" lookup: never taken unless queued.
+			select: () => chain(() => state.selects.shift() ?? []),
 			insert: () => {
 				let row: Record<string, unknown> = {};
 				const node = chain(() => [row]);
@@ -57,7 +62,14 @@ vi.mock("#/db/index.ts", () => {
 				};
 				return node;
 			},
-			update: () => chain(() => []),
+			update: () => {
+				state.updates++;
+				return chain(() => []);
+			},
+			transaction: async (run: (tx: unknown) => unknown) => {
+				const { db } = await import("#/db/index.ts");
+				return run(db);
+			},
 		},
 	};
 });
@@ -79,21 +91,24 @@ vi.mock("./apps.server", () => ({
 	getAppServer: async () => ({ tunnelOnly: true, tunnelEnabled: true }),
 	listAppDomains: async () => state.domains,
 	resolveServerIps: async () => [],
-	getAppManifest: async () => ({
-		domains: [
-			{
-				service: "appwrite-console",
-				port: 3000,
-				primary: true,
-				paths: [],
-				https: true,
-				extra_domains: state.extra,
-			},
-		],
-	}),
+	getAppManifest: async () => {
+		if (state.manifestError) throw state.manifestError;
+		return {
+			domains: [
+				{
+					service: "appwrite-console",
+					port: 3000,
+					primary: true,
+					paths: [],
+					https: true,
+					extra_domains: state.extra,
+				},
+			],
+		};
+	},
 }));
 
-const { addDomain } = await import("./domains.server");
+const { addDomain, setPrimaryDomain } = await import("./domains.server");
 
 const actor = { teamId: "team-1" } as never;
 const add = (host: string, service = "appwrite-console", port = 3000) =>
@@ -110,6 +125,9 @@ beforeEach(() => {
 	state.domains = [];
 	state.audits = [];
 	state.extra = { policy: "warn", reason: REASON };
+	state.selects = [];
+	state.updates = 0;
+	state.manifestError = null;
 });
 
 describe("additional domains limited by the template (BUG-021)", () => {
@@ -152,5 +170,54 @@ describe("additional domains limited by the template (BUG-021)", () => {
 			"aw.example.com",
 		]);
 		expect(state.audits).toEqual(["app.domain.add"]);
+	});
+
+	it("fails closed when the template cannot be read", async () => {
+		await add("aw.example.com");
+		state.manifestError = new Error("template gone");
+		await expect(add("console.example.org")).rejects.toThrow("template gone");
+		expect(state.domains).toHaveLength(1);
+	});
+});
+
+describe("switching the primary domain (BUG-021)", () => {
+	const row = (id: string, host: string, service: string, port: number) => ({
+		id,
+		host,
+		service,
+		port,
+		primary: id === "old",
+	});
+	const consoleRow = row("old", "aw.example.com", "appwrite-console", 3000);
+	const switchTo = (next: Record<string, unknown>, previous = consoleRow) => {
+		// The target domain, then the current primary one.
+		state.selects = [[next], [previous]];
+		return setPrimaryDomain(actor, "app-1", String(next.id));
+	};
+
+	it("returns the limitation of the old primary, now an additional domain", async () => {
+		const next = row("new", "console.example.org", "appwrite-console", 3000);
+		const result = await switchTo(next);
+		expect(result.limitation).toMatchObject({
+			code: "DOMAIN_EXTRA_LIMITED",
+			params: { service: "appwrite-console", port: "3000" },
+		});
+		expect(state.updates).toBe(3);
+	});
+
+	it("refuses the switch when the old primary would be refused", async () => {
+		state.extra = { policy: "refuse", reason: REASON };
+		const next = row("new", "console.example.org", "appwrite-console", 3000);
+		await expect(switchTo(next)).rejects.toMatchObject({
+			code: "DOMAIN_EXTRA_REFUSED",
+		});
+		expect(state.updates).toBe(0);
+		expect(state.audits).toEqual([]);
+	});
+
+	it("says nothing when the old primary is on an unlimited service", async () => {
+		const next = row("new", "console.example.org", "appwrite-console", 3000);
+		const api = row("old", "api.example.com", "appwrite", 80);
+		expect((await switchTo(next, api)).limitation).toBeNull();
 	});
 });
