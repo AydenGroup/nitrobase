@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
 	compareSemVer,
+	compareVersionNames,
+	compareVersionOrder,
 	isDowngrade,
 	isPrerelease,
 	parseVersion,
@@ -105,5 +107,25 @@ describe("isDowngrade", () => {
 		expect(isDowngrade("9f8e7d6c5b4a", "1a2b3c4d5e6f")).toBe(false);
 		expect(isDowngrade("2.4.5", "1234567")).toBe(false);
 		expect(isDowngrade("20", "19")).toBe(false);
+	});
+
+	it("orders 4-part versions and numbered pre-releases like version lists", () => {
+		expect(isDowngrade("1.2.3.10", "1.2.3.9")).toBe(true);
+		expect(isDowngrade("1.2.3.9", "1.2.3.10")).toBe(false);
+		expect(compareVersionNames("1.2.3.10", "1.2.3.9")).toBeGreaterThan(0);
+		expect(isDowngrade("2.0.0-rc10", "2.0.0-rc9")).toBe(true);
+		expect(isDowngrade("2.0.0-rc9", "2.0.0-rc10")).toBe(false);
+		// Only the spelling differs: not a downgrade.
+		expect(isDowngrade("v2.4.5", "2.4.5")).toBe(false);
+		expect(compareVersionOrder("v2.4.5", "2.4.5")).toBe(0);
+	});
+});
+
+describe("numbered pre-releases", () => {
+	it("compare their numbers, also without a dot", () => {
+		expect(parseVersion("2.0.0-rc10")?.prerelease).toEqual(["rc", "10"]);
+		expect(compare("2.0.0-rc9", "2.0.0-rc10")).toBeLessThan(0);
+		expect(updateKind("2.0.0-rc9", "2.0.0-rc10")).toBe("prerelease");
+		expect(updateKind("2.0.0-rc10", "2.0.0-rc9")).toBeNull();
 	});
 });

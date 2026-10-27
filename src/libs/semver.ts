@@ -40,7 +40,7 @@ export function parseVersion(value: string): SemVer | null {
 	const suffix = rest.split("+")[0] ?? "";
 	const prerelease =
 		suffix && PRERELEASE_LABEL.test(suffix)
-			? suffix.split(/[.-]/).filter(Boolean)
+			? suffix.split(/[.-]/).flatMap((part) => part.match(/\d+|\D+/g) ?? [])
 			: [];
 	return {
 		major: numbers[0] as number,
@@ -101,6 +101,75 @@ export function updateKind(from: string, to: string): UpdateKind | null {
 	return "prerelease";
 }
 
+/** Pre-release labels of version names (`-rc1`, `.beta.2`, `-dev`). */
+const NAME_PRERELEASE =
+	/(?:^|[-.])(alpha|beta|rc|pre|preview|canary|nightly|dev)/i;
+
+const numbers = (value: string) =>
+	(value.match(/\d+/g) ?? []).map((part) => Number(part));
+
+function compareNumbers(left: number[], right: number[]): number {
+	for (let i = 0; i < Math.max(left.length, right.length); i++) {
+		const diff = (left[i] ?? -1) - (right[i] ?? -1);
+		if (diff !== 0) return diff;
+	}
+	return 0;
+}
+
+/** Pre-release stages, earliest first (`alpha` < `beta` < `rc`). */
+const PRERELEASE_STAGES = [
+	["dev", "nightly", "canary"],
+	["alpha"],
+	["beta"],
+	["pre", "preview"],
+	["rc"],
+];
+
+function prereleaseStage(pre: string): number {
+	const label = NAME_PRERELEASE.exec(pre)?.[1]?.toLowerCase() ?? "";
+	return PRERELEASE_STAGES.findIndex((stage) => stage.includes(label));
+}
+
+/** `v1.2.0-rc1` -> core `v1.2.0`, pre-release `-rc1` (null without one). */
+function splitPrerelease(value: string): { core: string; pre: string | null } {
+	const match = NAME_PRERELEASE.exec(value);
+	if (!match || !/\d/.test(value.slice(0, match.index))) {
+		return { core: value, pre: null };
+	}
+	return { core: value.slice(0, match.index), pre: value.slice(match.index) };
+}
+
+/**
+ * Order of two version-like names, numeric-aware over every dotted part
+ * (`v3.10.0` > `v3.9.1`, `1.2.3.10` > `1.2.3.9`); a pre-release ranks
+ * below its release (`v1.2.0-rc1` < `v1.2.0`) and pre-releases of one
+ * stage compare their numbers (`rc9` < `rc10`). 0 when only the spelling
+ * differs (`v1.2.0` and `1.2.0`).
+ */
+export function compareVersionOrder(a: string, b: string): number {
+	const left = splitPrerelease(a);
+	const right = splitPrerelease(b);
+	const core = compareNumbers(numbers(left.core), numbers(right.core));
+	if (core !== 0) return core;
+	if (left.pre === null && right.pre !== null) return 1;
+	if (left.pre !== null && right.pre === null) return -1;
+	if (left.pre !== null && right.pre !== null) {
+		const stage = prereleaseStage(left.pre) - prereleaseStage(right.pre);
+		if (stage !== 0) return stage;
+		const pre = compareNumbers(numbers(left.pre), numbers(right.pre));
+		if (pre !== 0) return pre;
+	}
+	return 0;
+}
+
+/**
+ * `compareVersionOrder`, with a stable tie-break on the text (sorting
+ * lists of tags, branches and releases).
+ */
+export function compareVersionNames(a: string, b: string): number {
+	return compareVersionOrder(a, b) || a.localeCompare(b);
+}
+
 /** A commit SHA (short or full): never read as a version number. */
 const COMMIT_SHA = /^[0-9a-f]{7,40}$/i;
 
@@ -114,5 +183,7 @@ export function isDowngrade(from: string, to: string): boolean {
 	const a = parseVersion(from);
 	const b = parseVersion(to);
 	if (!a || !b || a.parts < 2 || b.parts < 2) return false;
-	return compareSemVer(b, a) < 0;
+	// The same order as update targets and version lists (4-part
+	// versions, `rc9` < `rc10`).
+	return compareVersionOrder(to, from) < 0;
 }

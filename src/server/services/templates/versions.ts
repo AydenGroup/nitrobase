@@ -1,5 +1,9 @@
 import type { TemplateVersion } from "#/features/templates/schema.ts";
+import { compareVersionNames } from "#/libs/semver.ts";
 import type { RawBranch, RawCommit, RawRelease, RawTag } from "./github";
+
+// Shared with the update checks and downgrade detection (#/libs/semver.ts).
+export { compareVersionNames };
 
 const PRERELEASE = /(?:^|[-.])(alpha|beta|rc|pre|preview|canary|nightly|dev)/i;
 
@@ -53,60 +57,6 @@ export function versionsFromBranches(branches: RawBranch[]): TemplateVersion[] {
 			prerelease: PRERELEASE.test(branch.name),
 		}))
 		.sort((a, b) => compareVersionNames(b.ref, a.ref));
-}
-
-const numbers = (value: string) =>
-	(value.match(/\d+/g) ?? []).map((part) => Number(part));
-
-function compareNumbers(left: number[], right: number[]): number {
-	for (let i = 0; i < Math.max(left.length, right.length); i++) {
-		const diff = (left[i] ?? -1) - (right[i] ?? -1);
-		if (diff !== 0) return diff;
-	}
-	return 0;
-}
-
-/** Pre-release stages, earliest first (`alpha` < `beta` < `rc`). */
-const PRERELEASE_STAGES = [
-	["dev", "nightly", "canary"],
-	["alpha"],
-	["beta"],
-	["pre", "preview"],
-	["rc"],
-];
-
-function prereleaseStage(pre: string): number {
-	const label = PRERELEASE.exec(pre)?.[1]?.toLowerCase() ?? "";
-	return PRERELEASE_STAGES.findIndex((stage) => stage.includes(label));
-}
-
-/** `v1.2.0-rc1` -> core `v1.2.0`, pre-release `-rc1` (null without one). */
-function splitPrerelease(value: string): { core: string; pre: string | null } {
-	const match = PRERELEASE.exec(value);
-	if (!match || !/\d/.test(value.slice(0, match.index))) {
-		return { core: value, pre: null };
-	}
-	return { core: value.slice(0, match.index), pre: value.slice(match.index) };
-}
-
-/**
- * Numeric-aware comparison of version-like names (`v3.10.0` > `v3.9.1`); a
- * pre-release ranks below its release (`v1.2.0-rc1` < `v1.2.0`).
- */
-export function compareVersionNames(a: string, b: string): number {
-	const left = splitPrerelease(a);
-	const right = splitPrerelease(b);
-	const core = compareNumbers(numbers(left.core), numbers(right.core));
-	if (core !== 0) return core;
-	if (left.pre === null && right.pre !== null) return 1;
-	if (left.pre !== null && right.pre === null) return -1;
-	if (left.pre !== null && right.pre !== null) {
-		const stage = prereleaseStage(left.pre) - prereleaseStage(right.pre);
-		if (stage !== 0) return stage;
-		const pre = compareNumbers(numbers(left.pre), numbers(right.pre));
-		if (pre !== 0) return pre;
-	}
-	return a.localeCompare(b);
 }
 
 /** `${version_number}`: the ref without the template's prefix (e.g. `v`, `n8n@`). */
