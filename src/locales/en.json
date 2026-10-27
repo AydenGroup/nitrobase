@@ -1,4 +1,11 @@
 {
+	"Appwrite accepts console sign-ins only from the primary domain: on this domain the console page loads, but signing in fails with “Invalid Origin”. The API on it still works for your projects (add the domain as a platform of each project). To use the console on this domain, make it the primary domain and redeploy.": "Appwrite accepts console sign-ins only from the primary domain: on this domain the console page loads, but signing in fails with “Invalid Origin”. The API on it still works for your projects (add the domain as a platform of each project). To use the console on this domain, make it the primary domain and redeploy.",
+	"{service}:{port} does not support an additional domain: {reason}": "{service}:{port} does not support an additional domain: {reason}",
+	"An additional domain on {service}:{port} is limited: {reason}": "An additional domain on {service}:{port} is limited: {reason}",
+	"Limited": "Limited",
+	"{host} is limited": "{host} is limited",
+	"An additional domain is not supported on {target}": "An additional domain is not supported on {target}",
+	"An additional domain on {target} is limited": "An additional domain on {target} is limited",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.",
 	"Umami release (image tag)": "Umami release (image tag)",

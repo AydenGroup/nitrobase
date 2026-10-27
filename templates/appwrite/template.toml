@@ -259,6 +259,15 @@ initial_only = true
 # One host: the console UI on "/", the API under /v1 (and ACME challenges
 # under /.well-known), realtime websockets under /v1/realtime (same split as
 # Appwrite's own Traefik labels).
+#
+# Additional domains: Appwrite (2.x, app/init/resources/request.php
+# "allowedHostnames") accepts console requests only from _APP_DOMAIN,
+# _APP_CONSOLE_DOMAIN and the host of _APP_CONSOLE_URL (all the primary
+# domain here). The console project's own platforms are never consulted
+# and _APP_CONSOLE_HOSTNAMES only reaches the realtime origin check, so
+# signing in to the console on another domain fails with "Invalid Origin".
+# The API paths on that domain still serve your projects' SDK clients
+# (registered as platforms of each project).
 [[domains]]
 service = "appwrite-console"
 port = 3000
@@ -268,6 +277,7 @@ paths = [
   { prefix = "/.well-known", service = "appwrite", port = 80 },
   { prefix = "/v1/realtime", service = "appwrite-realtime", port = 80 },
 ]
+extra_domains = { policy = "warn", reason = "Appwrite accepts console sign-ins only from the primary domain: on this domain the console page loads, but signing in fails with “Invalid Origin”. The API on it still works for your projects (add the domain as a platform of each project). To use the console on this domain, make it the primary domain and redeploy." }
 
 # Server-side features (cloud sync import): the API service and its path,
 # the console admin variables, the migration resources each import part

@@ -1,4 +1,11 @@
 {
+	"Appwrite accepts console sign-ins only from the primary domain: on this domain the console page loads, but signing in fails with “Invalid Origin”. The API on it still works for your projects (add the domain as a platform of each project). To use the console on this domain, make it the primary domain and redeploy.": "Appwrite chỉ chấp nhận đăng nhập console từ tên miền chính: trên tên miền này trang console vẫn tải, nhưng đăng nhập sẽ lỗi “Invalid Origin”. API trên tên miền này vẫn dùng được cho các dự án của bạn (thêm tên miền làm platform của từng dự án). Để dùng console trên tên miền này, hãy đặt nó làm tên miền chính rồi triển khai lại.",
+	"{service}:{port} does not support an additional domain: {reason}": "{service}:{port} không hỗ trợ tên miền bổ sung: {reason}",
+	"An additional domain on {service}:{port} is limited: {reason}": "Tên miền bổ sung trên {service}:{port} bị giới hạn: {reason}",
+	"Limited": "Bị giới hạn",
+	"{host} is limited": "{host} bị giới hạn",
+	"An additional domain is not supported on {target}": "{target} không hỗ trợ tên miền bổ sung",
+	"An additional domain on {target} is limited": "Tên miền bổ sung trên {target} bị giới hạn",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Phân tích web tôn trọng quyền riêng tư, không cookie (thay thế Google Analytics), dùng Postgres.",
 	"Umami release (image tag)": "Bản phát hành Umami (tag image)",
