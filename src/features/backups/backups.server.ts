@@ -49,8 +49,8 @@ import {
 	composeConfigCommand,
 	composeServiceCommand,
 	composeStartServicesCommand,
-	composeStatusCommand,
 	parseServiceStatus,
+	projectStatusCommand,
 } from "#/server/services/apps/commands.ts";
 import { composeDependsOn } from "#/server/services/apps/dependents.ts";
 import { audit } from "#/server/services/audit.ts";
@@ -110,9 +110,12 @@ export function composeVolumeNames(model: unknown): Record<string, string> {
 }
 
 /**
- * Services of `services` with a running (or restarting) container: the
- * only ones a backup stops, so it starts nothing that wasn't running
- * (owner-stopped services, finished one-shots).
+ * Services of the app's compose project with a running (or restarting)
+ * container, read by project label: the only ones a backup stops, so it
+ * starts nothing that wasn't running (owner-stopped services, finished
+ * one-shots), and none it would miss because the deployed compose does
+ * not name it (services a failed update added). Known services first, in
+ * `services` order.
  */
 export async function runningServices(
 	executor: Executor,
@@ -120,20 +123,24 @@ export async function runningServices(
 	location: AppLocation,
 	services: readonly string[],
 ): Promise<string[]> {
+	const statuses = parseServiceStatus(
+		await run(
+			executor,
+			ctx,
+			projectStatusCommand(location.folder),
+			"COMPOSE_PS_FAILED",
+			{ quiet: true },
+		),
+	);
 	const up = new Set(
-		parseServiceStatus(
-			await run(
-				executor,
-				ctx,
-				composeStatusCommand(location),
-				"COMPOSE_PS_FAILED",
-				{ quiet: true },
-			),
-		)
+		statuses
 			.filter((item) => item.state === "running" || item.state === "restarting")
 			.map((item) => item.service),
 	);
-	return services.filter((service) => up.has(service));
+	return [
+		...services.filter((service) => up.has(service)),
+		...[...up].filter((service) => !services.includes(service)).sort(),
+	];
 }
 
 export async function resolvedComposeModel(
@@ -289,15 +296,30 @@ export async function performAppBackup(
 		// `apps.status`: an app left in `error` by a failed job may still run
 		// every container, and copying its live volumes corrupts the archive
 		// (BUG-020). A failed status read fails the backup (COMPOSE_PS_FAILED).
-		const phases =
+		const running =
 			plan.stop !== false
-				? backupStopPhases(
-						plan,
-						await runningServices(executor, log, location, services),
-						dumpService,
-						composeDependsOn(model),
-					)
-				: { beforeDump: [], afterDump: [] };
+				? await runningServices(executor, log, location, services)
+				: [];
+		if (
+			plan.stop !== false &&
+			running.length === 0 &&
+			(app.status === "running" || app.status === "error")
+		) {
+			// Expected to run, yet no container is up: the state is unknown
+			// (a read gone wrong?); never copy volumes that might be live.
+			throw new AppError("BACKUP_NO_RUNNING_CONTAINERS", { app: app.name });
+		}
+		// Services the deployed compose does not name (a failed update added
+		// them) stop too, first, whatever `[backup] stop` lists: their writes
+		// are not covered otherwise.
+		const unknown = running.filter((service) => !services.includes(service));
+		const phases = backupStopPhases(
+			plan,
+			running.filter((service) => services.includes(service)),
+			dumpService,
+			composeDependsOn(model),
+		);
+		if (plan.stop !== false) phases.beforeDump.unshift(...unknown);
 		let remaining = phases.beforeDump;
 		if (strategy && dumpService) {
 			// Writers stop before the dump (the database keeps running for

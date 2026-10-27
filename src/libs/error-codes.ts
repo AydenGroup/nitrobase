@@ -562,6 +562,7 @@ export interface ErrorParamsMap
 	BACKUP_ARCHIVE_PATH_FAILED: { path: string; detail: string };
 	BACKUP_ARCHIVE_VOLUME_FAILED: { volume: string; detail: string };
 	BACKUP_VOLUME_MISSING: { volume: string };
+	BACKUP_NO_RUNNING_CONTAINERS: { app: string };
 	BACKUP_SIZE_FAILED: { detail: string };
 	BACKUP_PACK_FAILED: { detail: string };
 	BACKUP_DELETE_FAILED: { detail: string };
@@ -2354,6 +2355,9 @@ export const errorCodes = {
 	}),
 	BACKUP_VOLUME_MISSING: msg({
 		id: "Backup volume {volume} (template [backup]) is not in the compose file.",
+	}),
+	BACKUP_NO_RUNNING_CONTAINERS: msg({
+		id: "{app} should be running, but none of its containers is: the backup was not taken, so that no volume is copied while it may be in use. Redeploy or start the app, then back it up again.",
 	}),
 	BACKUP_SIZE_FAILED: msg({
 		id: "Could not size the archive.",

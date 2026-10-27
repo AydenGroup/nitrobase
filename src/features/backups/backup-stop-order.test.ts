@@ -26,6 +26,8 @@ const state = vi.hoisted(() => ({
 	status: "running",
 	/** Services with a running container (default: all of `services`). */
 	running: null as string[] | null,
+	/** Running containers of the project the deployed compose does not name. */
+	extra: [] as string[],
 	/** `depends_on` of the resolved compose model. */
 	dependsOn: {} as Record<string, string[]>,
 	/** Template has a dump strategy (`[backup.database]`). */
@@ -163,6 +165,7 @@ vi.mock("#/server/services/apps/commands.ts", async (importOriginal) => ({
 	bindSourcesCheckScript: () => "BINDCHECK",
 	composeConfigCommand: () => "CONFIG",
 	composeStatusCommand: () => "STATUS",
+	projectStatusCommand: () => "STATUS",
 	composeServiceCommand: (
 		_location: unknown,
 		action: string,
@@ -242,10 +245,10 @@ const fakeExecutor = {
 			}
 			const running = state.running ?? state.services;
 			return ok(
-				state.services
+				[...state.services, ...state.extra]
 					.map(
 						(service) =>
-							`${service}\t${running.includes(service) ? "running" : "exited"}\t0\t0\t`,
+							`${service}\t${running.includes(service) || state.extra.includes(service) ? "running" : "exited"}\t0\t0\t`,
 					)
 					.join("\n"),
 			);
@@ -359,6 +362,7 @@ const database = {
 beforeEach(() => {
 	state.status = "running";
 	state.running = null;
+	state.extra = [];
 	state.failAt = null;
 	state.steps = [];
 	state.events = [];
@@ -687,5 +691,36 @@ describe("what runs comes from the server, not apps.status (BUG-020)", () => {
 		state.failAt = "status";
 		await expect(backup(appwrite)).rejects.toThrow("COMPOSE_PS_FAILED");
 		expect(state.steps).not.toContain("archive:appwrite-uploads");
+	});
+});
+
+describe("what the backup stops is read by project label", () => {
+	it("stops a running service the deployed compose does not name", async () => {
+		// A failed update added `appwrite-new`; composeDeployed is stale.
+		state.status = "error";
+		state.extra = ["appwrite-new"];
+		await backup(appwrite);
+		expect(state.steps.slice(0, 3)).toEqual([
+			"pre_hook",
+			"stop:appwrite-new",
+			"stop:appwrite-worker-builds",
+		]);
+		expect(state.steps.at(-1)).toBe(
+			"start:postgresql,mongodb,appwrite,appwrite-worker-builds,appwrite-new",
+		);
+	});
+
+	it("refuses when an app expected to run has no running container", async () => {
+		for (const status of ["running", "error"]) {
+			state.status = status;
+			state.running = [];
+			state.steps = [];
+			await expect(backup(appwrite)).rejects.toMatchObject({
+				code: "BACKUP_NO_RUNNING_CONTAINERS",
+			});
+			expect(state.steps.some((step) => step.startsWith("archive:"))).toBe(
+				false,
+			);
+		}
 	});
 });

@@ -252,12 +252,31 @@ export function composeStatusCommand(location: AppLocation): string {
 
 /** `docker inspect --format` of every container of the project. */
 function inspectProjectCommand(location: AppLocation, format: string): string {
+	return inspectIdsCommand(
+		composeCommand(location, ["ps", "--all", "-q"]),
+		format,
+	);
+}
+
+function inspectIdsCommand(listIds: string, format: string): string {
 	return [
-		`ids=$(${composeCommand(location, ["ps", "--all", "-q"])}) || exit $?`,
+		`ids=$(${listIds}) || exit $?`,
 		'[ -n "$ids" ] || exit 0',
 		`docker inspect --format ${q(format)} $ids 2>/dev/null`,
 		"exit 0",
 	].join("\n");
+}
+
+/**
+ * `composeStatusCommand` for every container labelled with the compose
+ * project, whatever compose file made it (a failed update's services the
+ * deployed compose does not name are included): what a backup must stop.
+ */
+export function projectStatusCommand(folder: string): string {
+	return inspectIdsCommand(
+		`docker ps --all -q --filter ${q(`label=com.docker.compose.project=${assertSlug(folder)}`)}`,
+		STATUS_INSPECT_FORMAT,
+	);
 }
 
 /**

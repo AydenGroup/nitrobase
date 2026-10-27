@@ -932,6 +932,7 @@
 	"Could not archive {path}.": "Could not archive {path}.",
 	"Could not archive volume {volume}.": "Could not archive volume {volume}.",
 	"Backup volume {volume} (template [backup]) is not in the compose file.": "Backup volume {volume} (template [backup]) is not in the compose file.",
+	"{app} should be running, but none of its containers is: the backup was not taken, so that no volume is copied while it may be in use. Redeploy or start the app, then back it up again.": "{app} should be running, but none of its containers is: the backup was not taken, so that no volume is copied while it may be in use. Redeploy or start the app, then back it up again.",
 	"Could not size the archive.": "Could not size the archive.",
 	"Could not build the archive.": "Could not build the archive.",
 	"Could not delete the archive.": "Could not delete the archive.",

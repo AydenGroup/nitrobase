@@ -45,6 +45,7 @@ import {
 	parseOrphanScan,
 	parseServiceStatus,
 	projectImagesCommand,
+	projectStatusCommand,
 	removeAppFolderCommand,
 	removeFileCommand,
 	removeImagesScript,
@@ -144,6 +145,10 @@ describe("compose commands", () => {
 				"exit 0",
 			].join("\n"),
 		);
+		expect(projectStatusCommand("pocketbase-1a2b3c4d").split("\n")[0]).toBe(
+			"ids=$(docker ps --all -q --filter 'label=com.docker.compose.project=pocketbase-1a2b3c4d') || exit $?",
+		);
+		expect(() => projectStatusCommand("x; rm -rf /")).toThrow();
 		expect(
 			composeRestartServicesCommand(loc, ["api", "worker"]).endsWith(
 				`${base} restart 'api' 'worker'`,

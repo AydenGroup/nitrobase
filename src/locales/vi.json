@@ -932,6 +932,7 @@
 	"Could not archive {path}.": "Không đóng gói được {path}.",
 	"Could not archive volume {volume}.": "Không đóng gói được volume {volume}.",
 	"Backup volume {volume} (template [backup]) is not in the compose file.": "Volume sao lưu {volume} (template [backup]) không có trong tệp compose.",
+	"{app} should be running, but none of its containers is: the backup was not taken, so that no volume is copied while it may be in use. Redeploy or start the app, then back it up again.": "{app} lẽ ra phải đang chạy nhưng không container nào của nó đang chạy: chưa tạo bản sao lưu để không sao chép volume khi nó có thể đang được dùng. Hãy triển khai lại hoặc khởi động ứng dụng rồi sao lưu lại.",
 	"Could not size the archive.": "Không tính được kích thước tệp lưu trữ.",
 	"Could not build the archive.": "Không tạo được tệp lưu trữ.",
 	"Could not delete the archive.": "Không xóa được tệp lưu trữ.",
