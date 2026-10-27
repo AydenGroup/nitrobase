@@ -27,6 +27,8 @@ const state = vi.hoisted(() => ({
 	/** Template `[[domains]]` and `[health]` (service-env readiness). */
 	domains: [] as { service: string; port: number; https: boolean }[],
 	health: undefined as { path: string } | undefined,
+	/** `db` declares no restart policy (a one-shot job). */
+	dbOneShot: false,
 	/** `compose restart` of dependents fails. */
 	failRestart: false,
 	/** Template `restart_dependents` (undefined: the default). */
@@ -356,6 +358,8 @@ vi.mock("#/features/templates/templates.server.ts", async () => {
 				composeModel: {
 					services: {
 						db: {
+							// Long-running (the transform's default policy).
+							restart: state.dbOneShot ? undefined : "unless-stopped",
 							volumes: [
 								`${APP_ROOT}/volumes/db/data:/var/lib/postgresql/data`,
 								`${APP_ROOT}/volumes/db/init.sql:/docker-entrypoint-initdb.d/init.sql`,
@@ -445,6 +449,7 @@ beforeEach(() => {
 	state.withApi = false;
 	state.restartDependents = undefined;
 	state.failRestart = false;
+	state.dbOneShot = false;
 	state.domains = [];
 	state.health = undefined;
 	state.ps = "db\trunning\t0\t0\thealthy\n";
@@ -1376,6 +1381,13 @@ describe("dependents of a service up recreated restart (BUG-023)", () => {
 		expect(state.row.composeDeployed).toBe("services: {}\n");
 	});
 
+	it("restarts nothing for a one-shot dependency up ran again", async () => {
+		state.dbOneShot = true;
+		state.identities = [ids("d1@t0"), ids("d1@t1")];
+		await runDeploy("app-1", "redeploy", undefined, ctx());
+		expect(restarts()).toEqual([]);
+	});
+
 	it("restarts nothing when up left every container alone", async () => {
 		state.identities = [ids("d1@t0")];
 		await runDeploy("app-1", "redeploy", undefined, ctx());
@@ -1404,7 +1416,7 @@ describe("dependents of a service up recreated restart (BUG-023)", () => {
 		beforeEach(() => {
 			state.row.composeDeployed = [
 				"services:",
-				"  db: {}",
+				"  db: { restart: unless-stopped }",
 				"  api:",
 				"    depends_on:",
 				"      db: { condition: service_healthy }",

@@ -119,6 +119,7 @@ import {
 import { TemplateError } from "#/server/services/templates/naming.ts";
 import { LINKS_ENV_FILE } from "#/server/services/templates/render.ts";
 import { effectiveLimits } from "#/server/services/templates/resources.ts";
+import { oneShotServicesOf } from "#/server/services/templates/restart.ts";
 import {
 	bcryptHasher,
 	withPathRoutes,
@@ -1344,6 +1345,7 @@ async function restartDependents(
 		before: input.before,
 		after: input.after,
 		dependsOn: composeDependsOn(input.model, { runtimeOnly: true }),
+		oneShot: oneShotServicesOf(input.model),
 	});
 	if (restart.length === 0) return;
 	ctx.event("deploy.restarting_dependents", {

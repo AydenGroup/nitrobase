@@ -125,6 +125,33 @@ describe("dependentsToRestart", () => {
 		).toEqual([]);
 	});
 
+	it("ignores a declared one-shot even while it still runs", () => {
+		// `setup` has no restart policy: up re-ran it, it is still running.
+		const deps = { app: ["setup", "db"] };
+		const start = identities([
+			["setup", "s1", "t0", "exited"],
+			["db", "d1", "t0"],
+			["app", "a1", "t0"],
+		]);
+		const after = identities([
+			["setup", "s1", "t1"],
+			["db", "d1", "t0"],
+			["app", "a1", "t0"],
+		]);
+		expect(
+			dependentsToRestart({
+				before: start,
+				after,
+				dependsOn: deps,
+				oneShot: new Set(["setup"]),
+			}),
+		).toEqual({ restart: [], changed: [] });
+		// Without the one-shot set it would have counted.
+		expect(
+			dependentsToRestart({ before: start, after, dependsOn: deps }).restart,
+		).toEqual(["app"]);
+	});
+
 	it("ignores a one-shot up ran again that has exited", () => {
 		const oneShot = { appwrite: ["migrate"] };
 		const withJob = identities([

@@ -87,23 +87,30 @@ export function dependentsToRestart(input: {
 	before: ProjectIdentities;
 	after: ProjectIdentities;
 	dependsOn: Record<string, string[]>;
+	/**
+	 * Services that run once and exit (`oneShotServicesOf`): never a
+	 * cause, even while still running right after `up`.
+	 */
+	oneShot?: ReadonlySet<string>;
 }): {
 	/** Services to restart, dependencies first. */
 	restart: string[];
 	/** The recreated or (re)started services they depend on. */
 	changed: string[];
 } {
-	const { before, after, dependsOn } = input;
+	const { before, after, dependsOn, oneShot = new Set<string>() } = input;
 	const changed = new Set(
 		[...after.keys()].filter(
 			(service) =>
 				fingerprint(before.get(service)) !== fingerprint(after.get(service)),
 		),
 	);
-	// Only a running new container is one to reconnect to (a one-shot `up`
-	// ran again and that has exited is not).
+	// Only a long-running service's new container is one to reconnect to
+	// (a one-shot `up` ran again is not, running or exited).
 	const causesRestart = (service: string) =>
-		changed.has(service) && allRunning(after.get(service));
+		changed.has(service) &&
+		!oneShot.has(service) &&
+		allRunning(after.get(service));
 	// Changed services `service` depends on, directly or transitively.
 	const reached = (service: string): Set<string> => {
 		const found = new Set<string>();
