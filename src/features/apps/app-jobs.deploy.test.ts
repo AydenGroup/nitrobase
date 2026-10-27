@@ -375,8 +375,13 @@ vi.mock("#/features/templates/templates.server.ts", async () => {
 	};
 });
 
-const { runDeploy, deployThenRotateHook, rerunRotateHook, runRotateHook } =
-	await import("./app-jobs.server");
+const {
+	runApplyServiceEnv,
+	runDeploy,
+	deployThenRotateHook,
+	rerunRotateHook,
+	runRotateHook,
+} = await import("./app-jobs.server");
 const { deployedEnvValues } = await import("./apps.server");
 
 function ctx() {
@@ -1303,5 +1308,63 @@ describe("dependents of a service up recreated restart (BUG-023)", () => {
 		state.identities = [ids("d1@t0"), ids("d2@t1")];
 		await runDeploy("app-1", "redeploy", undefined, ctx());
 		expect(restarts()).toEqual([]);
+	});
+
+	describe("after a service env change recreates the service", () => {
+		const apply = () => runApplyServiceEnv("app-1", "db", ctx());
+		const recreated = () =>
+			state.commands.filter((command) => command.includes("--force-recreate"));
+
+		beforeEach(() => {
+			state.row.composeDeployed = [
+				"services:",
+				"  db: {}",
+				"  api:",
+				"    depends_on:",
+				"      db: { condition: service_healthy }",
+				"",
+			].join("\n");
+		});
+
+		it("restarts its dependents and waits until ready before success", async () => {
+			state.identities = [ids("d1@t0"), ids("d2@t1")];
+			const outcome = await apply();
+			expect(outcome.success).toBe(true);
+			expect(recreated()).toHaveLength(1);
+			expect(restarts()).toHaveLength(1);
+			expect(restarts()[0]).toMatch(/restart 'api'$/);
+			const order = codes();
+			const restarting = order.indexOf("deploy.restarting_dependents");
+			expect(order.indexOf("deploy.waiting_ready")).toBeLessThan(restarting);
+			expect(order.lastIndexOf("deploy.waiting_ready")).toBeGreaterThan(
+				restarting,
+			);
+			expect(order.at(-1)).toBe("app.env_updated");
+		});
+
+		it("honours restart_dependents = false, still waiting for readiness", async () => {
+			state.restartDependents = false;
+			state.identities = [ids("d1@t0"), ids("d2@t1")];
+			const outcome = await apply();
+			expect(outcome.success).toBe(true);
+			expect(restarts()).toEqual([]);
+			expect(codes()).toContain("deploy.waiting_ready");
+		});
+
+		it("fails when the recreated service does not become ready", async () => {
+			state.stableSamples = 3;
+			state.psSeq = [
+				"db\trunning\t0\t0\t\napi\trunning\t0\t0\t\n",
+				"db\trestarting\t1\t1\t\napi\trunning\t0\t0\t\n",
+				"db\trunning\t0\t2\t\napi\trunning\t0\t0\t\n",
+				"db\trestarting\t1\t3\t\napi\trunning\t0\t0\t\n",
+			];
+			const outcome = await apply();
+			expect(outcome).toMatchObject({
+				success: false,
+				error: { code: "APP_RESTART_LOOP" },
+			});
+			expect(codes()).not.toContain("app.env_updated");
+		});
 	});
 });

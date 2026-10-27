@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { parse as parseYaml } from "yaml";
 import { matchFailureSignature } from "#/config/failure-signatures.ts";
 import type { JobLogEvent } from "#/config/job-log-events.ts";
 import { type JobTitle, jobTitle } from "#/config/job-titles.ts";
@@ -838,6 +839,9 @@ class FailureHints {
 	}
 }
 
+/** What the readiness wait reads of a render: the probed route's container. */
+type ReadinessTarget = Pick<RenderedTemplate, "routes" | "containerNames">;
+
 /** Readiness error of a failed sample (`ReadinessTracker`). */
 function readinessError(
 	verdict: Extract<ReadinessVerdict, { state: "failed" }>,
@@ -859,7 +863,7 @@ function readinessError(
 export async function waitUntilHealthy(
 	executor: Executor,
 	location: AppLocation,
-	rendered: RenderedTemplate,
+	rendered: ReadinessTarget,
 	app: AppRow,
 	ctx: JobContext,
 	/** When the deploy started the containers (ms; dates the OOM hints). */
@@ -959,7 +963,7 @@ export async function waitUntilHealthy(
 /** `[health]` HTTP probe from the proxy network (none without a path). */
 async function probeHealth(
 	executor: Executor,
-	rendered: RenderedTemplate,
+	rendered: ReadinessTarget,
 	manifest: Pick<TemplateManifest, "health">,
 	deadline: number,
 	ctx: JobContext,
@@ -1238,6 +1242,7 @@ export async function runDeploy(
 				before,
 				after,
 				since: upStartedAt,
+				model: rendered.composeModel,
 			});
 		}
 
@@ -1310,16 +1315,22 @@ async function readIdentities(
 async function restartDependents(
 	executor: Executor,
 	location: AppLocation,
-	rendered: RenderedTemplate,
+	rendered: ReadinessTarget,
 	app: AppRow,
 	ctx: JobContext,
-	input: { before: ProjectIdentities; after: ProjectIdentities; since: number },
+	input: {
+		before: ProjectIdentities;
+		after: ProjectIdentities;
+		since: number;
+		/** The compose model (`depends_on`). */
+		model: unknown;
+	},
 ): Promise<void> {
 	if ((await getAppManifest(app)).restart_dependents === false) return;
 	const { restart, changed } = dependentsToRestart({
 		before: input.before,
 		after: input.after,
-		dependsOn: composeDependsOn(rendered.composeModel, { runtimeOnly: true }),
+		dependsOn: composeDependsOn(input.model, { runtimeOnly: true }),
 	});
 	if (restart.length === 0) return;
 	ctx.event("deploy.restarting_dependents", {
@@ -1332,6 +1343,8 @@ async function restartDependents(
 		composeRestartServicesCommand(location, restart),
 		"APP_RESTART_FAILED",
 	);
+	// A second full wait (its own timeout): the restarted services start
+	// from scratch, and the first wait's budget may be spent already.
 	await waitUntilHealthy(executor, location, rendered, app, ctx, input.since);
 }
 
@@ -2062,7 +2075,24 @@ async function dropRotatedValues(
 // ---------------------------------------------------------------------------
 // Service-scoped secret env (template `service_env`)
 
-async function runApplyServiceEnv(
+/**
+ * The readiness target of the deployed app (no render): its domains'
+ * routes, primary first, and its services' container names.
+ */
+async function deployedReadinessTarget(app: AppRow): Promise<ReadinessTarget> {
+	return {
+		routes: routesFromDomains(await listAppDomains(app.id)),
+		containerNames: Object.fromEntries(
+			deployedServices(app).map((service) => [
+				service,
+				containerName(app.folder, service),
+			]),
+		),
+	};
+}
+
+/** Write a service's env file, recreate it (exported for tests). */
+export async function runApplyServiceEnv(
 	appId: string,
 	service: string,
 	ctx: JobContext,
@@ -2078,7 +2108,9 @@ async function runApplyServiceEnv(
 			`${location.appRoot}/${serviceEnvFile(service)}`,
 			"0600",
 		);
+		const before = await readIdentities(executor, location, ctx);
 		ctx.event("app.recreating", { service });
+		const recreatedAt = Date.now();
 		const result = await executor.exec(
 			composeRecreateServiceCommand(location, service),
 			{
@@ -2091,6 +2123,19 @@ async function runApplyServiceEnv(
 			throw new AppError("APP_SERVICE_RECREATE_FAILED", {
 				service,
 				detail: result.stderr || result.stdout || `exit ${result.exitCode}`,
+			});
+		}
+		const after = before && (await readIdentities(executor, location, ctx));
+		// Success only once the recreated service (and what depends on it,
+		// restarted like after a deploy, BUG-023) is ready again.
+		const target = await deployedReadinessTarget(app);
+		await waitUntilHealthy(executor, location, target, app, ctx, recreatedAt);
+		if (before && after) {
+			await restartDependents(executor, location, target, app, ctx, {
+				before,
+				after,
+				since: recreatedAt,
+				model: app.composeDeployed ? parseYaml(app.composeDeployed) : {},
 			});
 		}
 		ctx.event("app.env_updated", { service });
