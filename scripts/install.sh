@@ -216,6 +216,11 @@ validate_args() {
 	esac
 	[ "$DIR" != "/" ] || die "--dir cannot be /"
 	[[ "$DIR" =~ ^/[A-Za-z0-9._/-]+$ ]] || die "--dir may only contain letters, digits, . _ - /"
+	# One spelling per folder: compose, the mount check and the in-panel
+	# updater compare it as text (/opt/x/. or /opt//x would miss the mount).
+	case "$DIR/" in
+	*/./* | */../* | *//*) die "--dir must not contain ., .. or empty path components (e.g. a trailing /): $DIR" ;;
+	esac
 	if [ -n "$VERSION" ]; then validate_version "$VERSION" "--version"; fi
 	if [ -n "$DOMAIN" ]; then
 		DOMAIN="$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')"
