@@ -82,6 +82,8 @@ readonly HEALTH_POLL_SECONDS=3
 readonly SETUP_TOKEN_LENGTH=32                                 # hex characters
 readonly RELEASES_PAGE_SIZE=10                                 # releases read when none is stable
 readonly DOCKER_SOCKET="/var/run/docker.sock"                  # mounted into the installer image
+readonly STABLE_IMAGE_TAG="latest"                             # moving tags of the images
+readonly PRERELEASE_IMAGE_TAG="beta"                           # (release.yml)
 # Set by the installer image (installer/Dockerfile): container mode, the
 # image's own release (default --version of a fresh install) and its name
 # (default: the panel image + -installer).
@@ -493,9 +495,12 @@ check_mount() {
 	fi
 }
 
-# The same run again through the installer image (summary, hints).
+# The same run again through the installer image (summary, hints), on the
+# moving tag of this image's channel (--version picks the release).
 rerun_command() {
-	local cmd="docker run --rm -it -v $DOCKER_SOCKET:$DOCKER_SOCKET -v $DIR:$DIR $INSTALLER_IMAGE"
+	local tag="$STABLE_IMAGE_TAG" cmd
+	case "$IMAGE_VERSION" in *-*) tag="$PRERELEASE_IMAGE_TAG" ;; esac
+	cmd="docker run --rm -it -v $DOCKER_SOCKET:$DOCKER_SOCKET -v $DIR:$DIR $INSTALLER_IMAGE:$tag"
 	if [ "$DIR" != "$DEFAULT_DIR" ]; then cmd="$cmd --dir $DIR"; fi
 	printf '%s %s' "$cmd" "$*"
 }

@@ -77,7 +77,7 @@ On any machine with [Docker](https://docs.docker.com/get-docker/) (amd64 or arm6
 docker run --rm -it \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /opt/nitrobase:/opt/nitrobase \
-  ghcr.io/aydengroup/nitrobase-installer
+  ghcr.io/aydengroup/nitrobase-installer:beta
 ```
 
 The image runs the [install script](#with-the-install-script-ubuntu-or-debian-vps) below, through your Docker instead of the host's package manager. It skips the OS check and the Docker install, writes the same `/opt/nitrobase/.env` with generated secrets and a one-time setup token, starts Nitrobase, waits until it is healthy, and prints the panel URL, the setup token and the reminder to **back up the secrets**. Any [installer option](#installer-options) can follow the image name.
@@ -87,17 +87,17 @@ The two mounts:
 - `-v /var/run/docker.sock:/var/run/docker.sock` lets the installer drive your Docker. Without it, the installer stops with an error that names this flag.
 - `-v /opt/nitrobase:/opt/nitrobase` is the install folder. It **must be the same path on both sides**: Docker resolves the compose project folder on the host, and the in-panel upgrade mounts that folder again later. The installer checks this and prints the exact `-v` to use if it is missing or different. For another folder, change both sides and pass `--dir`: `-v /srv/nitrobase:/srv/nitrobase ... --dir /srv/nitrobase`.
 
-**Version.** `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.0`) installs exactly that release. `:latest` installs the latest stable release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
+**Version.** Nitrobase is in beta, so the commands here use `:beta`, which always installs the newest pre-release. `:latest` installs the latest stable release and exists from the first stable release on. `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.0`) installs exactly that release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
 
 **Upgrade and uninstall** use the same image and mounts:
 
 ```bash
 docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v /opt/nitrobase:/opt/nitrobase \
-  ghcr.io/aydengroup/nitrobase-installer --version <v>        # upgrade (or Settings → Instance)
+  ghcr.io/aydengroup/nitrobase-installer:beta --version <v>        # upgrade (or Settings → Instance)
 docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v /opt/nitrobase:/opt/nitrobase \
-  ghcr.io/aydengroup/nitrobase-installer --uninstall          # stop; data and .env stay
+  ghcr.io/aydengroup/nitrobase-installer:beta --uninstall          # stop; data and .env stay
 docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v /opt/nitrobase:/opt/nitrobase \
-  ghcr.io/aydengroup/nitrobase-installer --uninstall --purge  # also delete the data
+  ghcr.io/aydengroup/nitrobase-installer:beta --uninstall --purge  # also delete the data
 ```
 
 `--purge` empties the install folder. The empty folder itself stays on the host, because it is the mount point (`rmdir /opt/nitrobase` removes it).
@@ -112,7 +112,7 @@ docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v /opt/nitroba
 docker run --rm -it \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$HOME/nitrobase:$HOME/nitrobase" \
-  ghcr.io/aydengroup/nitrobase-installer --dir "$HOME/nitrobase"
+  ghcr.io/aydengroup/nitrobase-installer:beta --dir "$HOME/nitrobase"
 ```
 
 The path may only contain letters, digits, `.`, `_`, `-` and `/`. Then open `http://localhost:3000`. On Windows, run the command from a WSL 2 shell.
@@ -345,14 +345,14 @@ bun run dev                       # http://localhost:3000
 
 Releases are built by GitHub Actions (`.github/workflows/release.yml`) from a version tag:
 
-1. Bump `version` in `package.json` (semver, e.g. `0.1.0` or `0.2.0-beta.1`) and the `VERSION=` example under [Install](#install). Commit and push to `main`.
+1. Bump `version` in `package.json` (semver, e.g. `0.1.0` or `0.2.0-beta.1`) and the `VERSION=` example under [Install](#install). For the first stable release, also switch the installer commands under [Install](#install) from `:beta` to `:latest` (a test checks both). Commit and push to `main`.
 2. Tag the commit and push the tag to GitHub: `git tag v0.2.0 && git push origin v0.2.0`.
 
 The workflow then:
 
 - runs the CI checks;
 - fails if the tag is not `v` + the `package.json` version;
-- builds `linux/amd64` and `linux/arm64` and pushes `ghcr.io/aydengroup/nitrobase:<version>`, plus `:latest` when it is the highest stable version;
+- builds `linux/amd64` and `linux/arm64` and pushes `ghcr.io/aydengroup/nitrobase:<version>` and the installer image `ghcr.io/aydengroup/nitrobase-installer:<version>`, plus `:latest` when it is the highest stable version, or `:beta` for a pre-release (`:latest` stays on the latest stable);
 - creates the GitHub Release, marked as a pre-release for `-` versions, with generated notes and `docker-compose.prod.yml`, `install.sh` and `env.example` attached. It becomes the "latest" release only when it is the highest stable version, so a backport tag (`v1.2.4` after `v1.3.0`) leaves `v1.3.0` as latest, for both the Release and the `:latest` image.
 
 ### Database migrations

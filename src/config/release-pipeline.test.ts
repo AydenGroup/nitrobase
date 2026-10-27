@@ -110,6 +110,29 @@ describe("release pipeline", () => {
 		);
 	});
 
+	it("tags pre-releases :beta and keeps :latest stable, like install.sh and README", () => {
+		const text = read(".github/workflows/release.yml");
+		const script = read("scripts/install.sh");
+		const stable = /^readonly STABLE_IMAGE_TAG="([^"]+)"/m.exec(script)?.[1];
+		const pre = /^readonly PRERELEASE_IMAGE_TAG="([^"]+)"/m.exec(script)?.[1];
+		expect(text).toContain(
+			`type=raw,value=${stable},enable=\${{ needs.version.outputs.make_latest == 'true' }}`,
+		);
+		expect(text).toContain(
+			`type=raw,value=${pre},enable=\${{ needs.version.outputs.prerelease == 'true' }}`,
+		);
+		// Every command in the README names a tag that exists today.
+		const channel = packageJson.version.includes("-") ? pre : stable;
+		const code = [...read("README.md").matchAll(/```bash\n([\s\S]*?)```/g)]
+			.map((block) => block[1])
+			.join("\n");
+		const uses = [
+			...code.matchAll(/ghcr\.io\/aydengroup\/nitrobase-installer(\S*)/g),
+		];
+		expect(uses.length).toBeGreaterThan(0);
+		for (const [, tag] of uses) expect(tag).toBe(`:${channel}`);
+	});
+
 	it("CI builds the installer image", () => {
 		const text = read(".github/workflows/ci.yml");
 		expect(text).toMatch(/docker build -f installer\/Dockerfile /);

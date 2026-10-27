@@ -661,7 +661,7 @@ describe("installer in a container (installer image, mocked system)", () => {
 			`Setup token (asked once, until the first account exists): ${env.SETUP_TOKEN}`,
 		);
 		expect(result.out).toContain(
-			`docker run --rm -it -v ${SOCKET}:${SOCKET} -v ${dir()}:${dir()} ghcr.io/${RELEASE_REPO_DEFAULT.toLowerCase()}-installer --version <v>`,
+			`docker run --rm -it -v ${SOCKET}:${SOCKET} -v ${dir()}:${dir()} ghcr.io/${RELEASE_REPO_DEFAULT.toLowerCase()}-installer:latest --version <v>`,
 		);
 	});
 
@@ -760,6 +760,8 @@ describe("installer in a container (installer image, mocked system)", () => {
 		expect(again.out).toMatch(
 			/Keeping the installed 1\.5\.0 .*--version 0\.1\.0-beta\.0/,
 		);
+		// A pre-release image points at the pre-release channel tag.
+		expect(again.out).toContain("-installer:beta --version <v>");
 	});
 
 	it("ignores the installer image's version outside the image", () => {
