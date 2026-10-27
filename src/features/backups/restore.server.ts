@@ -528,6 +528,53 @@ export async function applyArchiveState(
 	});
 }
 
+/**
+ * Row columns `applyArchiveState` changes, as they are in `app`: put back
+ * when the restore's deploy fails before it changed the server, so the row
+ * describes what still runs there (not the archive).
+ */
+export function archiveStateRevert(app: AppRow) {
+	return {
+		envEncrypted: app.envEncrypted,
+		envPendingAt: app.envPendingAt,
+		envDeployedEncrypted: app.envDeployedEncrypted,
+		serviceEnvEncrypted: app.serviceEnvEncrypted,
+		customSpecEncrypted: app.customSpecEncrypted,
+		inputs: app.inputs,
+		version: app.version,
+		commitSha: app.commitSha,
+		needsRedeploy: app.needsRedeploy,
+	} satisfies Partial<AppRow>;
+}
+
+/**
+ * Store the archive's state on the row and deploy it (data loaded by
+ * `beforeUp`). A deploy that failed before touching the server leaves the
+ * row as it was before the restore.
+ */
+export async function deployArchive(
+	app: AppRow,
+	fetched: Fetched,
+	options: { clone: boolean; beforeUp: BeforeUpHook },
+	ctx: JobContext,
+): Promise<JobOutcome> {
+	await applyArchiveState(app, fetched, {
+		keepPorts: !options.clone,
+		previousHost: options.clone ? fetched.env.primaryHost : null,
+	});
+	const mode: DeployMode = fetched.manifest.template.commitSha
+		? "redeploy"
+		: "deploy";
+	const outcome = await runDeploy(app.id, mode, undefined, ctx, {
+		beforeUp: options.beforeUp,
+		nested: true,
+	});
+	if (!outcome.success && outcome.untouched) {
+		await setStatus(app.id, archiveStateRevert(app));
+	}
+	return outcome;
+}
+
 /** Restore `backup` over (or into) an app inside a running job. */
 export async function runRestore(
 	input: {
@@ -565,16 +612,15 @@ export async function runRestore(
 				template: fetched.manifest.app.templateId,
 			});
 		}
-		await applyArchiveState(app, fetched, {
-			keepPorts: !input.clone,
-			previousHost: input.clone ? fetched.env.primaryHost : null,
-		});
-		const mode: DeployMode = fetched.manifest.template.commitSha
-			? "redeploy"
-			: "deploy";
-		const outcome = await runDeploy(app.id, mode, undefined, redacting, {
-			beforeUp: restoreData(session, fetched, redacting),
-		});
+		const outcome = await deployArchive(
+			app,
+			fetched,
+			{
+				clone: input.clone,
+				beforeUp: restoreData(session, fetched, redacting),
+			},
+			redacting,
+		);
 		if (outcome.success) {
 			ctx.event("restore.done", {
 				app: fetched.manifest.app.name,
