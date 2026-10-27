@@ -726,6 +726,16 @@ describe("installer in a container (installer image, mocked system)", () => {
 		);
 	});
 
+	it("ignores the installer image's version outside the image", () => {
+		const result = run(base(), { NITROBASE_INSTALLER_VERSION: "0.1.0-beta.0" });
+		expect(result.code).toBe(0);
+		expect(envOf().NITROBASE_VERSION).toBe("1.4.2");
+		expect(result.calls).toMatch(/releases\/latest/);
+		expect(
+			config([], { NITROBASE_INSTALLER_VERSION: "0.1.0-beta.0" }).image_version,
+		).toBe("");
+	});
+
 	it("passes the other options through and uninstalls, keeping the mounted folder on purge", () => {
 		expect(
 			run(

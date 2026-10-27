@@ -86,7 +86,10 @@ readonly DOCKER_SOCKET="/var/run/docker.sock"                  # mounted into th
 # image's own release (default --version of a fresh install) and its name
 # (default: the panel image + -installer).
 readonly CONTAINER_MODE="${NITROBASE_INSTALLER_CONTAINER:-0}"
-readonly IMAGE_VERSION="${NITROBASE_INSTALLER_VERSION:-}"
+# The image's version applies inside the image only, never on a host.
+IMAGE_VERSION=""
+if [ "$CONTAINER_MODE" = 1 ]; then IMAGE_VERSION="${NITROBASE_INSTALLER_VERSION:-}"; fi
+readonly IMAGE_VERSION
 INSTALLER_IMAGE="${NITROBASE_INSTALLER_IMAGE:-$DEFAULT_IMAGE_REGISTRY/$(printf '%s' "$DEFAULT_REPO" | tr '[:upper:]' '[:lower:]')-installer}"
 readonly INSTALLER_IMAGE
 # Overridable for tests only.
