@@ -43,7 +43,7 @@ jobs:
       installer_image: ${{ steps.version.outputs.installer_image }}
       license: ${{ steps.version.outputs.license }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: version
         name: Compare the tag with package.json
@@ -106,15 +106,15 @@ jobs:
               VERSION=${{ needs.version.outputs.version }}
               INSTALLER_IMAGE=${{ needs.version.outputs.installer_image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -151,13 +151,13 @@ jobs:
           fi
 
       - if: steps.images.outputs.dockerhub == 'true'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         env:
           # Annotations on the image manifests and the multi-arch index.
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
@@ -177,7 +177,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=${{ needs.version.outputs.license }}
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.file }}
@@ -197,7 +197,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Collect the release assets
         run: |
@@ -208,7 +208,7 @@ jobs:
           cp .env.example dist/env.example
 
       # Third-party actions are pinned to a commit.
-      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.ref_name }}
           name: Nitrobase ${{ needs.version.outputs.version }}
