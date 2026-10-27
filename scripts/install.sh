@@ -442,14 +442,14 @@ check_mount() {
 		die "$DIR is not a mount of the host: add $(mount_hint) to docker run"
 	fi
 	for id in $(self_container_ids); do
-		if mounts="$(docker inspect -f '{{range .Mounts}}{{.Source}}|{{.Destination}}{{println}}{{end}}' "$id" 2>/dev/null)"; then
+		if mounts="$(docker inspect --type container -f '{{range .Mounts}}{{.Source}}|{{.Destination}}{{println}}{{end}}' "$id" 2>/dev/null)"; then
 			found=1
 			break
 		fi
 	done
+	# Unverified, the install could land in this container's own files.
 	if [ "$found" = 0 ]; then
-		warn "could not find this container through the Docker socket (is --hostname set?): make sure $DIR is mounted at the same path with $(mount_hint)"
-		return
+		die "could not find this installer container through the Docker socket to check the $DIR mount: do not pass --hostname to docker run, and mount the folder with $(mount_hint)"
 	fi
 	# The innermost mount holding $DIR.
 	while IFS='|' read -r src dst; do

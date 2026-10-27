@@ -68,7 +68,7 @@ beforeEach(() => {
 			'  "compose version") exit 0;;',
 			'  version*) [ -z "$MOCK_NO_DAEMON" ] || exit 1; echo 27.3.1;;',
 			// The installer container's own mounts ("source|destination" lines).
-			'  "inspect -f"*Mounts*) [ -n "$MOCK_MOUNTS" ] || exit 1; printf "%b\\n" "$MOCK_MOUNTS";;',
+			'  "inspect --type container -f"*Mounts*) [ -n "$MOCK_MOUNTS" ] || exit 1; printf "%b\\n" "$MOCK_MOUNTS";;',
 			'  "inspect -f"*) echo healthy;;',
 			'  ps*) [ -z "$MOCK_PS" ] || echo "$MOCK_PS";;',
 			"  inspect*) exit 1;;",
@@ -667,6 +667,15 @@ describe("installer in a container (installer image, mocked system)", () => {
 		expect(other.code).not.toBe(0);
 		expect(other.err).toContain("mounted from /srv/elsewhere on the host");
 		expect(other.err).toContain(hint);
+		expect(existsSync(path.join(dir(), ".env"))).toBe(false);
+
+		// Its own container cannot be found (e.g. --hostname): no guess.
+		const unknown = inContainer();
+		delete unknown.MOCK_MOUNTS;
+		const lost = run(base(), unknown);
+		expect(lost.code).not.toBe(0);
+		expect(lost.err).toContain("do not pass --hostname to docker run");
+		expect(lost.err).toContain(hint);
 		expect(existsSync(path.join(dir(), ".env"))).toBe(false);
 
 		// A parent folder mounted at the same path holds it as well.
