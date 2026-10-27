@@ -22,10 +22,12 @@ import {
 	chmodExecutableCommand,
 	composeConfigCommand,
 	composeDownCommand,
+	composeIdentityCommand,
 	composeLifecycleCommand,
 	composeLogsCommand,
 	composePrepareCommand,
 	composeRecreateServiceCommand,
+	composeRestartServicesCommand,
 	composeServiceCommand,
 	composeStartServicesCommand,
 	composeStatusCommand,
@@ -134,6 +136,20 @@ describe("compose commands", () => {
 				"exit 0",
 			].join("\n"),
 		);
+		expect(composeIdentityCommand(loc)).toBe(
+			[
+				`ids=$(${base} ps --all -q) || exit $?`,
+				'[ -n "$ids" ] || exit 0',
+				`docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}}\t{{.Id}}\t{{.State.StartedAt}}\t{{.State.Status}}' $ids 2>/dev/null`,
+				"exit 0",
+			].join("\n"),
+		);
+		expect(
+			composeRestartServicesCommand(loc, ["api", "worker"]).endsWith(
+				`${base} restart 'api' 'worker'`,
+			),
+		).toBe(true);
+		expect(() => composeRestartServicesCommand(loc, ["a;b"])).toThrow();
 		expect(removeAppFolderCommand(loc)).toBe(
 			"rm -rf -- '/etc/nitrobase/apps/pocketbase-1a2b3c4d'",
 		);

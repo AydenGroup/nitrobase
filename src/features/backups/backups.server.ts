@@ -52,6 +52,7 @@ import {
 	composeStatusCommand,
 	parseServiceStatus,
 } from "#/server/services/apps/commands.ts";
+import { composeDependsOn } from "#/server/services/apps/dependents.ts";
 import { audit } from "#/server/services/audit.ts";
 import {
 	archiveSourceCommand,
@@ -105,23 +106,6 @@ export function composeVolumeNames(model: unknown): Record<string, string> {
 		Object.entries(volumes ?? {})
 			.filter(([, volume]) => typeof volume?.name === "string")
 			.map(([key, volume]) => [key, volume.name as string]),
-	);
-}
-
-/** Compose service -> services it `depends_on` (list or map form). */
-function composeDependsOn(model: unknown): Record<string, string[]> {
-	const services = (model as { services?: Record<string, unknown> })?.services;
-	return Object.fromEntries(
-		Object.entries(services ?? {}).map(([name, service]) => {
-			const dependsOn = (service as { depends_on?: unknown } | null)
-				?.depends_on;
-			const targets = Array.isArray(dependsOn)
-				? dependsOn.filter((item): item is string => typeof item === "string")
-				: dependsOn && typeof dependsOn === "object"
-					? Object.keys(dependsOn)
-					: [];
-			return [name, targets];
-		}),
 	);
 }
 

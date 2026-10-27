@@ -247,12 +247,50 @@ const STATUS_INSPECT_FORMAT = [
  * left out (inspect's error is ignored).
  */
 export function composeStatusCommand(location: AppLocation): string {
+	return inspectProjectCommand(location, STATUS_INSPECT_FORMAT);
+}
+
+/** `docker inspect --format` of every container of the project. */
+function inspectProjectCommand(location: AppLocation, format: string): string {
 	return [
 		`ids=$(${composeCommand(location, ["ps", "--all", "-q"])}) || exit $?`,
 		'[ -n "$ids" ] || exit 0',
-		`docker inspect --format ${q(STATUS_INSPECT_FORMAT)} $ids 2>/dev/null`,
+		`docker inspect --format ${q(format)} $ids 2>/dev/null`,
 		"exit 0",
 	].join("\n");
+}
+
+/**
+ * Per container of the project: compose service, container id,
+ * `State.StartedAt`, `State.Status`, tab separated (see
+ * `parseContainerIdentities` in `dependents.ts`). Taken around `up`, it
+ * tells which services `up` recreated or (re)started. Labels and state
+ * only.
+ */
+export function composeIdentityCommand(location: AppLocation): string {
+	return inspectProjectCommand(
+		location,
+		[
+			'{{index .Config.Labels "com.docker.compose.service"}}',
+			"{{.Id}}",
+			"{{.State.StartedAt}}",
+			"{{.State.Status}}",
+		].join("\t"),
+	);
+}
+
+/**
+ * Restart exactly `services` (compose orders them by `depends_on`): the
+ * running dependents of a service `up` recreated (see `dependents.ts`).
+ */
+export function composeRestartServicesCommand(
+	location: AppLocation,
+	services: readonly string[],
+): string {
+	return composeLifecycleCommand(location, [
+		"restart",
+		...services.map((service) => q(assertServiceName(service))),
+	]);
 }
 
 /**
