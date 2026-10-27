@@ -14,6 +14,7 @@ import { type CommandFailure, run } from "#/features/apps/app-jobs.server.ts";
 import {
 	appInputs,
 	appLocation,
+	appOverrides,
 	containerName,
 	deployedServices,
 	getAppManifest,
@@ -398,7 +399,7 @@ export async function performAppBackup(
 
 		const env: EnvPayload = {
 			values: readEnvValues(app),
-			overrides: appInputs(app).overrides,
+			overrides: appOverrides(app),
 			serviceEnv: readServiceEnv(app),
 			publishedPorts: appInputs(app).publishedPorts ?? {},
 			primaryHost:

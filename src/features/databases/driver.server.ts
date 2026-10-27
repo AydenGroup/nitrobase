@@ -7,7 +7,7 @@ import {
 import { getConfig } from "#/config/server.ts";
 import { TEXT_LIMITS } from "#/config/text-limits.ts";
 import {
-	appInputs,
+	appOverrides,
 	containerName,
 	readEnvValues,
 } from "#/features/apps/apps.server.ts";
@@ -42,7 +42,7 @@ function valuesOf(app: SourceApp): Record<string, string> {
 		: {};
 	return {
 		...env,
-		...(app.inputs ? appInputs({ inputs: app.inputs }).overrides : {}),
+		...(app.inputs ? appOverrides({ inputs: app.inputs }) : {}),
 	};
 }
 

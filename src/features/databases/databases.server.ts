@@ -20,6 +20,7 @@ import { databaseLinks } from "#/db/schema/databases.ts";
 import { servers } from "#/db/schema/server.ts";
 import {
 	appInputs,
+	appOverrides,
 	containerName,
 	deployedServices,
 	getAppRow,
@@ -121,7 +122,7 @@ async function databaseContext(
 }
 
 function valuesOf(app: AppRow): Record<string, string> {
-	return { ...readEnvValues(app), ...appInputs(app).overrides };
+	return { ...readEnvValues(app), ...appOverrides(app) };
 }
 
 function mainLogin(ctx: DatabaseContext): DatabaseLogin {
@@ -559,7 +560,7 @@ export async function linkDatabase(
 	}
 	// Names the app already sets (env editor, template) or another link sets.
 	const taken = new Set([
-		...Object.keys(appInputs(target).overrides),
+		...Object.keys(appOverrides(target)),
 		...(appInputs(target).templateKeys ?? []),
 	]);
 	const others = await db

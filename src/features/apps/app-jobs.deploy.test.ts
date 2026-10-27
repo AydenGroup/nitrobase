@@ -343,7 +343,7 @@ vi.mock("#/features/templates/templates.server.ts", async () => {
 
 const { runDeploy, deployThenRotateHook, rerunRotateHook, runRotateHook } =
 	await import("./app-jobs.server");
-const { appInputs, deployedEnvValues } = await import("./apps.server");
+const { deployedEnvValues } = await import("./apps.server");
 
 function ctx() {
 	return {
@@ -487,13 +487,14 @@ describe("JWT secret rotation signs users out (BUG-010)", () => {
 
 	it("remembers a failed step for the overview and forgets it once it succeeds", async () => {
 		state.row.composeDeployed = deployed;
-		state.row.inputs = { overrides: { A: "1" } };
+		// The stored overrides are kept as they are (never decrypted here).
+		state.row.inputs = { overridesEncrypted: "sealed" };
 		state.psqlFails = true;
 		await runRotateHook({} as never, "app-1", "JWT_SECRET", hook, ctx());
 		// Counted in the job's summary (success with warnings).
 		expect(state.warnings).toBe(1);
-		expect(appInputs(state.row as never)).toEqual({
-			overrides: { A: "1" },
+		expect(state.row.inputs).toEqual({
+			overridesEncrypted: "sealed",
 			rotateHookFailed: ["JWT_SECRET"],
 		});
 
@@ -503,7 +504,8 @@ describe("JWT secret rotation signs users out (BUG-010)", () => {
 				rerun: true,
 			}),
 		).toBe(true);
-		expect(appInputs(state.row as never)).toEqual({ overrides: { A: "1" } });
+		expect(state.row.inputs).toEqual({ overridesEncrypted: "sealed" });
+		expect(JSON.stringify(state.row.inputs)).not.toContain("rotateHookFailed");
 		expect(state.audits.at(-1)).toEqual({
 			action: "app.variable.rotate_hook",
 			meta: { name: "JWT_SECRET", service: "db", ok: true, rerun: true },
@@ -723,6 +725,19 @@ describe("readiness over time (BUG-004)", () => {
 			restarts: 3,
 		});
 		expect(codes()).not.toContain("deploy.running");
+	});
+
+	it("keeps the stored overrides encrypted as they were", async () => {
+		// Identity crypto in this file: the "cipher" is the JSON itself.
+		const sealed = JSON.stringify({ A: "1" });
+		state.row.inputs = { overridesEncrypted: sealed, stoppedServices: ["db"] };
+		const outcome = await runDeploy("app-1", "deploy", undefined, ctx());
+		expect(outcome.success).toBe(true);
+		const inputs = state.row.inputs as Record<string, unknown>;
+		expect(inputs.overridesEncrypted).toBe(sealed);
+		expect(inputs).not.toHaveProperty("overrides");
+		expect(inputs.templateKeys).toEqual(expect.any(Array));
+		expect(inputs.stoppedServices).toBeUndefined();
 	});
 
 	it("succeeds with a warning naming a service that restarted once", async () => {

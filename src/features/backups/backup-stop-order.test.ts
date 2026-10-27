@@ -110,7 +110,8 @@ vi.mock("#/features/apps/app-jobs.server.ts", () => ({
 }));
 
 vi.mock("#/features/apps/apps.server.ts", () => ({
-	appInputs: () => ({ overrides: {}, publishedPorts: {} }),
+	appInputs: () => ({ publishedPorts: {} }),
+	appOverrides: () => ({}),
 	appLocation: (app: { folder: string }) => ({
 		folder: app.folder,
 		appRoot: `/apps/${app.folder}`,

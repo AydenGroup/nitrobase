@@ -100,8 +100,14 @@ const { reencryptAll } = await import("#/db/reencrypt.ts");
 const { apps } = await import("#/db/schema/apps.ts");
 const { encrypt } = await import("#/utils/crypto.ts");
 const { draftFromText, envSavePayload } = await import("./env-editor");
-const { appInputs, envVersion, getAppEnv, storedAppInputs, updateAppEnv } =
-	await import("./apps.server");
+const {
+	appInputs,
+	appOverrides,
+	envVersion,
+	getAppEnv,
+	patchAppInputs,
+	updateAppEnv,
+} = await import("./apps.server");
 
 const editor = {
 	userId: null,
@@ -157,7 +163,7 @@ describe("env overrides at rest (BUG-018)", () => {
 		expect(JSON.stringify(stored)).not.toContain("custom-t0ken-9");
 		expect(stored).not.toHaveProperty("overrides");
 		// Read back decrypted by every consumer (render, previews, backups).
-		expect(appInputs(state.row as never).overrides).toEqual({
+		expect(appOverrides(state.row as never)).toEqual({
 			SMTP_PASSWORD,
 			ROUTER_API_TOKEN: "custom-t0ken-9",
 		});
@@ -174,13 +180,13 @@ describe("env overrides at rest (BUG-018)", () => {
 		expect(state.row.inputs).toMatchObject({ initialised: ["SMTP_HOST"] });
 		await save({ reset: ["SMTP_PASSWORD"] });
 		expect(state.row.inputs).toEqual({ initialised: ["SMTP_HOST"] });
-		expect(appInputs(state.row as never).overrides).toEqual({});
+		expect(appOverrides(state.row as never)).toEqual({});
 	});
 
 	it("carries an encrypted override over the next edit", async () => {
 		await save({ set: { SMTP_PASSWORD } });
 		await save({ set: { SMTP_HOST: "mail.test" } });
-		expect(appInputs(state.row as never).overrides).toEqual({
+		expect(appOverrides(state.row as never)).toEqual({
 			SMTP_PASSWORD,
 			SMTP_HOST: "mail.test",
 		});
@@ -189,14 +195,43 @@ describe("env overrides at rest (BUG-018)", () => {
 
 	it("still reads rows stored with plain overrides", () => {
 		const legacy = { inputs: { overrides: { SMTP_PASSWORD } } };
-		expect(appInputs(legacy as never).overrides).toEqual({ SMTP_PASSWORD });
+		expect(appOverrides(legacy as never)).toEqual({ SMTP_PASSWORD });
 		// ...and rewrites them encrypted.
-		const rewritten = storedAppInputs(appInputs(legacy as never));
+		const rewritten = patchAppInputs(legacy as never, {
+			overrides: appOverrides(legacy as never),
+		});
+		expect(rewritten).not.toHaveProperty("overrides");
 		expect(JSON.stringify(rewritten)).not.toContain(SMTP_PASSWORD);
 	});
 
+	it("reads and writes the other fields without decrypting", () => {
+		// Undecryptable (e.g. a wrong ENCRYPTION_KEY): lists, the overview,
+		// service start/stop and deploy bookkeeping keep working.
+		const row = {
+			inputs: {
+				overridesEncrypted: "v3:not-decryptable",
+				publishedPorts: { http: 8080 },
+				stoppedServices: ["worker"],
+			},
+		};
+		expect(appInputs(row as never)).toEqual({
+			publishedPorts: { http: 8080 },
+			stoppedServices: ["worker"],
+		});
+		expect(() => appOverrides(row as never)).toThrow();
+		expect(
+			patchAppInputs(row as never, {
+				stoppedServices: undefined,
+				templateKeys: ["A"],
+			}),
+		).toEqual({
+			overridesEncrypted: "v3:not-decryptable",
+			publishedPorts: { http: 8080 },
+			templateKeys: ["A"],
+		});
+	});
+
 	it("is re-encrypted by a key rotation", async () => {
-		const inputs = storedAppInputs({ overrides: { SMTP_PASSWORD } });
 		expect(
 			encryptedColumns.some(
 				(entry) =>
@@ -205,34 +240,55 @@ describe("env overrides at rest (BUG-018)", () => {
 					entry.jsonField.key === "overridesEncrypted",
 			),
 		).toBe(true);
-		const written: Record<string, unknown>[] = [];
+		const rows = [
+			{
+				id: "encrypted",
+				json: patchAppInputs({ inputs: {} }, { overrides: { SMTP_PASSWORD } }),
+			},
+			// Nothing overridden: nothing to rotate, left alone.
+			{ id: "none", json: { templateKeys: ["SMTP_HOST"] } },
+			{ id: "empty", json: null },
+		];
+		const written = new Map<unknown, Record<string, unknown>>();
+		let target: unknown;
 		const tx = {
 			select: (selected: Record<string, unknown>) => ({
 				from: (table: unknown) => ({
-					for: async () =>
-						table === apps && "json" in selected
-							? [{ id: APP, json: inputs }]
-							: [],
+					for: async () => (table === apps && "json" in selected ? rows : []),
 				}),
 			}),
 			update: () => ({
-				set: (patch: Record<string, unknown>) => ({
+				set: (patch: { inputs: Record<string, unknown> }) => ({
 					where: async () => {
-						written.push(patch);
+						written.set(target, patch.inputs);
 					},
 				}),
 			}),
 		};
-		const fakeDb = { transaction: (run: (t: unknown) => unknown) => run(tx) };
+		// Rows are updated in order: track which one by its turn.
+		const order = ["encrypted"];
+		const fakeDb = {
+			transaction: (run: (t: unknown) => unknown) =>
+				run({
+					...tx,
+					update: () => {
+						target = order.shift();
+						return tx.update();
+					},
+				}),
+		};
 		const count = await reencryptAll(fakeDb as never, {
 			oldSecret: KEY,
 			newSecret: NEW_KEY,
 		});
 		expect(count).toBe(1);
+		expect([...written.keys()]).toEqual(["encrypted"]);
 		vi.stubEnv("ENCRYPTION_KEY", NEW_KEY);
-		expect(appInputs(written[0] as never).overrides).toEqual({
-			SMTP_PASSWORD,
-		});
+		for (const id of ["encrypted"]) {
+			expect(appOverrides({ inputs: written.get(id) } as never)).toEqual({
+				SMTP_PASSWORD,
+			});
+		}
 	});
 });
 
@@ -288,7 +344,7 @@ describe("locked variables (BUG-019)", () => {
 				OPENSSL_KEY: deployed.OPENSSL_KEY,
 			},
 		});
-		expect(appInputs(state.row as never).overrides).toEqual({
+		expect(appOverrides(state.row as never)).toEqual({
 			SMTP_HOST: "mail.test",
 		});
 	});
@@ -298,7 +354,7 @@ describe("locked variables (BUG-019)", () => {
 			set: { SMTP_PASSWORD, ADMIN_PASSWORD: "owner-chosen" },
 		});
 		expect(view.changed).toEqual(["SMTP_PASSWORD", "ADMIN_PASSWORD"]);
-		expect(appInputs(state.row as never).overrides).toEqual({
+		expect(appOverrides(state.row as never)).toEqual({
 			SMTP_PASSWORD,
 			ADMIN_PASSWORD: "owner-chosen",
 		});

@@ -85,13 +85,16 @@ export interface AppInputs {
 	>;
 }
 
+/** `AppInputs` besides the overrides (read without decrypting). */
+export type AppInputFields = Omit<AppInputs, "overrides">;
+
 /**
  * How `apps.inputs` is stored: `AppInputs` with its `overrides` encrypted
- * (they hold user-set secrets, e.g. an SMTP password). Read and written
- * through `appInputs` / `storedAppInputs` (#/features/apps/apps.server.ts),
- * never directly.
+ * (they hold user-set secrets, e.g. an SMTP password). Read through
+ * `appInputs` / `appOverrides` and written through `patchAppInputs`
+ * (#/features/apps/apps.server.ts), never directly.
  */
-export type StoredAppInputs = Omit<AppInputs, "overrides"> & {
+export type StoredAppInputs = AppInputFields & {
 	/** Encrypted JSON of `AppInputs.overrides` (unset: none). */
 	overridesEncrypted?: string;
 	/**

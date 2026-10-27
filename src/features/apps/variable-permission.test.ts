@@ -86,7 +86,7 @@ vi.mock("#/utils/crypto.ts", async (importOriginal) => ({
 
 const { withImplied } = await import("#/config/permissions.ts");
 const {
-	appInputs,
+	appOverrides,
 	envVersion,
 	getAppEnv,
 	updateAppEnv,
@@ -95,7 +95,7 @@ const {
 
 /** The overrides a save stored (decrypted). */
 function storedOverrides(patch: Record<string, unknown>) {
-	return appInputs(patch as never).overrides;
+	return appOverrides(patch as never);
 }
 
 function actor(granted: Permission[]) {

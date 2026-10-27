@@ -7,7 +7,7 @@ import { db } from "#/db/index.ts";
 import { apps } from "#/db/schema/apps.ts";
 import { databaseLinks } from "#/db/schema/databases.ts";
 import {
-	appInputs,
+	appOverrides,
 	containerName,
 	readEnvValues,
 } from "#/features/apps/apps.server.ts";
@@ -49,7 +49,7 @@ function linkLogin(
 	if (!parsed) throw new TemplateError("DATABASE_NO_ENGINE");
 	const values = {
 		...readEnvValues(database),
-		...appInputs(database).overrides,
+		...appOverrides(database),
 	};
 	const main = serverEngine(parsed.engine).login(values);
 	return {

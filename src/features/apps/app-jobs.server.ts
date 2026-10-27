@@ -129,6 +129,7 @@ import {
 	appInitialised,
 	appInputs,
 	appLocation,
+	appOverrides,
 	appTraefikPath,
 	assertDeleteConfirmation,
 	assertServiceEnvService,
@@ -145,10 +146,10 @@ import {
 	getAppServer,
 	isServiceEnvDeployed,
 	listAppDomains,
+	patchAppInputs,
 	pendingEnvColumns,
 	readEnvValues,
 	readServiceEnv,
-	storedAppInputs,
 } from "./apps.server";
 import type {
 	AppRow,
@@ -317,7 +318,7 @@ export async function renderApp(
 		commitSha: mode === "redeploy" && app.commitSha ? app.commitSha : undefined,
 		domain: primary?.host ?? `${app.folder}.invalid`,
 		routes: appDomains.length ? routesFromDomains(appDomains) : undefined,
-		overrides: appInputs(app).overrides,
+		overrides: appOverrides(app),
 		existing: carryOverValues(
 			expressions,
 			previous ?? readEnvValues(app),
@@ -467,7 +468,7 @@ export async function persistRenderedEnv(
 		// Pending until this deploy succeeds (the live env is kept aside).
 		...pendingEnvColumns(app, rendered.values),
 		// Those of this render: a rollback drops a failed version's keys.
-		inputs: storedAppInputs({ ...appInputs(app), templateKeys }),
+		inputs: patchAppInputs(app, { templateKeys }),
 	});
 }
 
@@ -1200,8 +1201,7 @@ export async function runDeploy(
 			envEncrypted: encryptEnvValues(rendered.values),
 			...deployedEnvColumns,
 			// Merge into a fresh read: never write back the job-start snapshot.
-			inputs: storedAppInputs({
-				...appInputs(await freshApp(app.id)),
+			inputs: patchAppInputs(await freshApp(app.id), {
 				templateKeys: Object.keys(rendered.definitions),
 				// `up` started every service again.
 				stoppedServices: undefined,
@@ -1304,15 +1304,15 @@ async function runServiceAction(
 			composeServiceCommand(appLocation(app), action, service),
 			steps.failure,
 		);
-		const inputs = appInputs(await freshApp(app.id));
+		const fresh = await freshApp(app.id);
 		const stoppedServices = nextStoppedServices(
-			inputs.stoppedServices,
+			appInputs(fresh).stoppedServices,
 			action,
 			service,
 		);
 		await setStatus(app.id, {
 			...(service ? {} : { status: action === "stop" ? "stopped" : "running" }),
-			inputs: storedAppInputs({ ...inputs, stoppedServices }),
+			inputs: patchAppInputs(fresh, { stoppedServices }),
 		});
 		ctx.event(steps.done);
 		return { success: true };
@@ -1751,15 +1751,13 @@ export async function runRotateHook(
 			.from(apps)
 			.where(eq(apps.id, appId))
 			.limit(1);
-		const inputs = appInputs(current ?? app);
-		const failed = new Set(inputs.rotateHookFailed ?? []);
+		const failed = new Set(appInputs(current ?? app).rotateHookFailed ?? []);
 		if (ok) failed.delete(name);
 		else failed.add(name);
-		const { rotateHookFailed: _previous, ...rest } = inputs;
 		await setStatus(app.id, {
-			inputs: storedAppInputs(
-				failed.size ? { ...rest, rotateHookFailed: [...failed] } : rest,
-			),
+			inputs: patchAppInputs(current ?? app, {
+				rotateHookFailed: failed.size ? [...failed] : undefined,
+			}),
 		});
 		return ok;
 	};
@@ -1857,8 +1855,7 @@ async function markInitialised(
 	if (appInputs(fresh).initialised) return;
 	const manifest = await getAppManifest(fresh);
 	await setStatus(app.id, {
-		inputs: storedAppInputs({
-			...appInputs(fresh),
+		inputs: patchAppInputs(fresh, {
 			initialised: initialisedNames(manifest.variables, values),
 		}),
 	});
@@ -1891,13 +1888,12 @@ async function dropRotatedValues(
 	const values = Object.fromEntries(
 		Object.entries(readEnvValues(app)).filter(([key]) => !drop.has(key)),
 	);
-	const inputs = appInputs(app);
 	const overrides = Object.fromEntries(
-		Object.entries(inputs.overrides).filter(([key]) => !drop.has(key)),
+		Object.entries(appOverrides(app)).filter(([key]) => !drop.has(key)),
 	);
 	await setStatus(app.id, {
 		envEncrypted: app.envEncrypted ? encryptEnvValues(values) : null,
-		inputs: storedAppInputs({ ...inputs, overrides }),
+		inputs: patchAppInputs(app, { overrides }),
 		needsRedeploy: true,
 	});
 	audit({

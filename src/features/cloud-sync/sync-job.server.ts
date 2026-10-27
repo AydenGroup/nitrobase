@@ -17,8 +17,8 @@ import {
 } from "#/db/schema/cloud-sync.ts";
 import { deployments } from "#/db/schema/server.ts";
 import {
-	appInputs,
 	appLocation,
+	appOverrides,
 	containerName,
 	getAppManifest,
 	getAppServer,
@@ -123,7 +123,7 @@ export function appSyncTarget(
 		workDir: options.workDir,
 		appName: app.name,
 		pluginConfig,
-		values: { ...readEnvValues(app), ...appInputs(app).overrides },
+		values: { ...readEnvValues(app), ...appOverrides(app) },
 		container: (service) => containerName(app.folder, service),
 		run,
 		compose: (args, failure) =>

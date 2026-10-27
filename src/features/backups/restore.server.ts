@@ -26,9 +26,9 @@ import {
 	getAppManifest,
 	getAppRow,
 	getAppServer,
+	patchAppInputs,
 	pendingEnvColumns,
 	readCustomSpec,
-	storedAppInputs,
 } from "#/features/apps/apps.server.ts";
 import type { AppRow } from "#/features/apps/schema.ts";
 import type { Actor } from "#/features/auth/access.ts";
@@ -507,8 +507,7 @@ export async function applyArchiveState(
 		// Pending until the restore's deploy succeeds.
 		...pendingEnvColumns(app, fetched.env.values),
 		serviceEnvEncrypted: encryptServiceEnv(fetched.env.serviceEnv),
-		inputs: storedAppInputs({
-			...appInputs(app),
+		inputs: patchAppInputs(app, {
 			overrides,
 			publishedPorts: options.keepPorts
 				? fetched.env.publishedPorts

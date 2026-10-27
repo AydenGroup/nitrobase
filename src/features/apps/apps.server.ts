@@ -14,6 +14,7 @@ import { appBaseUrl, getConfig, hostPaths } from "#/config/server.ts";
 import { isUniqueViolation } from "#/db/errors.ts";
 import { db } from "#/db/index.ts";
 import {
+	type AppInputFields,
 	type AppInputs,
 	apps,
 	domains,
@@ -264,31 +265,47 @@ export async function getAppManifest(
 	return (await sourceDriver(manifest)).manifest(manifest, app);
 }
 
-/**
- * An app's inputs with its overrides decrypted. Rows written before the
- * overrides were encrypted keep them in plain `overrides` (still read).
- */
-export function appInputs(app: Pick<AppRow, "inputs">): AppInputs {
+/** An app's inputs besides its overrides: nothing to decrypt. */
+export function appInputs(app: Pick<AppRow, "inputs">): AppInputFields {
 	const {
-		overridesEncrypted,
-		overrides: legacy,
-		...rest
+		overridesEncrypted: _encrypted,
+		overrides: _legacy,
+		...fields
 	} = app.inputs ?? ({} as StoredAppInputs);
-	const overrides: Record<string, string> = overridesEncrypted
-		? JSON.parse(decrypt(overridesEncrypted))
-		: { ...(legacy as Record<string, string> | undefined) };
-	return { ...rest, overrides };
+	return fields;
 }
 
 /**
- * The stored form of `inputs` (what `apps.inputs` is set to): the overrides
- * (user-set values, secrets among them) encrypted, never in plain text.
+ * An app's overrides (deploy form and env editor values), decrypted. Rows
+ * written before they were encrypted keep them in plain `overrides`.
  */
-export function storedAppInputs(inputs: AppInputs): StoredAppInputs {
-	const { overrides, ...rest } = inputs;
-	return Object.keys(overrides).length
-		? { ...rest, overridesEncrypted: encrypt(JSON.stringify(overrides)) }
-		: rest;
+export function appOverrides(
+	app: Pick<AppRow, "inputs">,
+): Record<string, string> {
+	const encrypted = app.inputs?.overridesEncrypted;
+	if (encrypted) return JSON.parse(decrypt(encrypted));
+	return { ...(app.inputs?.overrides as Record<string, string> | undefined) };
+}
+
+/**
+ * The app's stored `inputs` with `patch` applied (what `apps.inputs` is set
+ * to). Given overrides are stored encrypted, never in plain text; without
+ * any, the stored ones are kept as they are (not decrypted).
+ */
+export function patchAppInputs(
+	app: Pick<AppRow, "inputs">,
+	patch: Partial<AppInputFields> & { overrides?: Record<string, string> },
+): StoredAppInputs {
+	const { overrides, ...fields } = patch;
+	const next: StoredAppInputs = { ...app.inputs, ...fields };
+	if (overrides) {
+		delete next.overrides;
+		delete next.overridesEncrypted;
+		if (Object.keys(overrides).length) {
+			next.overridesEncrypted = encrypt(JSON.stringify(overrides));
+		}
+	}
+	return next;
 }
 
 /** Services of the deployed compose file (container names are derived). */
@@ -750,7 +767,8 @@ export async function createAppRecord(
 					version,
 					folder,
 					status: "pending",
-					inputs: storedAppInputs(
+					inputs: patchAppInputs(
+						{ inputs: {} },
 						extra.resources
 							? { overrides, resources: extra.resources }
 							: { overrides },
@@ -830,7 +848,7 @@ export function appInitialised(
 
 /** Current env: last deployed values plus pending edits (overrides). */
 function currentValues(app: AppRow): Record<string, string> {
-	return { ...readEnvValues(app), ...appInputs(app).overrides };
+	return { ...readEnvValues(app), ...appOverrides(app) };
 }
 
 export async function getAppEnv(
@@ -841,7 +859,7 @@ export async function getAppEnv(
 	const values = currentValues(app);
 	const { manifest, keys } = await secretKeysFor(app, values);
 	const templateKeys = templateKeysFor(app, manifest.variables);
-	const overrides = appInputs(app).overrides;
+	const overrides = appOverrides(app);
 	const initialised = appInitialised(app);
 	const frozen = frozenInitialValues(manifest.variables, initialised);
 	// Template order first (the order the template lists its variables).
@@ -906,7 +924,7 @@ export function envVersion(
 	return createHash("sha256")
 		.update(app.envEncrypted ?? "")
 		.update("\0")
-		.update(JSON.stringify(appInputs(app).overrides))
+		.update(JSON.stringify(appOverrides(app)))
 		.digest("hex")
 		.slice(0, 32);
 }
@@ -931,7 +949,7 @@ export async function updateAppEnv(
 		}
 		const manifest = await getAppManifest(app);
 		const deployed = readEnvValues(app);
-		const inputs = appInputs(app);
+		const overrides = appOverrides(app);
 		const templateKeys = templateKeysFor(app, manifest.variables);
 		const definitions = Object.fromEntries(
 			Object.entries(manifest.variables).map(([name, variable]) => [
@@ -944,7 +962,7 @@ export async function updateAppEnv(
 			set: edit.set,
 			remove: edit.remove,
 			values: currentValues(app),
-			overrides: inputs.overrides,
+			overrides,
 			templateKeys,
 			definitions,
 		});
@@ -967,7 +985,7 @@ export async function updateAppEnv(
 		const kept = keepFrozenValues(
 			frozen,
 			[...edited.changed, ...edited.removed, ...reset],
-			{ values: currentValues(app), overrides: inputs.overrides },
+			{ values: currentValues(app), overrides },
 			reverted,
 		);
 		const touched = dropped.filter((name) => !frozen.has(name));
@@ -1009,7 +1027,7 @@ export async function updateAppEnv(
 			await db
 				.update(apps)
 				.set({
-					inputs: storedAppInputs({ ...inputs, overrides: result.overrides }),
+					inputs: patchAppInputs(app, { overrides: result.overrides }),
 					envEncrypted:
 						app.envEncrypted || Object.keys(keepStored).length
 							? encryptEnvValues(stored)
@@ -1271,8 +1289,7 @@ async function savePublishedPorts(
 	await db
 		.update(apps)
 		.set({
-			inputs: storedAppInputs({
-				...inputs,
+			inputs: patchAppInputs(app, {
 				publishedPorts: next,
 				// Only ports that are published can be loopback-bound.
 				loopbackPorts: (loopback ?? inputs.loopbackPorts ?? []).filter(

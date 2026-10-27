@@ -1,6 +1,7 @@
 import { getConfig } from "#/config/server.ts";
 import {
 	appInputs,
+	appOverrides,
 	containerName,
 	deployedServices,
 	getAppManifest,
@@ -74,7 +75,7 @@ export async function supabaseContext(
 		app,
 		server: await getAppServer(app),
 		config: parsed.data,
-		values: { ...readEnvValues(app), ...appInputs(app).overrides },
+		values: { ...readEnvValues(app), ...appOverrides(app) },
 		domains: await listAppDomains(app.id),
 		container: (service) => containerName(app.folder, service),
 	};

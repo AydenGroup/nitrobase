@@ -93,7 +93,7 @@ vi.mock("#/utils/crypto.ts", async (importOriginal) => ({
 }));
 
 const { withImplied } = await import("#/config/permissions.ts");
-const { appInputs, envVersion, getAppEnv, listCredentials, updateAppEnv } =
+const { appOverrides, envVersion, getAppEnv, listCredentials, updateAppEnv } =
 	await import("./apps.server");
 
 const editor = {
@@ -159,7 +159,7 @@ describe("initial_only variables of a deployed app", () => {
 	it("still saves other variables", async () => {
 		await save({ PB_SMTP_HOST: "smtp.test" });
 		expect(state.updates[0]).toMatchObject({ needsRedeploy: true });
-		expect(appInputs(state.updates[0] as never).overrides).toMatchObject({
+		expect(appOverrides(state.updates[0] as never)).toMatchObject({
 			PB_SMTP_HOST: "smtp.test",
 		});
 	});
@@ -188,7 +188,7 @@ describe("initial_only variables before the first deploy", () => {
 			env.variables.find((item) => item.name === "PB_ADMIN_PASSWORD"),
 		).toMatchObject({ locked: false, initialOnly: "first_start" });
 		await save({ PB_ADMIN_PASSWORD: "second-password" });
-		expect(appInputs(state.updates[0] as never).overrides).toMatchObject({
+		expect(appOverrides(state.updates[0] as never)).toMatchObject({
 			PB_ADMIN_PASSWORD: "second-password",
 		});
 		const credentials = await listCredentials(state.row as never);
