@@ -1572,6 +1572,7 @@
 	"replacing the Traefik container": "thay container Traefik",
 	"loading the imported database": "nạp cơ sở dữ liệu được nhập",
 	"loading the database into the cloud project": "nạp cơ sở dữ liệu vào project trên cloud",
+	"nothing was changed on the server: the app is as it was before this deploy.": "không có gì thay đổi trên máy chủ: ứng dụng vẫn như trước lần triển khai này.",
 	"the app may be partly updated or stopped: redeploy it to converge.": "ứng dụng có thể đã được cập nhật một phần hoặc đã dừng: hãy triển khai lại để đồng bộ.",
 	"nothing was moved: the app runs on the source.": "chưa có gì được chuyển: ứng dụng chạy trên máy chủ nguồn.",
 	"the move is rolled back: the copy on the target is removed and the app is started on the source again.": "việc chuyển được hoàn tác: bản sao trên máy chủ đích bị xóa và ứng dụng được khởi động lại trên máy chủ nguồn.",

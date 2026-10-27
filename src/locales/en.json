@@ -1572,6 +1572,7 @@
 	"replacing the Traefik container": "replacing the Traefik container",
 	"loading the imported database": "loading the imported database",
 	"loading the database into the cloud project": "loading the database into the cloud project",
+	"nothing was changed on the server: the app is as it was before this deploy.": "nothing was changed on the server: the app is as it was before this deploy.",
 	"the app may be partly updated or stopped: redeploy it to converge.": "the app may be partly updated or stopped: redeploy it to converge.",
 	"nothing was moved: the app runs on the source.": "nothing was moved: the app runs on the source.",
 	"the move is rolled back: the copy on the target is removed and the app is started on the source again.": "the move is rolled back: the copy on the target is removed and the app is started on the source again.",

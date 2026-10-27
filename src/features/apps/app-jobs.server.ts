@@ -1098,7 +1098,8 @@ export async function runDeploy(
 	const server = options.server ?? (await getAppServer(app));
 	const location = appLocation(app);
 	await setStatus(app.id, { status: "deploying", ...lastErrorColumns(null) });
-	ctx.setCancelState?.("app_partly_updated");
+	// Until the upload starts, a cancel leaves the server as it was.
+	ctx.setCancelState?.("deploy_nothing_changed");
 
 	let executor: Executor | null = null;
 	// Until the rendered files are uploaded, the server (its files and
@@ -1173,6 +1174,7 @@ export async function runDeploy(
 		await driver.prepare?.(step);
 		await persistRenderedEnv(app.id, rendered);
 		touched = true;
+		ctx.setCancelState?.("app_partly_updated");
 		await uploadRendered(executor, location, rendered, ctx);
 		await verifyResolvedCompose(executor, location, rendered, ctx);
 

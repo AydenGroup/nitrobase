@@ -58,6 +58,9 @@ export type JobStep = keyof typeof jobSteps;
  * param of log events holds one of these keys.
  */
 export const cancelStates = {
+	deploy_nothing_changed: msg({
+		id: "nothing was changed on the server: the app is as it was before this deploy.",
+	}),
 	app_partly_updated: msg({
 		id: "the app may be partly updated or stopped: redeploy it to converge.",
 	}),
