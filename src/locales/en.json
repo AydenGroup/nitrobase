@@ -1785,6 +1785,7 @@
 	"Running post-backup hook in {service}...": "Running post-backup hook in {service}...",
 	"Stopping {services} before dumping {database}, so the dump holds every acknowledged write...": "Stopping {services} before dumping {database}, so the dump holds every acknowledged write...",
 	"Dumping the database ({strategy})...": "Dumping the database ({strategy})...",
+	"No container of the app is running (status {status}): copying its data as it is.": "No container of the app is running (status {status}): copying its data as it is.",
 	"Stopping {services} for a consistent copy...": "Stopping {services} for a consistent copy...",
 	"Archiving {path}...": "Archiving {path}...",
 	"Archiving volume {volume}...": "Archiving volume {volume}...",

@@ -777,6 +777,11 @@ export const jobLogEvents = {
 	"backup.dumping": info<{ strategy: string }>(
 		msg({ id: "Dumping the database ({strategy})..." }),
 	),
+	"backup.nothing_running": info<{ status: string }>(
+		msg({
+			id: "No container of the app is running (status {status}): copying its data as it is.",
+		}),
+	),
 	"backup.stopping": info<{ services: CodedValue }>(
 		msg({ id: "Stopping {services} for a consistent copy..." }),
 	),

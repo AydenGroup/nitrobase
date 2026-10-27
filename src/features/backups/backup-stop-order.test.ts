@@ -710,17 +710,31 @@ describe("what the backup stops is read by project label", () => {
 		);
 	});
 
-	it("refuses when an app expected to run has no running container", async () => {
-		for (const status of ["running", "error"]) {
+	it("refuses when a running app has no running container", async () => {
+		state.status = "running";
+		state.running = [];
+		await expect(backup(appwrite)).rejects.toMatchObject({
+			code: "BACKUP_NO_RUNNING_CONTAINERS",
+		});
+		expect(state.steps.some((step) => step.startsWith("archive:"))).toBe(false);
+	});
+
+	it("copies an app in any other status with nothing running, and says so", async () => {
+		for (const status of ["error", "stopped", "deploying"]) {
 			state.status = status;
 			state.running = [];
 			state.steps = [];
-			await expect(backup(appwrite)).rejects.toMatchObject({
-				code: "BACKUP_NO_RUNNING_CONTAINERS",
+			state.events = [];
+			await backup(appwrite);
+			expect(state.steps).toEqual([
+				"pre_hook",
+				"dump",
+				"archive:appwrite-uploads",
+			]);
+			expect(state.events).toContainEqual({
+				code: "backup.nothing_running",
+				params: { status },
 			});
-			expect(state.steps.some((step) => step.startsWith("archive:"))).toBe(
-				false,
-			);
 		}
 	});
 });

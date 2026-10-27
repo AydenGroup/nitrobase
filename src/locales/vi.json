@@ -1785,6 +1785,7 @@
 	"Running post-backup hook in {service}...": "Đang chạy hook sau sao lưu trong {service}...",
 	"Stopping {services} before dumping {database}, so the dump holds every acknowledged write...": "Đang dừng {services} trước khi dump {database}, để bản dump chứa mọi thao tác ghi đã được xác nhận...",
 	"Dumping the database ({strategy})...": "Đang dump cơ sở dữ liệu ({strategy})...",
+	"No container of the app is running (status {status}): copying its data as it is.": "Không có container nào của ứng dụng đang chạy (trạng thái {status}): sao chép dữ liệu như hiện có.",
 	"Stopping {services} for a consistent copy...": "Đang dừng {services} để có bản sao nhất quán...",
 	"Archiving {path}...": "Đang đóng gói {path}...",
 	"Archiving volume {volume}...": "Đang đóng gói volume {volume}...",

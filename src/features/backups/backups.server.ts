@@ -300,14 +300,14 @@ export async function performAppBackup(
 			plan.stop !== false
 				? await runningServices(executor, log, location, services)
 				: [];
-		if (
-			plan.stop !== false &&
-			running.length === 0 &&
-			(app.status === "running" || app.status === "error")
-		) {
-			// Expected to run, yet no container is up: the state is unknown
-			// (a read gone wrong?); never copy volumes that might be live.
-			throw new AppError("BACKUP_NO_RUNNING_CONTAINERS", { app: app.name });
+		if (plan.stop !== false && running.length === 0) {
+			// A running app with no container up points at a project/label
+			// mismatch: what runs is unknown, so nothing is copied. Any other
+			// status with nothing running is a quiet state to copy from.
+			if (app.status === "running") {
+				throw new AppError("BACKUP_NO_RUNNING_CONTAINERS", { app: app.name });
+			}
+			log.event("backup.nothing_running", { status: app.status });
 		}
 		// Services the deployed compose does not name (a failed update added
 		// them) stop too, first, whatever `[backup] stop` lists: their writes
