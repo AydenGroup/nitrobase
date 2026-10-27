@@ -17,6 +17,7 @@ import {
 	CUSTOM_COMPOSE_MAX_BYTES,
 	CUSTOM_ENV_MAX_BYTES,
 	CustomComposeSpecSchema,
+	type ExtraDomainRule,
 	type TemplateRotateHook,
 } from "#/features/templates/schema.ts";
 import type { ErrorInfo } from "#/libs/coded.ts";
@@ -382,6 +383,11 @@ export interface AppOverview {
 		ips: string[];
 	};
 	domains: DomainDTO[];
+	/**
+	 * Services and ports where an additional domain is limited or refused
+	 * (template `[[domains]] extra_domains`; `reason` is template text).
+	 */
+	extraDomainRules: ExtraDomainRule[];
 	services: string[];
 	credentials: AppCredential[];
 	/** The template declares credential variables (else the panel is hidden). */

@@ -37,6 +37,7 @@ import {
 	allowedSecurity,
 	type CustomComposeSpec,
 	CustomComposeSpecSchema,
+	extraDomainRules,
 	type TemplateManifest,
 	templateDomainHost,
 	validateVariableValue,
@@ -463,6 +464,7 @@ export async function getAppOverview(
 			ips: await resolveServerIps(server).catch(() => [] as string[]),
 		},
 		domains: appDomains,
+		extraDomainRules: extraDomainRules(manifest?.domains ?? []),
 		services: deployedServices(app),
 		credentials: await listCredentials(app),
 		// Templates without `credential = true` variables never have any.

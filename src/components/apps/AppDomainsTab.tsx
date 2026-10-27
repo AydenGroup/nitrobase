@@ -42,10 +42,29 @@ import {
 	AddDomainSchema,
 	type AppOverview,
 } from "#/features/apps/schema.ts";
+import {
+	type ExtraDomainRule,
+	extraDomainRule,
+} from "#/features/templates/schema.ts";
+import { type ErrorInfo, errorText } from "#/libs/coded.ts";
+import { translateTemplateText } from "#/libs/i18n.ts";
 import { formatList } from "#/libs/intl.ts";
 import { issuesToFormErrors, isZodError } from "#/utils/validate.ts";
 import { AppJobDrawer } from "./AppJobDrawer";
 import { useAppJob } from "./useAppJob";
+
+/** A domain the template limits on its service/port (reason on hover). */
+const LimitedBadge: React.FC<{ rule: ExtraDomainRule | null }> = ({ rule }) => {
+	const { i18n } = useLingui();
+	if (!rule) return null;
+	return (
+		<Tooltip multiline w={320} label={translateTemplateText(i18n, rule.reason)}>
+			<Badge size="xs" variant="light" color="yellow">
+				{i18n._("Limited")}
+			</Badge>
+		</Tooltip>
+	);
+};
 
 export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 	overview,
@@ -62,6 +81,18 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 		]),
 	];
 	const primary = domains.find((domain) => domain.primary);
+	// Template rule of a domain on this service/port (null: no limit).
+	const ruleFor = (target: {
+		service: string;
+		port: number;
+		primary: boolean;
+	}) => extraDomainRule(overview.extraDomainRules, target);
+	const [target, setTarget] = useState({
+		service: primary?.service ?? services[0] ?? "",
+		port: primary?.port ?? 80,
+	});
+	// The first domain becomes primary: the template's rules never apply.
+	const targetRule = ruleFor({ ...target, primary: domains.length === 0 });
 
 	const form = useForm<AddDomainInput>({
 		mode: "uncontrolled",
@@ -74,6 +105,8 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 			viaTunnel: overview.server.tunnelOnly,
 		},
 		validate: schemaResolver(AddDomainSchema(i18n), { sync: true }),
+		onValuesChange: (values) =>
+			setTarget({ service: values.service, port: Number(values.port) }),
 	});
 
 	const refresh = () =>
@@ -91,11 +124,17 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 		host: string;
 		text: string;
 	} | null>(null);
+	// Template limitation of the last added domain (e.g. console sign-in).
+	const [limitation, setLimitation] = useState<{
+		host: string;
+		info: ErrorInfo;
+	} | null>(null);
 	const add = useAppMutation({
 		mutationFn: async (values: AddDomainInput) =>
 			await addDomainFn({ data: values }),
-		onSuccess: ({ deploymentId, dns, domain }) => {
+		onSuccess: ({ deploymentId, dns, domain, limitation: limited }) => {
 			form.setFieldValue("host", "");
+			setLimitation(limited ? { host: domain.host, info: limited } : null);
 			setDnsWarning(
 				dns && dns.status !== "ok"
 					? { host: domain.host, text: renderCheckDetail(i18n, dns.message) }
@@ -219,6 +258,7 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 												{domain.provider}
 											</Badge>
 										)}
+										<LimitedBadge rule={ruleFor(domain)} />
 										{(domain.viaTunnel || overview.server.tunnelOnly) && (
 											<Badge size="xs" variant="light" color="orange">
 												{i18n._("Tunnel")}
@@ -293,6 +333,16 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 				</Table>
 			</Card>
 
+			{limitation && (
+				<Alert
+					color="yellow"
+					withCloseButton
+					onClose={() => setLimitation(null)}
+					title={i18n._("{host} is limited", { host: limitation.host })}
+				>
+					<Text size="sm">{errorText(i18n, limitation.info)}</Text>
+				</Alert>
+			)}
 			{dnsWarning && (
 				<Alert
 					color="yellow"
@@ -415,6 +465,25 @@ export const AppDomainsTab: React.FC<{ overview: AppOverview }> = ({
 						</Button>
 					</Group>
 				</form>
+				{targetRule && (
+					<Alert
+						color={targetRule.policy === "refuse" ? "red" : "yellow"}
+						mt="sm"
+						title={
+							targetRule.policy === "refuse"
+								? i18n._("An additional domain is not supported on {target}", {
+										target: `${targetRule.service}:${targetRule.port}`,
+									})
+								: i18n._("An additional domain on {target} is limited", {
+										target: `${targetRule.service}:${targetRule.port}`,
+									})
+						}
+					>
+						<Text size="sm">
+							{translateTemplateText(i18n, targetRule.reason)}
+						</Text>
+					</Alert>
+				)}
 				<Text size="xs" c="dimmed" mt="sm">
 					{overview.server.tunnelEnabled
 						? i18n._(

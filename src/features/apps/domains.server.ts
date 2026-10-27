@@ -10,6 +10,12 @@ import {
 } from "#/features/deployments/deployments.server.ts";
 import type { ServerRow } from "#/features/servers/schema.ts";
 import { serverTunnelStatus } from "#/features/servers/tunnel.server.ts";
+import {
+	type ExtraDomainRule,
+	extraDomainRule,
+	extraDomainRules,
+} from "#/features/templates/schema.ts";
+import { asTemplateText, type ErrorInfo } from "#/libs/coded.ts";
 import { audit } from "#/server/services/audit.ts";
 import {
 	type DomainCheckResult,
@@ -19,11 +25,12 @@ import {
 import { normalizeDomainInput } from "#/server/services/domains/normalize.ts";
 import { pendingRoutesListener } from "#/server/services/jobs/idle-hooks.ts";
 import type { TunnelState } from "#/server/services/tunnel.ts";
-import { AppError } from "#/utils/error.ts";
+import { AppError, coded } from "#/utils/error.ts";
 import { startRoutesJob } from "./app-jobs.server";
 import {
 	assertHostAvailable,
 	deployedServices,
+	getAppManifest,
 	getAppRow,
 	getAppServer,
 	listAppDomains,
@@ -47,11 +54,16 @@ export async function addDomain(
 	deploymentId: string | null;
 	/** DNS check right after adding (a warning, never a refusal). */
 	dns: DomainCheckResult | null;
+	/**
+	 * The template limits additional domains on this service and port
+	 * (`extra_domains` policy `warn`): why, shown after adding.
+	 */
+	limitation: ErrorInfo | null;
 }> {
 	const app = await getAppRow(actor, input.appId);
 	const host = normalizeDomain(input.host);
 	await assertHostAvailable(host);
-	const domain = await withAppServerLock(app, () =>
+	const { domain, rule } = await withAppServerLock(app, () =>
 		insertDomain(actor, app, host, input),
 	);
 	const deploymentId = await applyRoutes(actor, app);
@@ -82,7 +94,14 @@ export async function addDomain(
 	}
 	// Every check (certificate too) once the route is live.
 	scheduleDomainChecks(app.id);
-	return { domain, deploymentId, dns };
+	return {
+		domain,
+		deploymentId,
+		dns,
+		limitation: rule
+			? coded("DOMAIN_EXTRA_LIMITED", extraDomainParams(rule))
+			: null,
+	};
 }
 
 /**
@@ -134,12 +153,42 @@ async function applyRoutes(actor: Actor, app: AppRow): Promise<string | null> {
 	}
 }
 
+function extraDomainParams(rule: ExtraDomainRule) {
+	return {
+		service: rule.service,
+		port: String(rule.port),
+		reason: asTemplateText(rule.reason),
+	};
+}
+
+/**
+ * The template's rule for an additional domain on the requested service
+ * and port (`[[domains]] extra_domains`): `refuse` throws, `warn` is
+ * returned so the caller can say why the domain is limited.
+ */
+async function extraDomainCheck(
+	app: AppRow,
+	input: Pick<AddDomainInput, "service" | "port">,
+	primary: boolean,
+): Promise<ExtraDomainRule | null> {
+	const manifest = await getAppManifest(app).catch(() => null);
+	const rule = extraDomainRule(extraDomainRules(manifest?.domains ?? []), {
+		service: input.service,
+		port: input.port,
+		primary,
+	});
+	if (rule?.policy === "refuse") {
+		throw new AppError("DOMAIN_EXTRA_REFUSED", extraDomainParams(rule));
+	}
+	return rule;
+}
+
 async function insertDomain(
 	actor: Actor,
 	app: AppRow,
 	host: string,
 	input: AddDomainInput,
-): Promise<DomainRow> {
+): Promise<{ domain: DomainRow; rule: ExtraDomainRule | null }> {
 	const services = deployedServices(app);
 	const existing = await listAppDomains(app.id);
 	const known = new Set([
@@ -149,6 +198,8 @@ async function insertDomain(
 	if (!known.has(input.service)) {
 		throw new AppError("APP_SERVICE_NOT_FOUND", { service: input.service });
 	}
+	// The first domain becomes the primary one: never limited.
+	const rule = await extraDomainCheck(app, input, existing.length === 0);
 	const server = await getAppServer(app);
 	if (input.viaTunnel && !server.tunnelEnabled) {
 		throw new AppError("TUNNEL_NOT_CONFIGURED");
@@ -192,7 +243,7 @@ async function insertDomain(
 		targetId: app.id,
 		meta: { host, viaTunnel: domain.viaTunnel },
 	});
-	return domain;
+	return { domain, rule };
 }
 
 export async function removeDomain(
