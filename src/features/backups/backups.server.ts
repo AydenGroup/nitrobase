@@ -114,7 +114,7 @@ export function composeVolumeNames(model: unknown): Record<string, string> {
  * only ones a backup stops, so it starts nothing that wasn't running
  * (owner-stopped services, finished one-shots).
  */
-async function runningServices(
+export async function runningServices(
 	executor: Executor,
 	ctx: JobContext,
 	location: AppLocation,

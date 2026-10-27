@@ -7,7 +7,10 @@ import { apps, domains } from "#/db/schema/apps.ts";
 import { alerts } from "#/db/schema/monitoring.ts";
 import { deployments, servers } from "#/db/schema/server.ts";
 import type { Actor } from "#/features/auth/access.ts";
-import { performAppBackup } from "#/features/backups/backups.server.ts";
+import {
+	performAppBackup,
+	runningServices,
+} from "#/features/backups/backups.server.ts";
 import { getDestinationRow } from "#/features/backups/destinations.server.ts";
 import {
 	newWorkDir,
@@ -34,7 +37,10 @@ import {
 	getServerRow,
 } from "#/features/servers/servers.server.ts";
 import { clip } from "#/libs/format.ts";
-import { composeServiceCommand } from "#/server/services/apps/commands.ts";
+import {
+	composeServiceCommand,
+	composeStartServicesCommand,
+} from "#/server/services/apps/commands.ts";
 import { audit } from "#/server/services/audit.ts";
 import { getFreeDomainProvider } from "#/server/services/domains/free-domains.ts";
 import {
@@ -203,7 +209,8 @@ export async function startMoveApp(
 	);
 }
 
-async function runMove(
+/** The move job (exported for tests). */
+export async function runMove(
 	input: {
 		actor: Actor;
 		app: AppRow;
@@ -222,6 +229,11 @@ async function runMove(
 	let session: RcloneSession | null = null;
 	let landed = false;
 	let stoppedSource = false;
+	/**
+	 * Services running on the source before the move (compose ps): a
+	 * rollback starts exactly these, so an app stopped before stays stopped.
+	 */
+	let wasRunning: string[] = [];
 	let hosts = new Map<string, string>();
 	ctx.setCancelState?.("move_not_started");
 
@@ -268,7 +280,8 @@ async function runMove(
 			originalDomains,
 			new Map(originalDomains.map((row) => [row.id, row.host])),
 		);
-		if (stoppedSource && sourceExec) {
+		const restart = stoppedSource ? wasRunning : [];
+		if (restart.length && sourceExec) {
 			try {
 				ctx.event("move.restarting_source", {
 					app: app.name,
@@ -277,16 +290,16 @@ async function runMove(
 				await run(
 					sourceExec,
 					ctx,
-					composeServiceCommand(location, "start"),
+					composeStartServicesCommand(location, restart),
 					"APP_MOVE_SOURCE_START_FAILED",
 				);
-				await ctx.servicesStarted?.("all");
+				await ctx.servicesStarted?.(restart);
 			} catch (error) {
 				logWarning(ctx, error);
 			}
 		}
 		await setStatus(app.id, {
-			status: stoppedSource ? "running" : app.status,
+			status: restart.length ? "running" : app.status,
 			...lastErrorColumns(null),
 		});
 		await jobCtx.setRollback?.(null);
@@ -307,6 +320,8 @@ async function runMove(
 		sourceExec = await getExecutor(source);
 		targetExec = await getExecutor(target);
 
+		const services = deployedServices(app);
+		wasRunning = await runningServices(sourceExec, ctx, location, services);
 		// 1. Backup on the source; it stays stopped from here on.
 		ctx.event("move.backing_up", { app: app.name, server: source.name });
 		const backup = await performAppBackup(
@@ -320,8 +335,8 @@ async function runMove(
 			},
 			ctx,
 		);
-		const services = deployedServices(app);
-		await ctx.servicesStopped?.(services);
+		// The job recovery starts again only what was running.
+		await ctx.servicesStopped?.(wasRunning);
 		stoppedSource = true;
 		ctx.event("move.stopping_source", { app: app.name, server: source.name });
 		await run(
