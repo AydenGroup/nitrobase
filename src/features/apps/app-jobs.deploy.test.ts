@@ -48,6 +48,11 @@ const state = vi.hoisted(() => ({
 	/** Warnings counted through `ctx.addWarnings` (job summary). */
 	warnings: 0,
 	events: [] as { code: string; params: unknown }[],
+	/** What `getTemplateManifest` returns (version source, rollback mode). */
+	templateManifest: {
+		source: { versions: "releases" },
+		updates: { rollback: "redeploy" },
+	} as Record<string, unknown>,
 }));
 
 vi.mock("#/server/services/audit.ts", () => ({
@@ -284,7 +289,7 @@ vi.mock("#/features/templates/templates.server.ts", async () => {
 		"#/server/services/apps/env-state.ts"
 	);
 	return {
-		getTemplateManifest: async () => ({}),
+		getTemplateManifest: async () => state.templateManifest,
 		isSecretFile: () => false,
 		serviceEnvFile: (service: string) => `service-env/${service}.env`,
 		renderTemplate: (input: {
@@ -409,6 +414,10 @@ beforeEach(() => {
 	state.audits = [];
 	state.warnings = 0;
 	state.events = [];
+	state.templateManifest = {
+		source: { versions: "releases" },
+		updates: { rollback: "redeploy" },
+	};
 });
 
 describe("JWT secret rotation signs users out (BUG-010)", () => {
@@ -864,6 +873,79 @@ describe("pending env (stored before upload, not live yet)", () => {
 		const preview = await previewAppUpdate(actor, "app-1", "v2");
 		expect(JSON.stringify(preview.env)).toContain("NEW_KEY");
 		expect(preview.env).toMatchObject({ added: ["NEW_KEY"] });
+		expect(preview.downgrade).toBeNull();
+	});
+});
+
+describe("changing to an older version (BUG-022)", () => {
+	const actor = {
+		userId: null,
+		teamId: "team-1",
+		role: null,
+		permissions: new Set(["app.view", "app.deploy"]),
+		instanceAdmin: false,
+		via: "token" as const,
+		tokenId: "t1",
+	} as never;
+	const warningCodes = (preview: { warnings: { code: string | null }[] }) =>
+		preview.warnings.map((warning) => warning.code);
+
+	beforeEach(async () => {
+		state.row.teamId = "team-1";
+		await runDeploy("app-1", "deploy", undefined, ctx());
+		state.row.version = "2.4.5";
+	});
+
+	it("warns first in the preview, stronger with irreversible migrations", async () => {
+		const { previewAppUpdate } = await import("./app-jobs.server");
+		const preview = await previewAppUpdate(actor, "app-1", "2.3.0");
+		expect(preview.downgrade).toBe("downgrade");
+		expect(warningCodes(preview)[0]).toBe("APP_DOWNGRADE_WARN");
+		expect(preview.warnings[0]?.params).toEqual({
+			from: "2.4.5",
+			to: "2.3.0",
+		});
+
+		state.templateManifest.updates = { rollback: "restore" };
+		const strong = await previewAppUpdate(actor, "app-1", "2.3.0");
+		expect(strong.downgrade).toBe("irreversible");
+		expect(warningCodes(strong)[0]).toBe("APP_DOWNGRADE_WARN_IRREVERSIBLE");
+	});
+
+	it("makes no claim for upgrades or unordered version sources", async () => {
+		const { previewAppUpdate } = await import("./app-jobs.server");
+		const upgrade = await previewAppUpdate(actor, "app-1", "2.5.0");
+		expect(upgrade.downgrade).toBeNull();
+		expect(warningCodes(upgrade)).not.toContain("APP_DOWNGRADE_WARN");
+
+		state.templateManifest.source = { versions: "branches" };
+		const branch = await previewAppUpdate(actor, "app-1", "2.3.0");
+		expect(branch.downgrade).toBeNull();
+	});
+
+	it("refuses an unconfirmed downgrade on the server", async () => {
+		const { startAppAction } = await import("./app-jobs.server");
+		state.audits = [];
+		await expect(
+			startAppAction(actor, {
+				appId: "app-1",
+				action: "update",
+				version: "2.3.0",
+			}),
+		).rejects.toMatchObject({
+			code: "APP_DOWNGRADE_UNCONFIRMED",
+			params: { from: "2.4.5", to: "2.3.0" },
+		});
+		await expect(
+			startAppAction(actor, {
+				appId: "app-1",
+				action: "update",
+				version: "2.3.0",
+				confirmDowngrade: false,
+			}),
+		).rejects.toMatchObject({ code: "APP_DOWNGRADE_UNCONFIRMED" });
+		// Refused before anything is recorded.
+		expect(state.audits).toEqual([]);
 	});
 });
 

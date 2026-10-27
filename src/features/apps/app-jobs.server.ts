@@ -18,9 +18,10 @@ import {
 import type { ServerRow } from "#/features/servers/schema.ts";
 import { getExecutor } from "#/features/servers/servers.server.ts";
 import { requireInstanceId } from "#/features/settings/instance-identity.server.ts";
-import type {
-	TemplateManifest,
-	TemplateRotateHook,
+import {
+	hasOrderedVersions,
+	type TemplateManifest,
+	type TemplateRotateHook,
 } from "#/features/templates/schema.ts";
 import {
 	getTemplateManifest,
@@ -31,6 +32,10 @@ import {
 } from "#/features/templates/templates.server.ts";
 import { sleep } from "#/libs/async.ts";
 import type { ErrorInfo } from "#/libs/coded.ts";
+import {
+	type DowngradeRisk,
+	downgradeRisk,
+} from "#/server/services/app-updates/policy.ts";
 import {
 	type AppLocation,
 	appDataBindDirs,
@@ -181,10 +186,31 @@ function recheckDomainsLater(appId: string): void {
  * compose changes through its own (audited) edit flow; its diff is never
  * served from here.
  */
-async function assertVersioned(app: AppRow): Promise<void> {
-	if (!isVersionedSource(await getTemplateManifest(app.templateId))) {
+async function assertVersioned(app: AppRow): Promise<TemplateManifest> {
+	const manifest = await getTemplateManifest(app.templateId);
+	if (!isVersionedSource(manifest)) {
 		throw new AppError("APP_NOT_VERSIONED");
 	}
+	return manifest;
+}
+
+/**
+ * Whether moving the app to `version` is a downgrade, and how risky
+ * (template `[updates].rollback = "restore"`: irreversible migrations).
+ * Null for upgrades and for versions that do not compare (branches,
+ * commits).
+ */
+export function versionChangeRisk(
+	app: Pick<AppRow, "version">,
+	version: string,
+	manifest: Pick<TemplateManifest, "source" | "updates">,
+): DowngradeRisk | null {
+	return downgradeRisk({
+		from: app.version,
+		to: version,
+		ordered: hasOrderedVersions(manifest.source),
+		rollback: manifest.updates.rollback,
+	});
 }
 
 /** Built from the owner's repository (source kind `git`). */
@@ -1518,9 +1544,24 @@ export async function startAppAction(
 				action: "update";
 				version: string;
 				backupFirst?: boolean;
+				/** The owner ticked "I understand" for an older version. */
+				confirmDowngrade?: boolean;
 		  },
 ): Promise<{ deploymentId: string }> {
 	const app = await getAppRow(actor, input.appId);
+	if (input.action === "update") {
+		// Before the audit entry: a refused downgrade changes nothing.
+		const manifest = await assertVersioned(app);
+		if (
+			versionChangeRisk(app, input.version, manifest) &&
+			!input.confirmDowngrade
+		) {
+			throw new AppError("APP_DOWNGRADE_UNCONFIRMED", {
+				from: app.version,
+				to: input.version,
+			});
+		}
+	}
 	audit({
 		actor,
 		action: `app.${input.action}`,
@@ -1529,7 +1570,9 @@ export async function startAppAction(
 		meta:
 			"service" in input && input.service
 				? { service: input.service }
-				: undefined,
+				: input.action === "update" && input.confirmDowngrade
+					? { from: app.version, to: input.version, downgrade: true }
+					: undefined,
 	});
 	if (input.action === "redeploy") {
 		if (!app.commitSha && (await isGitApp(app))) {
@@ -1552,7 +1595,6 @@ export async function startAppAction(
 		return startRoutesJob(actor, app);
 	}
 	if (input.action === "update") {
-		await assertVersioned(app);
 		const first = input.backupFirst ? await backupFirstStep(actor, app) : null;
 		return startAppJob(
 			app,
@@ -1638,16 +1680,27 @@ export async function previewAppUpdate(
 	version: string,
 ): Promise<AppUpdatePreview> {
 	const app = await getAppRow(actor, appId);
-	await assertVersioned(app);
+	const manifest = await assertVersioned(app);
 	const rendered = await renderApp(app, "update", version);
 	const composeLines = diffLines(app.composeDeployed ?? "", rendered.compose);
+	const downgrade = versionChangeRisk(app, version, manifest);
+	const params = { from: app.version, to: version };
 	return {
 		version: rendered.version,
 		commitSha: rendered.commitSha,
 		composeDiff: formatUnifiedDiff(composeLines),
 		composeChanged: composeLines.some((line) => line.kind !== "same"),
 		env: diffEnvKeys(deployedEnvValues(app), rendered.values),
-		warnings: rendered.warnings,
+		downgrade,
+		// The downgrade comes first: it matters more than render notes.
+		warnings: [
+			...(downgrade === "irreversible"
+				? [coded("APP_DOWNGRADE_WARN_IRREVERSIBLE", params)]
+				: downgrade
+					? [coded("APP_DOWNGRADE_WARN", params)]
+					: []),
+			...rendered.warnings,
+		],
 	};
 }
 

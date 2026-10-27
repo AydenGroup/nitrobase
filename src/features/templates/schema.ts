@@ -30,6 +30,20 @@ const absolutePath = z
 const VERSION_SOURCES = ["tags", "releases", "commits", "branches"] as const;
 
 /**
+ * Version sources whose names are ordered releases (`1.2.3` < `1.3.0`):
+ * an older target is a downgrade. Branch and commit names say nothing
+ * about order.
+ */
+const ORDERED_VERSION_SOURCES: ReadonlySet<string> = new Set([
+	"tags",
+	"releases",
+] satisfies (typeof VERSION_SOURCES)[number][]);
+
+export function hasOrderedVersions(source: { versions: string }): boolean {
+	return ORDERED_VERSION_SOURCES.has(source.versions);
+}
+
+/**
  * `github` (default): versions and files from a GitHub repo. `inline`: the
  * compose file is supplied per app by its owner (custom compose). `git`:
  * the owner's repository is built on the server and run from a generated

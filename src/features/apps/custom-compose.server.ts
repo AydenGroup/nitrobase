@@ -91,6 +91,8 @@ export async function previewCustomCompose(
 		composeDiff: formatUnifiedDiff(composeLines),
 		composeChanged: composeLines.some((line) => line.kind !== "same"),
 		env: diffEnvKeys(deployedEnvValues(app), rendered.values),
+		// A compose edit has no versions to go back to.
+		downgrade: null,
 		warnings: rendered.warnings,
 		analysis,
 	};

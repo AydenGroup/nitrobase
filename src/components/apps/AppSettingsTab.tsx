@@ -64,19 +64,17 @@ export const AppSettingsTab: React.FC<{ overview: AppOverview }> = ({
 		...templateVersionsQueryOptions(app.templateId, includePrereleases),
 		enabled: appSources[overview.sourceKind].versioned,
 	});
-	// Versions are listed newest first: a later index is an older release.
-	const versionIndex = (ref: string | undefined) =>
-		(versions.data?.versions ?? []).findIndex((item) => item.ref === ref);
-	const isDowngrade =
-		!!preview &&
-		versionIndex(preview.version) > -1 &&
-		versionIndex(app.version) > -1 &&
-		versionIndex(preview.version) > versionIndex(app.version);
+	// The server compares the versions (semver; none for branches/commits).
+	const isDowngrade = !!preview?.downgrade;
+	const [confirmDowngrade, setConfirmDowngrade] = useState(false);
 
 	const previewUpdate = useMutation({
 		mutationFn: async (target: string) =>
 			await previewAppUpdateFn({ data: { appId: app.id, version: target } }),
-		onSuccess: setPreview,
+		onSuccess: (result) => {
+			setConfirmDowngrade(false);
+			setPreview(result);
+		},
 		onError: (error: Error) => notifications.error({ message: error.message }),
 	});
 
@@ -241,14 +239,29 @@ export const AppSettingsTab: React.FC<{ overview: AppOverview }> = ({
 							checked={backupBeforeUpdate}
 							onChange={setBackupBeforeUpdate}
 						/>
+						{isDowngrade && (
+							<Checkbox
+								color="orange"
+								label={i18n._(
+									"I understand that downgrading may not be reversible and that I may have to restore a backup.",
+								)}
+								checked={confirmDowngrade}
+								onChange={(event) =>
+									setConfirmDowngrade(event.currentTarget.checked)
+								}
+							/>
+						)}
 						<Group justify="flex-end">
 							<Button variant="default" onClick={() => setPreview(null)}>
 								{i18n._("Cancel")}
 							</Button>
 							<Button
+								color={isDowngrade ? "orange" : undefined}
 								loading={jobs.isStarting}
+								disabled={isDowngrade && !confirmDowngrade}
 								onClick={() => {
 									const target = preview.version;
+									const confirmed = isDowngrade && confirmDowngrade;
 									setPreview(null);
 									jobs.startJob({
 										title: i18n._("Change version"),
@@ -259,12 +272,15 @@ export const AppSettingsTab: React.FC<{ overview: AppOverview }> = ({
 													action: "update",
 													version: target,
 													backupFirst: backupBeforeUpdate,
+													confirmDowngrade: confirmed,
 												},
 											}),
 									});
 								}}
 							>
-								{i18n._("Apply update")}
+								{isDowngrade
+									? i18n._("Apply downgrade")
+									: i18n._("Apply update")}
 							</Button>
 						</Group>
 					</Stack>

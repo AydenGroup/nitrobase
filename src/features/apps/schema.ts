@@ -21,6 +21,7 @@ import {
 } from "#/features/templates/schema.ts";
 import type { ErrorInfo } from "#/libs/coded.ts";
 import { ENV_NAME_PATTERN, SLUG_PATTERN } from "#/libs/naming-rules.ts";
+import type { DowngradeRisk } from "#/server/services/app-updates/policy.ts";
 
 export type AppStatus = (typeof appStatusEnum.enumValues)[number];
 export type DomainCheckStatus = DomainCheckStatusValue;
@@ -92,6 +93,11 @@ export const AppActionSchema = z.discriminatedUnion("action", [
 		version: versionRef,
 		/** Run a full backup (policy destination) before updating. */
 		backupFirst: z.boolean().default(false),
+		/**
+		 * Required when `version` is older than what runs (the preview's
+		 * `downgrade`): the server refuses an unconfirmed downgrade.
+		 */
+		confirmDowngrade: z.boolean().default(false),
 	}),
 ]);
 
@@ -450,6 +456,11 @@ export interface AppUpdatePreview {
 	composeDiff: string;
 	composeChanged: boolean;
 	env: { added: string[]; removed: string[]; changed: string[] };
+	/**
+	 * The version is older than what runs (null: not a downgrade, or the
+	 * versions do not compare): applying it needs `confirmDowngrade`.
+	 */
+	downgrade: DowngradeRisk | null;
 	warnings: ErrorInfo[];
 }
 

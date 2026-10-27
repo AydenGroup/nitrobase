@@ -104,6 +104,9 @@ export interface ErrorParamsMap
 	APP_UPDATE_UNSUPPORTED: Record<never, never>;
 	APP_UPDATE_BATCH_TOO_LARGE: { max: number };
 	APP_UPDATE_BATCH_NOT_FOUND: Record<never, never>;
+	APP_DOWNGRADE_WARN: { from: string; to: string };
+	APP_DOWNGRADE_WARN_IRREVERSIBLE: { from: string; to: string };
+	APP_DOWNGRADE_UNCONFIRMED: { from: string; to: string };
 	TASK_COMMAND_NUL: Record<never, never>;
 	TASK_COMMAND_TOO_LONG: Record<never, never>;
 	TASK_COMMAND_TOO_MANY_ARGS: { max: number };
@@ -1027,6 +1030,15 @@ export const errorCodes = {
 	}),
 	APP_UPDATE_BATCH_NOT_FOUND: msg({
 		id: "This bulk update is no longer known ({appName} restarted). See the Jobs page for the updates that ran.",
+	}),
+	APP_DOWNGRADE_WARN: msg({
+		id: "Downgrade from {from} to {to}: data written by the newer version may not be readable by the older one. If the app fails after the downgrade, restore the backup taken before it.",
+	}),
+	APP_DOWNGRADE_WARN_IRREVERSIBLE: msg({
+		id: "Downgrade from {from} to {to}: this app migrates its data irreversibly on upgrade, so {to} may not start on the current data. Only a backup taken while {to} was running brings it back.",
+	}),
+	APP_DOWNGRADE_UNCONFIRMED: msg({
+		id: "{to} is older than {from}: confirm the downgrade (data migrations may not be reversible) to apply it.",
 	}),
 	ORPHAN_FOREIGN: msg({
 		id: "This data is not managed by this panel (another {appName} instance or an unknown owner), so it cannot be wiped from here.",
