@@ -99,8 +99,8 @@ export type StoredAppInputs = AppInputFields & {
 	overridesEncrypted?: string;
 	/**
 	 * Plaintext overrides of rows written before they were encrypted: still
-	 * read, never written (typed empty so a decoded `AppInputs` can't be
-	 * stored by mistake).
+	 * read (and encrypted by a key rotation), never written (typed empty so
+	 * a decoded `AppInputs` can't be stored by mistake).
 	 */
 	overrides?: Record<string, never>;
 };

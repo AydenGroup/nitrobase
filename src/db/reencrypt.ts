@@ -57,12 +57,9 @@ export async function reencryptAll(
 				}
 				if (entry.jsonField) {
 					const json = row.json as Record<string, unknown> | null;
-					const next = reencrypt(json?.[entry.jsonField.key]);
-					if (next !== undefined) {
-						updates[columnKey(entry, entry.jsonField.column.name)] = {
-							...json,
-							[entry.jsonField.key]: next,
-						};
+					const next = reencryptJsonField(json, entry.jsonField, options);
+					if (next) {
+						updates[columnKey(entry, entry.jsonField.column.name)] = next;
 					}
 				}
 				if (Object.keys(updates).length === 0) continue;
@@ -75,6 +72,38 @@ export async function reencryptAll(
 		}
 	});
 	return count;
+}
+
+/**
+ * New content of a jsonb field holding an encrypted value, or undefined
+ * when nothing changes: the value re-encrypted, and a legacy plain value
+ * (`plainKey`) encrypted into `key` (dropped when `key` is already set).
+ */
+export function reencryptJsonField(
+	json: Record<string, unknown> | null,
+	field: { key: string; plainKey?: string },
+	options: ReencryptOptions,
+): Record<string, unknown> | undefined {
+	if (!json) return undefined;
+	let next: Record<string, unknown> | undefined;
+	const value = reencryptValue(json[field.key], options);
+	if (value !== undefined) next = { ...json, [field.key]: value };
+	if (field.plainKey && field.plainKey in json) {
+		const { [field.plainKey]: plain, ...rest } = next ?? json;
+		next = rest;
+		if (
+			value === undefined &&
+			plain &&
+			typeof plain === "object" &&
+			Object.keys(plain).length > 0
+		) {
+			next[field.key] = encryptWithSecret(
+				options.newSecret,
+				JSON.stringify(plain),
+			);
+		}
+	}
+	return next;
 }
 
 /** Drizzle property name (camelCase) of a SQL column name in a table. */

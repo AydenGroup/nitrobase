@@ -22,8 +22,12 @@ export interface EncryptedColumns {
 	id: AnyPgColumn;
 	/** Text columns holding one encrypted value (nullable allowed). */
 	columns: AnyPgColumn[];
-	/** jsonb column whose `{ encrypted: string }` shape holds one. */
-	jsonField?: { column: AnyPgColumn; key: string };
+	/**
+	 * jsonb column whose `{ [key]: string }` shape holds one. `plainKey`:
+	 * where rows from before the encryption keep the value as plain JSON;
+	 * a rotation moves it into `key`, encrypted.
+	 */
+	jsonField?: { column: AnyPgColumn; key: string; plainKey?: string };
 }
 
 export const encryptedColumns: EncryptedColumns[] = [
@@ -52,7 +56,11 @@ export const encryptedColumns: EncryptedColumns[] = [
 		table: apps,
 		id: apps.id,
 		columns: [],
-		jsonField: { column: apps.inputs, key: "overridesEncrypted" },
+		jsonField: {
+			column: apps.inputs,
+			key: "overridesEncrypted",
+			plainKey: "overrides",
+		},
 	},
 	{
 		table: databaseLinks,

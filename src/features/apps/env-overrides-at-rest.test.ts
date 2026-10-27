@@ -231,7 +231,7 @@ describe("env overrides at rest (BUG-018)", () => {
 		});
 	});
 
-	it("is re-encrypted by a key rotation", async () => {
+	it("is re-encrypted by a key rotation, which also encrypts plain rows", async () => {
 		expect(
 			encryptedColumns.some(
 				(entry) =>
@@ -248,6 +248,9 @@ describe("env overrides at rest (BUG-018)", () => {
 			// Nothing overridden: nothing to rotate, left alone.
 			{ id: "none", json: { templateKeys: ["SMTP_HOST"] } },
 			{ id: "empty", json: null },
+			{ id: "legacy", json: { overrides: { SMTP_PASSWORD }, initialised: [] } },
+			// The column default: the empty plain map just goes.
+			{ id: "default", json: { overrides: {} } },
 		];
 		const written = new Map<unknown, Record<string, unknown>>();
 		let target: unknown;
@@ -266,7 +269,7 @@ describe("env overrides at rest (BUG-018)", () => {
 			}),
 		};
 		// Rows are updated in order: track which one by its turn.
-		const order = ["encrypted"];
+		const order = ["encrypted", "legacy", "default"];
 		const fakeDb = {
 			transaction: (run: (t: unknown) => unknown) =>
 				run({
@@ -281,10 +284,15 @@ describe("env overrides at rest (BUG-018)", () => {
 			oldSecret: KEY,
 			newSecret: NEW_KEY,
 		});
-		expect(count).toBe(1);
-		expect([...written.keys()]).toEqual(["encrypted"]);
+		expect(count).toBe(3);
+		expect([...written.keys()]).toEqual(["encrypted", "legacy", "default"]);
+		expect(written.get("default")).toEqual({});
+		const legacy = written.get("legacy") as Record<string, unknown>;
+		expect(legacy).toMatchObject({ initialised: [] });
+		expect(legacy).not.toHaveProperty("overrides");
+		expect(JSON.stringify(legacy)).not.toContain(SMTP_PASSWORD);
 		vi.stubEnv("ENCRYPTION_KEY", NEW_KEY);
-		for (const id of ["encrypted"]) {
+		for (const id of ["encrypted", "legacy"]) {
 			expect(appOverrides({ inputs: written.get(id) } as never)).toEqual({
 				SMTP_PASSWORD,
 			});
