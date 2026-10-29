@@ -103,7 +103,7 @@ The two mounts:
 - `-v /var/run/docker.sock:/var/run/docker.sock` lets the installer drive your Docker. Without it, the installer stops with an error that names this flag.
 - `-v /opt/nitrobase:/opt/nitrobase` is the install folder. It **must be the same path on both sides**: Docker resolves the compose project folder on the host, and the in-panel upgrade mounts that folder again later. The installer checks this and prints the exact `-v` to use if it is missing or different. For another folder, change both sides and pass `--dir`: `-v /srv/nitrobase:/srv/nitrobase ... --dir /srv/nitrobase`.
 
-**Version.** Nitrobase is in beta, so the commands here use `:beta`, which always installs the newest pre-release. `:latest` installs the latest stable release and exists from the first stable release on. `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.4`) installs exactly that release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
+**Version.** Nitrobase is in beta, so the commands here use `:beta`, which always installs the newest pre-release. `:latest` installs the latest stable release and exists from the first stable release on. `ghcr.io/aydengroup/nitrobase-installer:<version>` (for example `:0.1.0-beta.5`) installs exactly that release. `--version <v>` overrides the image's version. On an existing install, the version already installed is kept unless you pass `--version`, so an older installer image never downgrades it.
 
 **Docker Hub.** Both images are also published on Docker Hub as [`jimmyphong/nitrobase`](https://hub.docker.com/r/jimmyphong/nitrobase) and [`jimmyphong/nitrobase-installer`](https://hub.docker.com/r/jimmyphong/nitrobase-installer), with the same tags: `jimmyphong/nitrobase-installer:beta` works in the commands above. GHCR stays the default source, which the installer and the in-panel upgrade use (Docker Hub limits anonymous pulls).
 
@@ -178,7 +178,7 @@ In an empty folder, with [Docker](https://docs.docker.com/get-docker/) and Docke
 
 ```bash
 mkdir nitrobase && cd nitrobase
-VERSION=0.1.0-beta.4
+VERSION=0.1.0-beta.5
 BASE=https://github.com/AydenGroup/nitrobase/releases/download/v$VERSION
 curl -fsSL -o compose.yaml "$BASE/docker-compose.prod.yml" && curl -fsSL -o .env "$BASE/env.example"
 for key in ENCRYPTION_KEY SESSION_SECRET POSTGRES_PASSWORD; do sed -i.bak "s|^$key=.*|$key=$(openssl rand -hex 32)|" .env; done
