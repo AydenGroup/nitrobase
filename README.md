@@ -76,6 +76,7 @@ The panel and its Postgres use about **300 MB of RAM and 1 GB of disk**. The res
 - **RAM:** 2 GB recommended. Below that the installer warns and goes on.
 - **Disk:** 5 GB free recommended. Below 5 GB the installer warns; below 2 GB it stops.
 - `--skip-resource-check` skips both checks, for a test machine where you know what fits.
+- **One install per machine:** the containers (`nitrobase_app`, `nitrobase_postgres`) and the volumes (`nitrobase_postgres_data`, `nitrobase_data`) have fixed names. The installer refuses to start a second install in another folder, and refuses new secrets over the database volume of an earlier install (its `.env` holds the only password that opens it).
 
 On a small VPS, add swap so a memory peak slows things down instead of killing a container:
 
@@ -142,7 +143,7 @@ On a fresh **Ubuntu or Debian** VPS (amd64 or arm64; see [requirements](#require
 curl -fsSL https://nitrobase.app/install.sh | sudo bash
 ```
 
-If nitrobase.app is unreachable, use the copy attached to the latest release: `https://github.com/AydenGroup/nitrobase/releases/latest/download/install.sh`. A running Nitrobase also serves the installer of its own version at `https://<panel>/api/install.sh`.
+If nitrobase.app is unreachable, use the copy in the repository: `curl -fsSL https://raw.githubusercontent.com/AydenGroup/nitrobase/main/scripts/install.sh | sudo bash`. Each release also attaches the installer of its own version (`https://github.com/AydenGroup/nitrobase/releases/download/v<version>/install.sh`). A running Nitrobase also serves the installer of its own version at `https://<panel>/api/install.sh`.
 
 The installer is idempotent. It:
 

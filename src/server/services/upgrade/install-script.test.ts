@@ -69,8 +69,12 @@ beforeEach(() => {
 			'  version*) [ -z "$MOCK_NO_DAEMON" ] || exit 1; echo 27.3.1;;',
 			// The installer container's own mounts ("source|destination" lines).
 			'  "inspect --type container -f"*Mounts*) [ -n "$MOCK_MOUNTS" ] || exit 1; printf "%b\\n" "$MOCK_MOUNTS";;',
-			'  "inspect -f"*) echo healthy;;',
+			'  "inspect -f {{.RestartCount}}"*) echo "${MOCK_RESTARTS:-0}";;',
+			'  "inspect -f"*) echo "${MOCK_HEALTH:-healthy}";;',
+			// Folders of the containers of the compose project.
+			'  "ps -a --filter label="*) [ -z "$MOCK_PROJECT_DIR" ] || echo "$MOCK_PROJECT_DIR";;',
 			'  ps*) [ -z "$MOCK_PS" ] || echo "$MOCK_PS";;',
+			'  "volume inspect"*) [ -n "$MOCK_DB_VOLUME" ] || exit 1;;',
 			"  inspect*) exit 1;;",
 			"  *) exit 0;;",
 			"esac",
@@ -85,7 +89,10 @@ type Answer = [status: number, body: string];
  * curl: compose files, Docker's key and the releases API. Honors `-o`,
  * `-f` (exit 22 from HTTP 400) and `-w` (the status on a last line).
  */
-function mockCurl(api: { latest?: Answer; list?: Answer } = {}): void {
+function mockCurl(
+	api: { latest?: Answer; list?: Answer; feed?: string[] } = {},
+): void {
+	const feed = api.feed ?? [];
 	const latest = api.latest ?? [
 		200,
 		'{"url":"x","tag_name":"v1.4.2","name":"Nitrobase 1.4.2"}',
@@ -105,6 +112,7 @@ function mockCurl(api: { latest?: Answer; list?: Answer } = {}): void {
 			'  */gpg) echo "-----BEGIN PGP PUBLIC KEY BLOCK-----" > "$out";;',
 			`  */releases/latest) ${answer(latest)};;`,
 			`  */releases\\?per_page=*) ${answer(list)};;`,
+			`  */releases.atom) printf '%s\\n' ${feed.map((tag) => `'<link rel="alternate" href="https://github.com/o/n/releases/tag/${tag}"/>'`).join(" ")};;`,
 			"  *) exit 22;;",
 			"esac",
 		].join("\n"),
@@ -308,6 +316,43 @@ describe("installer run (mocked system)", () => {
 		});
 		expect(skipped.code).toBe(0);
 		expect(skipped.err).not.toMatch(/MB (free|of RAM)/);
+	});
+
+	it("refuses a second install next to another folder's, or new secrets over an old database", () => {
+		const other = run(base(), { MOCK_PROJECT_DIR: "/root/nitrobase" });
+		expect(other.code).not.toBe(0);
+		expect(other.err).toMatch(
+			/another Nitrobase install runs from \/root\/nitrobase.*--dir \/root\/nitrobase/,
+		);
+		const stale = run(base(), { MOCK_DB_VOLUME: "1" });
+		expect(stale.code).not.toBe(0);
+		expect(stale.err).toMatch(/nitrobase_postgres_data holds the database/);
+		// With the install's own .env, the volume is its database.
+		expect(run(base()).code).toBe(0);
+		expect(run(base(), { MOCK_DB_VOLUME: "1" }).code).toBe(0);
+	});
+
+	it("stops waiting when the panel restarts in a loop", () => {
+		const result = run(base(), {
+			MOCK_HEALTH: "starting",
+			MOCK_RESTARTS: "3",
+		});
+		expect(result.code).not.toBe(0);
+		expect(result.err).toMatch(/did not become healthy \(status: restarting\)/);
+	});
+
+	it("reads the release feed when the GitHub API refuses (rate limit)", () => {
+		mockCurl({
+			latest: [403, '{"message":"API rate limit exceeded"}'],
+			feed: ["v1.5.0-beta.1", "v1.4.3", "v1.4.2"],
+		});
+		expect(run(base()).out).toMatch(/Installing Nitrobase 1\.4\.3 /);
+		rmSync(dir(), { recursive: true });
+		mockCurl({
+			latest: [403, "{}"],
+			feed: ["v0.2.0-beta.1", "v0.1.0-beta.9"],
+		});
+		expect(run(base()).out).toMatch(/Installing Nitrobase 0\.2\.0-beta\.1 /);
 	});
 
 	it("installs the latest release with generated secrets that never reach the output", () => {
