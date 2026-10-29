@@ -3,6 +3,7 @@ import { restartPolicyOf } from "#/config/restart-policies.ts";
 import { transformCompose } from "./compose-transform";
 import {
 	applyDefaultRestart,
+	applyStopSafeRestart,
 	completionTargets,
 	declaredRestart,
 	oneShotServices,
@@ -193,5 +194,65 @@ services:
   standby: { image: nginx, deploy: { replicas: 0 } }
 `),
 		).toEqual(new Set(["debug", "spare", "standby"]));
+	});
+});
+
+describe("restart: always keeps Stop effective (BUG-030)", () => {
+	// `always` starts a container again after a reboot of the host even when
+	// it was stopped by hand; `unless-stopped` does not.
+	const services = () => ({
+		web: { image: "x", restart: "always" } as Record<string, unknown>,
+		db: { image: "x", restart: "unless-stopped" } as Record<string, unknown>,
+		job: { image: "x", restart: "no" } as Record<string, unknown>,
+		retry: { image: "x", restart: "on-failure:3" } as Record<string, unknown>,
+		kept: { image: "x", restart: "always" } as Record<string, unknown>,
+		bare: { image: "x" } as Record<string, unknown>,
+	});
+
+	it("turns always into the default when the default survives Stop", () => {
+		const input = services();
+		const changed = applyStopSafeRestart(input, {
+			policy: "unless-stopped",
+			keep: ["kept"],
+		});
+		expect(changed).toEqual(["web"]);
+		expect(input.web.restart).toBe("unless-stopped");
+		// Everything else is left as declared (or undeclared).
+		expect(input.db.restart).toBe("unless-stopped");
+		expect(input.job.restart).toBe("no");
+		expect(input.retry.restart).toBe("on-failure:3");
+		expect(input.kept.restart).toBe("always");
+		expect(input.bare.restart).toBeUndefined();
+	});
+
+	it("leaves always alone when the operator chose another default", () => {
+		for (const policy of ["always", "on-failure", "no"] as const) {
+			const input = services();
+			expect(applyStopSafeRestart(input, { policy })).toEqual([]);
+			expect(input.web.restart).toBe("always");
+		}
+		const input = services();
+		expect(applyStopSafeRestart(input, undefined)).toEqual([]);
+		expect(input.web.restart).toBe("always");
+	});
+
+	it("is applied by the compose transform", () => {
+		const result = transformCompose(
+			"services:\n  web:\n    image: nginx\n    restart: always\n",
+			{
+				appId: "app-1",
+				folder: "x-1a2b3c4d",
+				appRoot: "/etc/nitrobase/apps/x-1a2b3c4d",
+				network: "nitrobase-network",
+				proxiedServices: [],
+				defaultRestart: { policy: "unless-stopped" },
+			},
+		);
+		const web = (
+			result.compose.services as Record<string, { restart?: string }>
+		).web;
+		expect(web.restart).toBe("unless-stopped");
+		expect(result.restartStopSafe).toEqual(["web"]);
+		expect(result.restartDefaulted).toEqual([]);
 	});
 });

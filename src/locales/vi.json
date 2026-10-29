@@ -634,6 +634,7 @@
 	"{service}: {field} {values} (allowed by template)": "{service}: {field} {values} (template cho phép)",
 	"{service}: removed published ports (traffic goes through Traefik)": "{service}: đã bỏ các cổng công khai (lưu lượng đi qua Traefik)",
 	"restart: {policy} added to {services} (no restart policy declared), so they come back after a reboot of the server. A one-off job (migration, init) must declare restart: \"no\", or it runs again and again.": "Đã thêm restart: {policy} cho {services} (chưa khai báo chính sách restart) để chúng chạy lại sau khi máy chủ khởi động lại. Tác vụ chạy một lần (migration, init) phải khai báo restart: \"no\", nếu không nó sẽ chạy lại liên tục.",
+	"restart: always changed to restart: {policy} on {services}: Docker starts an always container again after a reboot of the server even when it was stopped, so Stop would not last.": "Đã đổi restart: always thành restart: {policy} cho {services}: Docker khởi động lại container always sau khi máy chủ khởi động lại, kể cả khi nó đã bị dừng, nên Stop sẽ không có tác dụng lâu dài.",
 	"{service}: uses host network (allowed by template)": "{service}: dùng network của máy (template cho phép)",
 	"{service}: removed reserved label {label}": "{service}: đã bỏ nhãn dành riêng {label}",
 	"{service}: removed {count} reserved labels ({prefixes})": "{service}: đã bỏ {count} nhãn dành riêng ({prefixes})",

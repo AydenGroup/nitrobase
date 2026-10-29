@@ -121,6 +121,14 @@ export function analyzeCustomCompose(
 				}),
 			);
 		}
+		if (ctx.defaultRestart && transformed.restartStopSafe.length > 0) {
+			warnings.push(
+				coded("COMPOSE_WARN_RESTART_STOP_SAFE", {
+					services: { $list: transformed.restartStopSafe },
+					policy: ctx.defaultRestart,
+				}),
+			);
+		}
 		// Nothing is written for a custom compose: every file-named bind
 		// source must be put on the server, or be created by the app.
 		fileBinds = [

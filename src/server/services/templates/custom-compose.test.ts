@@ -75,4 +75,22 @@ volumes:
 		});
 		expect(warning()).toBeUndefined();
 	});
+
+	it("shows the always that a deploy turns into unless-stopped (BUG-030)", () => {
+		const compose =
+			"services:\n  web:\n    image: nginx\n    restart: always\n  db:\n    image: postgres\n    restart: unless-stopped\n";
+		const warning = (defaultRestart?: "unless-stopped" | "always") =>
+			analyzeCustomCompose(compose, "", {
+				...ctx,
+				defaultRestart,
+			}).warnings.find(
+				(item) => item.code === "COMPOSE_WARN_RESTART_STOP_SAFE",
+			);
+		expect(warning("unless-stopped")?.params).toEqual({
+			services: { $list: ["web"] },
+			policy: "unless-stopped",
+		});
+		expect(warning("always")).toBeUndefined();
+		expect(warning()).toBeUndefined();
+	});
 });
