@@ -133,6 +133,19 @@ export function safeRelativePath(value: string): string {
 	return path.posix.normalize(value);
 }
 
+/**
+ * A failed fetch's reason: undici only says "fetch failed" and keeps the
+ * network error (ENOTFOUND host, ECONNREFUSED…) in `cause`.
+ */
+export function networkErrorDetail(error: unknown): string {
+	if (!(error instanceof Error)) return String(error);
+	const cause = error.cause as { code?: string; message?: string } | undefined;
+	const reason = cause?.code ?? cause?.message;
+	return reason && !error.message.includes(reason)
+		? `${error.message} (${reason})`
+		: error.message;
+}
+
 const encodePath = (value: string) =>
 	value.split("/").map(encodeURIComponent).join("/");
 
@@ -208,9 +221,7 @@ export function createGitHubClient(options: GitHubClientOptions) {
 			// Network error or timeout: stale data beats no data.
 			if (cached) return cached.payload as T;
 			throw new GitHubError(
-				coded("GITHUB_REQUEST_FAILED", {
-					detail: error instanceof Error ? error.message : String(error),
-				}),
+				coded("GITHUB_REQUEST_FAILED", { detail: networkErrorDetail(error) }),
 				0,
 			);
 		}
@@ -499,7 +510,11 @@ export function createGitHubClient(options: GitHubClientOptions) {
 		return files;
 	}
 
-	/** Content-addressed: cached by blob SHA, downloaded from raw at the commit SHA. */
+	/**
+	 * Content-addressed: cached by blob SHA, downloaded from raw at the
+	 * commit SHA. Networks that block raw.githubusercontent.com but reach
+	 * the API get the blob from the API instead (one request per file).
+	 */
 	async function fetchBlob(
 		repo: string,
 		commitSha: string,
@@ -513,11 +528,16 @@ export function createGitHubClient(options: GitHubClientOptions) {
 			return Buffer.from(cached.payload, "base64");
 		}
 		const filePath = base ? `${base}/${blob.path}` : blob.path;
-		const response = await doFetch(
-			`${options.rawUrl}/${repo}/${commitSha}/${encodePath(filePath)}`,
-			{ headers: { "User-Agent": APP_ID } },
-		);
-		if (!response.ok) {
+		let response: Response | null = null;
+		try {
+			response = await doFetch(
+				`${options.rawUrl}/${repo}/${commitSha}/${encodePath(filePath)}`,
+				{ headers: { "User-Agent": APP_ID } },
+			);
+		} catch {
+			// Unreachable raw host: the API below.
+		}
+		if (response && !response.ok) {
 			throw new GitHubError(
 				coded("GITHUB_DOWNLOAD_FAILED", {
 					path: filePath,
@@ -526,7 +546,17 @@ export function createGitHubClient(options: GitHubClientOptions) {
 				response.status,
 			);
 		}
-		const content = Buffer.from(await response.arrayBuffer());
+		const content = response
+			? Buffer.from(await response.arrayBuffer())
+			: Buffer.from(
+					(
+						await getJson<{ content: string }>(
+							`/repos/${repo}/git/blobs/${blob.sha}`,
+							{ immutable: true },
+						)
+					).content,
+					"base64",
+				);
 		if (
 			content.length > maxBytes ||
 			(blob.size !== undefined && content.length !== blob.size)

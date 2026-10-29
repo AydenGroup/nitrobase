@@ -213,6 +213,56 @@ describe("fetchDirectory", () => {
 		expect(cache.map.has(`blob:${gitBlobSha(compose)}`)).toBe(true);
 	});
 
+	it("gets blobs from the API when the raw host is unreachable", async () => {
+		const byApi = new Map(
+			[compose, env].map((content) => [
+				`https://api.test/repos/o/r/git/blobs/${gitBlobSha(content)}`,
+				content,
+			]),
+		);
+		const blocked: typeof fetch = async (input) => {
+			const url = String(input);
+			if (url.startsWith("https://raw.test")) {
+				throw new TypeError("fetch failed", {
+					cause: { code: "ENOTFOUND" },
+				});
+			}
+			const content = byApi.get(url);
+			if (content) return json({ content: content.toString("base64") });
+			return fetchImpl(input);
+		};
+		const result = await client(blocked).gh.fetchDirectory(
+			"o/r",
+			"c0ffee",
+			"root",
+			"docker",
+			["docker-compose.yml", "volumes"],
+			{ maxFiles: 10, maxBytes: 1000 },
+		);
+		expect(result.files.map((f) => f.content.toString())).toEqual([
+			compose.toString(),
+			env.toString(),
+		]);
+		// Unreachable both ways: the network error, with its reason.
+		const offline: typeof fetch = async (input) =>
+			String(input).includes("/git/blobs/") ||
+			String(input).startsWith("https://raw.test")
+				? Promise.reject(
+						new TypeError("fetch failed", { cause: { code: "ENOTFOUND" } }),
+					)
+				: fetchImpl(input);
+		await expect(
+			client(offline).gh.fetchDirectory(
+				"o/r",
+				"c0ffee",
+				"root",
+				"docker",
+				["docker-compose.yml"],
+				{ maxFiles: 10, maxBytes: 1000 },
+			),
+		).rejects.toThrow(/fetch failed \(ENOTFOUND\)/);
+	});
+
 	it("enforces limits from declared sizes before downloading", async () => {
 		const { gh } = client(fetchImpl);
 		await expect(
