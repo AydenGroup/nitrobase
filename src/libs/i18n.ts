@@ -101,6 +101,17 @@ export function localeParams(locale: string): { locale: Locale | undefined } {
 }
 
 /**
+ * Real path of an absolute page in `locale` (`/vi/invite/x`, no prefix for the
+ * default locale), for links shown or sent outside the router. `localizePath`
+ * is not for this: it returns a route pattern (`/{-$locale}/...`) for the
+ * router's `to`.
+ */
+export function localizedHref(path: string, locale: string): string {
+	const { locale: prefix } = localeParams(locale);
+	return prefix ? `/${prefix}${path}` : path;
+}
+
+/**
  * Translate a text that comes from a template.toml (name, description,
  * notes, limitation, security reason, variable label/description/group,
  * port label/description). The server sends these in English; their ids

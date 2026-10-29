@@ -53,7 +53,7 @@ import {
 	membersQueryOptions,
 	teamContextQueryOptions,
 } from "#/features/teams/teams.query.ts";
-import { localizePath } from "#/libs/i18n.ts";
+import { localizedHref } from "#/libs/i18n.ts";
 import { formatDate } from "#/libs/intl.ts";
 import { useCan } from "./useCan";
 
@@ -315,7 +315,7 @@ export const InvitesCard: React.FC = () => {
 	const link =
 		created &&
 		(created.link ??
-			`${window.location.origin}${localizePath(`/invite/${created.token}`)}`);
+			`${window.location.origin}${localizedHref(`/invite/${created.token}`, i18n.locale)}`);
 
 	return (
 		<SectionCard
