@@ -588,6 +588,47 @@ select:not([data-disabled], :disabled) {
 	background-color: var(--accent-on-fill) !important;
 }
 
+/* Monochrome accent: high-contrast checkbox and switch states */
+:root:not([data-accent]),
+:root[data-accent="mono"] {
+	.mantine-Checkbox-input:not(
+			:checked,
+			[data-indeterminate],
+			:disabled,
+			[data-disabled]
+		) {
+		background-color: var(--sb-input);
+		border-color: var(--sb-text-3);
+	}
+
+	.mantine-Checkbox-input:is(:checked, [data-indeterminate]):not(
+			:disabled,
+			[data-disabled]
+		) {
+		background-color: var(--accent-fill);
+		border-color: var(--accent-fill);
+	}
+
+	.mantine-Checkbox-input:is(:checked, [data-indeterminate]):not(
+			:disabled,
+			[data-disabled]
+		)
+		+ .mantine-Checkbox-icon {
+		color: var(--accent-on-fill);
+	}
+
+	.mantine-Switch-input:not(:checked, :disabled, [data-disabled])
+		+ .mantine-Switch-track {
+		border-color: var(--sb-text-3);
+	}
+
+	.mantine-Switch-input:checked + .mantine-Switch-track {
+		--switch-text-color: var(--accent-on-fill);
+
+		color: var(--accent-on-fill);
+	}
+}
+
 /* Accordion card alignment */
 .mantine-Accordion-item {
 	background-color: var(--sb-card) !important;
