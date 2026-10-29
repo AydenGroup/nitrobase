@@ -2,7 +2,7 @@
   "name": "nitrobase",
   "homepage": "https://nitrobase.app",
   "license": "FSL-1.1-ALv2",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "private": true,
   "type": "module",
   "imports": {
