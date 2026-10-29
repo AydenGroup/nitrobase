@@ -76,6 +76,7 @@ readonly DOCKER_PACKAGES="docker-ce docker-ce-cli containerd.io docker-buildx-pl
 readonly COMPOSE_PROJECT="nitrobase"                           # docker compose project name
 readonly APP_CONTAINER="nitrobase_app"                         # container_name of the panel
 readonly UPDATER_CONTAINER="nitrobase-updater"                 # in-panel upgrade helper
+readonly DB_VOLUME="${COMPOSE_PROJECT}_postgres_data"           # docker-compose.prod.yml volume
 readonly TRAEFIK_PORTS="80 443"                                # warned about when busy
 readonly MIN_RAM_MB=1800                                       # warning below
 # The panel and Postgres need about 1 GB of disk; apps need the rest.
@@ -83,6 +84,7 @@ readonly MIN_DISK_MB=2000                                      # refused below
 readonly RECOMMENDED_DISK_MB=5000                              # warning below
 readonly HEALTH_TIMEOUT="${NITROBASE_HEALTH_TIMEOUT:-300}"     # seconds
 readonly HEALTH_POLL_SECONDS=3
+readonly MAX_RESTARTS=3                                        # crash loop: stop waiting
 readonly SETUP_TOKEN_LENGTH=32                                 # hex characters
 readonly RELEASES_PAGE_SIZE=10                                 # releases read when none is stable
 readonly DOCKER_SOCKET="/var/run/docker.sock"                  # mounted into the installer image
@@ -393,6 +395,20 @@ check_ports() {
 	done
 }
 
+# One machine holds one install: the compose project, its containers and
+# its volumes have fixed names.
+check_existing() {
+	local dirs
+	dirs="$(docker ps -a --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" \
+		--format '{{.Label "com.docker.compose.project.working_dir"}}' 2>/dev/null | sort -u | grep -vx "$DIR" || true)"
+	if [ -n "$dirs" ]; then
+		die "another $PRODUCT_NAME install runs from $(printf '%s' "$dirs" | head -n 1) (same containers and volumes): re-run with --dir $(printf '%s' "$dirs" | head -n 1), or remove it first (docker compose down in that folder)"
+	fi
+	if [ ! -f "$DIR/.env" ] && docker volume inspect "$DB_VOLUME" >/dev/null 2>&1; then
+		die "the Docker volume $DB_VOLUME holds the database of an earlier install, which new secrets cannot open: put that install's .env back in $DIR, or delete the old data first (docker volume rm $DB_VOLUME ${COMPOSE_PROJECT}_data)"
+	fi
+}
+
 container_exists() {
 	command -v docker >/dev/null 2>&1 && docker inspect "$APP_CONTAINER" >/dev/null 2>&1
 }
@@ -545,10 +561,25 @@ latest_version() {
 		[ -n "$tag" ] || die "$REPO has no release yet (or $API_URL does not know it)"
 		warn "$REPO has no stable release yet: installing the pre-release $tag"
 		;;
-	*) die "could not read the latest release of $REPO from $API_URL (HTTP $status); pass --version to skip the lookup" ;;
+	*)
+		# GitHub's API allows 60 calls an hour per address (shared by a whole
+		# NAT or cloud range); its release feed has no such limit.
+		if [ "$API_URL" = "$DEFAULT_API_URL" ]; then tag="$(feed_latest_tag)"; fi
+		[ -n "$tag" ] || die "could not read the latest release of $REPO from $API_URL (HTTP $status); pass --version to skip the lookup"
+		;;
 	esac
 	[ -n "$tag" ] || die "the latest release of $REPO has no tag"
 	printf '%s' "${tag#v}"
+}
+
+# Latest release from https://github.com/<repo>/releases.atom (newest
+# first): the newest stable one, else the newest pre-release.
+feed_latest_tag() {
+	local tags
+	tags="$(curl -fsSL "https://github.com/$REPO/releases.atom" 2>/dev/null |
+		sed -n 's|.*/releases/tag/\([^"<]*\).*|\1|p')" || return 0
+	printf '%s\n' "$tags" | grep -v -- '-' | head -n 1 | grep . ||
+		printf '%s\n' "$tags" | head -n 1
 }
 
 env_get() {
@@ -667,7 +698,7 @@ compose() {
 }
 
 wait_healthy() {
-	local deadline status
+	local deadline status restarts
 	deadline=$(($(date +%s) + HEALTH_TIMEOUT))
 	info "Waiting for $PRODUCT_NAME to become healthy (migrations run first)..."
 	while [ "$(date +%s)" -lt "$deadline" ]; do
@@ -676,9 +707,16 @@ wait_healthy() {
 		healthy) return 0 ;;
 		unhealthy | exited | dead) break ;;
 		esac
+		# A crash loop (failed migrations) never gets healthy: say so now.
+		restarts="$(docker inspect -f '{{.RestartCount}}' "$APP_CONTAINER" 2>/dev/null || true)"
+		case "$restarts" in '' | *[!0-9]*) restarts=0 ;; esac
+		if [ "$restarts" -ge "$MAX_RESTARTS" ]; then
+			status="restarting"
+			break
+		fi
 		sleep "$HEALTH_POLL_SECONDS"
 	done
-	docker logs --tail 30 "$APP_CONTAINER" 2>&1 | sed 's/^/  | /' >&2 || true
+	docker logs --tail 15 "$APP_CONTAINER" 2>&1 | sed 's/^/  | /' >&2 || true
 	die "$PRODUCT_NAME did not become healthy (status: ${status:-unknown}). Logs above; fix and re-run this installer."
 }
 
@@ -789,6 +827,7 @@ main() {
 	if [ "$SKIP_RESOURCE_CHECK" = 0 ]; then check_resources; fi
 	if ! in_container; then install_docker; fi
 	check_ports
+	check_existing
 	# --version, else the installed version (never a silent up/downgrade),
 	# else the installer image's own release, else the latest release.
 	if [ -z "$VERSION" ]; then
