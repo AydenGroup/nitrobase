@@ -28,7 +28,11 @@ import {
 	effectiveLimits,
 	type ServiceResources,
 } from "./resources";
-import { applyDefaultRestart, type DefaultRestart } from "./restart";
+import {
+	applyDefaultRestart,
+	applyStopSafeRestart,
+	type DefaultRestart,
+} from "./restart";
 
 export interface ComposeTransformContext {
 	appId: string;
@@ -76,6 +80,8 @@ export interface ComposeTransformResult {
 	warnings: ErrorInfo[];
 	/** Services given `ctx.defaultRestart` (they declared no policy). */
 	restartDefaulted: string[];
+	/** Services whose `restart: always` became the default (BUG-030). */
+	restartStopSafe: string[];
 }
 
 type Obj = Record<string, unknown>;
@@ -628,6 +634,10 @@ export function transformCompose(
 		outServices as Record<string, Obj>,
 		ctx.defaultRestart,
 	);
+	const restartStopSafe = applyStopSafeRestart(
+		outServices as Record<string, Obj>,
+		ctx.defaultRestart,
+	);
 	compose.services = outServices;
 
 	// Top-level resources.
@@ -705,5 +715,6 @@ export function transformCompose(
 		networkAttachments,
 		warnings,
 		restartDefaulted,
+		restartStopSafe,
 	};
 }

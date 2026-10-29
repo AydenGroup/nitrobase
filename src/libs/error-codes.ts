@@ -249,6 +249,7 @@ export interface ErrorParamsMap
 	};
 	COMPOSE_WARN_PORTS_REMOVED: { service: string };
 	COMPOSE_WARN_RESTART_DEFAULT: { services: CodedValue; policy: string };
+	COMPOSE_WARN_RESTART_STOP_SAFE: { services: CodedValue; policy: string };
 	COMPOSE_WARN_HOST_NETWORK: { service: string };
 	COMPOSE_WARN_LABEL_REMOVED: { service: string; label: string };
 	COMPOSE_WARN_LABELS_REMOVED: {
@@ -1455,6 +1456,9 @@ export const errorCodes = {
 	}),
 	COMPOSE_WARN_RESTART_DEFAULT: msg({
 		id: 'restart: {policy} added to {services} (no restart policy declared), so they come back after a reboot of the server. A one-off job (migration, init) must declare restart: "no", or it runs again and again.',
+	}),
+	COMPOSE_WARN_RESTART_STOP_SAFE: msg({
+		id: "restart: always changed to restart: {policy} on {services}: Docker starts an always container again after a reboot of the server even when it was stopped, so Stop would not last.",
 	}),
 	COMPOSE_WARN_HOST_NETWORK: msg({
 		id: "{service}: uses host network (allowed by template)",

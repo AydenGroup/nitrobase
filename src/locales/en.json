@@ -634,6 +634,7 @@
 	"{service}: {field} {values} (allowed by template)": "{service}: {field} {values} (allowed by template)",
 	"{service}: removed published ports (traffic goes through Traefik)": "{service}: removed published ports (traffic goes through Traefik)",
 	"restart: {policy} added to {services} (no restart policy declared), so they come back after a reboot of the server. A one-off job (migration, init) must declare restart: \"no\", or it runs again and again.": "restart: {policy} added to {services} (no restart policy declared), so they come back after a reboot of the server. A one-off job (migration, init) must declare restart: \"no\", or it runs again and again.",
+	"restart: always changed to restart: {policy} on {services}: Docker starts an always container again after a reboot of the server even when it was stopped, so Stop would not last.": "restart: always changed to restart: {policy} on {services}: Docker starts an always container again after a reboot of the server even when it was stopped, so Stop would not last.",
 	"{service}: uses host network (allowed by template)": "{service}: uses host network (allowed by template)",
 	"{service}: removed reserved label {label}": "{service}: removed reserved label {label}",
 	"{service}: removed {count} reserved labels ({prefixes})": "{service}: removed {count} reserved labels ({prefixes})",

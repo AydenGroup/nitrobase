@@ -3,13 +3,15 @@
  * `clean`: Docker starts the container again after it exits 0, and after
  * the Docker daemon (or the host) restarts. Without it, a container that
  * stopped stays stopped: one-shot jobs (migrations, init) rely on that.
+ * `keepsStop`: a container stopped by hand (Stop in the panel) stays stopped
+ * after the daemon or the host restarts. `always` starts it again.
  */
 export const restartPolicies = {
-	no: { clean: false },
-	"on-failure": { clean: false },
-	always: { clean: true },
-	"unless-stopped": { clean: true },
-} as const satisfies Record<string, { clean: boolean }>;
+	no: { clean: false, keepsStop: true },
+	"on-failure": { clean: false, keepsStop: true },
+	always: { clean: true, keepsStop: false },
+	"unless-stopped": { clean: true, keepsStop: true },
+} as const satisfies Record<string, { clean: boolean; keepsStop: boolean }>;
 
 export type RestartPolicy = keyof typeof restartPolicies;
 

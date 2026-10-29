@@ -163,6 +163,34 @@ export function restartPolicyPending(
 	return applyDefaultRestart(copy, { policy, keep });
 }
 
+/**
+ * Replace `restart: always` (in place) with the default policy when that
+ * one keeps a stopped service stopped, so Stop in the panel survives a
+ * reboot of the host: Docker starts an `always` container again even when
+ * it was stopped by hand. Only own `restart:` strings change; the default
+ * must itself be clean and keep the stop (`unless-stopped`), so an operator
+ * who set another `APP_DEFAULT_RESTART` is not overruled. Services the
+ * template keeps are left alone. Returns the services changed.
+ */
+export function applyStopSafeRestart(
+	services: Record<string, Obj>,
+	defaults: DefaultRestart | undefined,
+): string[] {
+	if (!defaults) return [];
+	const target = restartPolicies[defaults.policy];
+	if (!target.clean || !target.keepsStop) return [];
+	const keep = new Set(defaults.keep ?? []);
+	const changed: string[] = [];
+	for (const [name, service] of Object.entries(services)) {
+		if (keep.has(name) || typeof service.restart !== "string") continue;
+		const policy = restartPolicyOf(service.restart);
+		if (!policy || restartPolicies[policy].keepsStop) continue;
+		service.restart = defaults.policy;
+		changed.push(name);
+	}
+	return changed;
+}
+
 export interface DefaultRestart {
 	/** Policy given to services that declare none. */
 	policy: RestartPolicy;
