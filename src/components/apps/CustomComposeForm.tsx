@@ -209,11 +209,8 @@ export const CustomComposeForm: React.FC<{
 								services.find((service) => service.name === route.service)
 									?.ports ?? [];
 							return (
-								<Group
-									key={`${route.service}:${route.port}`}
-									align="flex-end"
-									wrap="nowrap"
-								>
+								// biome-ignore lint/suspicious/noArrayIndexKey: rows have no identity of their own (service and port are edited in place; a key made of them remounted the port input on every digit typed)
+								<Group key={index} align="flex-end" wrap="nowrap">
 									<Select
 										label={i18n._("Service")}
 										data={services.map((service) => service.name)}
