@@ -2,6 +2,7 @@ name: Release
 
 # Push a tag `v<package.json version>` (e.g. v0.1.0-beta.0) to publish:
 #   - ghcr.io/<owner>/<repo>:<version> for linux/amd64 and linux/arm64
+#     (each built on a runner of its own architecture)
 #     (plus :latest for the highest stable version, as for the Release,
 #     and the moving :beta for every pre-release; :latest stays stable);
 #   - the installer image ghcr.io/<owner>/<repo>-installer with the same
@@ -79,18 +80,23 @@ jobs:
             echo "license=$(jq -r .license package.json)"
           } >> "$GITHUB_OUTPUT"
 
-  image:
-    name: Image ${{ matrix.image }} (amd64 + arm64)
+  # One native build per architecture (arm64 under QEMU took over the
+  # 2 h job limit), pushed to GHCR by digest; `image` then tags both
+  # digests as one multi-arch image.
+  build:
+    name: Build ${{ matrix.image }} (${{ matrix.arch }})
     needs: [checks, version]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
     strategy:
-      # The release needs both images.
+      # The release needs every image.
       fail-fast: true
       matrix:
+        image: [panel, installer]
+        arch: [amd64, arm64]
         include:
           - image: panel
             file: Dockerfile
@@ -105,12 +111,76 @@ jobs:
             build-args: |
               VERSION=${{ needs.version.outputs.version }}
               INSTALLER_IMAGE=${{ needs.version.outputs.installer_image }}
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
 
-      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
         with:
-          platforms: arm64
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          build-args: ${{ matrix.build-args }}
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ matrix.name }},push-by-digest=true,name-canonical=true,push=true
+          labels: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.url=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=${{ needs.version.outputs.license }}
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+
+      - name: Keep the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p digests
+          touch "digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.image }}-${{ matrix.arch }}
+          path: digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  image:
+    name: Image ${{ matrix.image }} (amd64 + arm64)
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - image: panel
+            title: Nitrobase
+            name: ${{ needs.version.outputs.image }}
+          - image: installer
+            title: Nitrobase installer
+            name: ${{ needs.version.outputs.installer_image }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: digest-${{ matrix.image }}-*
+          path: digests
+          merge-multiple: true
 
       - uses: docker/setup-buildx-action@v4
 
@@ -159,8 +229,8 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6
         env:
-          # Annotations on the image manifests and the multi-arch index.
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+          # Annotations on the multi-arch index.
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
         with:
           images: ${{ steps.images.outputs.list }}
           flavor: latest=false
@@ -177,18 +247,17 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=${{ needs.version.outputs.license }}
 
-      - uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ${{ matrix.file }}
-          build-args: ${{ matrix.build-args }}
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+      - name: Tag the multi-arch image
+        working-directory: digests
+        env:
+          GHCR_IMAGE: ${{ matrix.name }}
+        run: |
+          args=()
+          while IFS= read -r tag; do args+=(-t "$tag"); done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          while IFS= read -r note; do args+=(--annotation "$note"); done < <(jq -r '.annotations[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          for digest in *; do args+=("$GHCR_IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${args[@]}"
+          docker buildx imagetools inspect "$GHCR_IMAGE:$DOCKER_METADATA_OUTPUT_VERSION"
 
   release:
     name: GitHub Release

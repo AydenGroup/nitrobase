@@ -64,49 +64,73 @@ describe("release pipeline", () => {
 		}
 	});
 
-	it("publishes the panel and the installer image with the same tags", () => {
-		const image = (
+	it("builds each image natively per architecture, then tags them together", () => {
+		type Job = {
+			"runs-on"?: string;
+			strategy?: {
+				matrix?: Record<string, string[]> & {
+					include?: Record<string, string>[];
+				};
+			};
+			steps?: {
+				id?: string;
+				uses?: string;
+				with?: Record<string, unknown>;
+				env?: Record<string, string>;
+				run?: string;
+			}[];
+		};
+		const jobs = (
 			parse(read(".github/workflows/release.yml")) as {
-				jobs: Record<
-					string,
-					{
-						strategy?: {
-							matrix?: { include?: Record<string, string>[] };
-						};
-						steps?: { uses?: string; with?: Record<string, unknown> }[];
-					}
-				>;
+				jobs: Record<string, Job>;
 			}
-		).jobs.image;
-		const include = image.strategy?.matrix?.include ?? [];
-		expect(include.map((entry) => entry.image)).toEqual(["panel", "installer"]);
-		for (const entry of include) {
+		).jobs;
+		const { build, image } = jobs;
+		const matrix = build.strategy?.matrix;
+		expect(matrix?.image).toEqual(["panel", "installer"]);
+		expect(matrix?.arch).toEqual(["amd64", "arm64"]);
+		const include = matrix?.include ?? [];
+		for (const entry of include.filter((item) => item.file)) {
 			expect(existsSync(path.join(ROOT, entry.file)), entry.file).toBe(true);
 		}
+		// No emulation: arm64 builds on an arm64 runner.
+		expect(build["runs-on"]).toBe("${{ matrix.runner }}");
+		expect(include.find((entry) => entry.arch === "arm64")?.runner).toMatch(
+			/-arm$/,
+		);
 		const installer = include.find((entry) => entry.image === "installer");
 		// The installer installs its own release by default.
 		expect(installer?.["build-args"]).toContain(
 			"VERSION=${{ needs.version.outputs.version }}",
 		);
+		const push = build.steps?.find((step) =>
+			step.uses?.startsWith("docker/build-push-action@"),
+		);
+		expect(push?.with?.file).toBe("${{ matrix.file }}");
+		expect(push?.with?.platforms).toBe("linux/${{ matrix.arch }}");
+		expect(String(push?.with?.outputs)).toContain("push-by-digest=true");
+
+		// The GHCR image (matrix.name), plus the Docker Hub mirror when its
+		// secrets are set, tagged from every architecture's digest.
 		const meta = image.steps?.find((step) =>
 			step.uses?.startsWith("docker/metadata-action@"),
 		);
-		// The GHCR image (matrix.name), plus the Docker Hub mirror when its
-		// secrets are set.
 		expect(meta?.with?.images).toBe("${{ steps.images.outputs.list }}");
-		const names = image.steps?.find(
-			(step) => (step as { id?: string }).id === "images",
-		) as { env?: Record<string, string>; run?: string } | undefined;
+		const names = image.steps?.find((step) => step.id === "images");
 		expect(names?.env?.GHCR_IMAGE).toBe("${{ matrix.name }}");
 		expect(names?.run).toContain('echo "$GHCR_IMAGE"');
 		expect(names?.run).toContain(
 			'echo "docker.io/$namespace/${GHCR_IMAGE##*/}"',
 		);
-		const build = image.steps?.find((step) =>
-			step.uses?.startsWith("docker/build-push-action@"),
+		const download = image.steps?.find((step) =>
+			step.uses?.startsWith("actions/download-artifact@"),
 		);
-		expect(build?.with?.file).toBe("${{ matrix.file }}");
-		expect(build?.with?.platforms).toBe("linux/amd64,linux/arm64");
+		expect(download?.with?.pattern).toBe("digest-${{ matrix.image }}-*");
+		expect(
+			image.steps?.some((step) =>
+				step.run?.includes("docker buildx imagetools create"),
+			),
+		).toBe(true);
 	});
 
 	it("names the installer image after the panel image, like install.sh", () => {
