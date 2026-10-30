@@ -2325,6 +2325,7 @@
 	"Joined": "Tham gia",
 	"Remove from team": "Xóa khỏi nhóm",
 	"Remove {name} from the team": "Xóa {name} khỏi nhóm",
+	"{name} loses access to this team right away. Their personal API tokens stop working and scheduled tasks that run as them are disabled.": "{name} mất quyền truy cập nhóm này ngay lập tức. API token cá nhân của họ ngừng hoạt động và các tác vụ định kỳ chạy bằng tài khoản của họ bị tắt.",
 	"You lose access to this team's servers, apps and backups until someone invites you again.": "Bạn sẽ mất quyền truy cập máy chủ, ứng dụng và bản sao lưu của nhóm này cho tới khi được mời lại.",
 	"Invites": "Lời mời",
 	"Invite links work once and expire. Sign-up is only possible through an invite.": "Liên kết mời chỉ dùng một lần và có hạn. Chỉ đăng ký được qua lời mời.",

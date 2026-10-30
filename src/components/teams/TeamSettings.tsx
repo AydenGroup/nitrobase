@@ -13,6 +13,7 @@ import {
 	Tooltip,
 } from "@mantine/core";
 import { schemaResolver, useForm } from "@mantine/form";
+import { modals } from "@mantine/modals";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { Link2, Trash2, UserMinus } from "lucide-react";
@@ -139,6 +140,22 @@ export const MembersCard: React.FC = () => {
 		success: i18n._("Member removed"),
 		onSuccess: refresh,
 	});
+	const confirmRemove = (member: MemberDTO) =>
+		modals.openConfirmModal({
+			title: i18n._("Remove from team"),
+			centered: true,
+			children: (
+				<Text size="sm">
+					{i18n._(
+						"{name} loses access to this team right away. Their personal API tokens stop working and scheduled tasks that run as them are disabled.",
+						{ name: member.email },
+					)}
+				</Text>
+			),
+			labels: { confirm: i18n._("Remove"), cancel: i18n._("Cancel") },
+			confirmProps: { color: "red" },
+			onConfirm: () => remove.mutate(member.userId),
+		});
 	const leave = useAppMutation({
 		mutationFn: () => leaveTeamFn(),
 		success: i18n._("You left the team"),
@@ -257,7 +274,7 @@ export const MembersCard: React.FC = () => {
 										loading={
 											remove.isPending && remove.variables === member.userId
 										}
-										onClick={() => remove.mutate(member.userId)}
+										onClick={() => confirmRemove(member)}
 									>
 										<UserMinus size={16} />
 									</ActionIcon>

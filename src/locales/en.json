@@ -2325,6 +2325,7 @@
 	"Joined": "Joined",
 	"Remove from team": "Remove from team",
 	"Remove {name} from the team": "Remove {name} from the team",
+	"{name} loses access to this team right away. Their personal API tokens stop working and scheduled tasks that run as them are disabled.": "{name} loses access to this team right away. Their personal API tokens stop working and scheduled tasks that run as them are disabled.",
 	"You lose access to this team's servers, apps and backups until someone invites you again.": "You lose access to this team's servers, apps and backups until someone invites you again.",
 	"Invites": "Invites",
 	"Invite links work once and expire. Sign-up is only possible through an invite.": "Invite links work once and expire. Sign-up is only possible through an invite.",
