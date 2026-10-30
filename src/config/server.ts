@@ -350,6 +350,10 @@ const ConfigSchema = z.object({
 	SECRET_ENV_NAME_PATTERN: z
 		.string()
 		.default("(PASS|SECRET|TOKEN|PRIVATE|_KEY$|^KEY$|ENC_KEY|CRYPTO)"),
+	/** Env values masked even when the name looks harmless: a URL with a password in it (case-insensitive). */
+	SECRET_ENV_VALUE_PATTERN: z
+		.string()
+		.default("^[a-z][a-z0-9+.-]*://[^\\s/:@]*:[^\\s/@]+@"),
 	/** Image used to probe app HTTP health from the proxy network. */
 	APP_HEALTH_IMAGE: z.string().min(1).default("curlimages/curl:8.16.0"),
 	APP_LOGS_TAIL_DEFAULT: int(200),
