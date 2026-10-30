@@ -99,6 +99,7 @@ import type {
 	ServiceEnvView,
 } from "./schema";
 import { rotateHookView } from "./schema";
+import { secretEnvKeys } from "./secret-env";
 import { type SourceApp, sourceDriver } from "./sources.server";
 
 const appColumns = {
@@ -797,22 +798,24 @@ export async function createAppRecord(
 
 async function secretKeysFor(app: AppRow, values: Record<string, string>) {
 	const manifest = await getAppManifest(app);
-	const keys = new Set(
-		Object.entries(manifest.variables)
+	const config = getConfig();
+	// Name- and value-based fallback so upstream secrets (e.g. SMTP_PASS, or a
+	// DB_URL with its password) are masked too.
+	const keys = secretEnvKeys({
+		values,
+		templateSecrets: Object.entries(manifest.variables)
 			.filter(([, variable]) => variable.secret)
 			.map(([name]) => name),
-	);
-	// Name-based fallback so upstream secrets (e.g. SMTP_PASS) are masked too.
-	const secretName = new RegExp(getConfig().SECRET_ENV_NAME_PATTERN);
-	for (const name of Object.keys(values)) {
-		if (secretName.test(name)) keys.add(name);
-	}
+		namePattern: config.SECRET_ENV_NAME_PATTERN,
+		valuePattern: config.SECRET_ENV_VALUE_PATTERN,
+	});
 	return { manifest, keys };
 }
 
 /**
  * Values of the app's secrets (template `secret` variables, names matching
- * SECRET_ENV_NAME_PATTERN, service env secrets), for masking command
+ * SECRET_ENV_NAME_PATTERN, values matching SECRET_ENV_VALUE_PATTERN,
+ * service env secrets), for masking command
  * output. Short values are left out (they would mask ordinary words).
  */
 export async function appSecretValues(app: AppRow): Promise<string[]> {
