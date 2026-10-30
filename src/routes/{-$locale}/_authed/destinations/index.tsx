@@ -162,8 +162,8 @@ function Destinations() {
 							description={i18n._(
 								"Add a destination, test it, then schedule backups from each app's Backups tab.",
 							)}
-							actionLabel={i18n._("Add destination")}
-							action={() => setEditing(null)}
+							actionLabel={manage ? i18n._("Add destination") : undefined}
+							action={manage ? () => setEditing(null) : undefined}
 						/>
 					}
 					columns={[
