@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getConfig } from "#/config/server.ts";
 import {
 	appLocation,
+	appSecretValues,
 	deployedServices,
 	getAppRow,
 	getAppServer,
@@ -15,6 +16,7 @@ import { getExecutor } from "#/features/servers/servers.server.ts";
 import { splitLogChunk } from "#/libs/job-log.ts";
 import { composeLogsCommand } from "#/server/services/apps/commands.ts";
 import { createSseStream, sseResponse } from "#/server/services/sse.ts";
+import { createSecretMasker } from "#/server/services/tasks/commands.ts";
 import { AppError } from "#/utils/error.ts";
 
 /**
@@ -83,6 +85,9 @@ export async function appLogsResponse(
 		config.APP_LOGS_TAIL_MAX,
 	);
 	const location = appLocation(app);
+	// The log is the app's own output: a secret it prints is masked like in
+	// task and build output, so a viewer cannot read it here.
+	const masker = createSecretMasker(await appSecretValues(app));
 
 	if (download) {
 		const executor = await getExecutor(await getAppServer(app));
@@ -96,7 +101,8 @@ export async function appLogsResponse(
 				}),
 			);
 			const name = `${app.folder}${service ? `-${service}` : ""}.log`;
-			return new Response(`${result.stdout}\n${result.stderr}`, {
+			const text = `${result.stdout}\n${result.stderr}`;
+			return new Response(masker.push(text) + masker.flush(), {
 				headers: {
 					"Content-Type": "text/plain; charset=utf-8",
 					"Content-Disposition": `attachment; filename="${name}"`,
@@ -137,7 +143,7 @@ export async function appLogsResponse(
 			});
 			let pending = "";
 			const onChunk = (chunk: string) => {
-				const { lines, rest } = splitLogChunk(pending, chunk);
+				const { lines, rest } = splitLogChunk(pending, masker.push(chunk));
 				pending = rest;
 				for (const line of lines) channel.event("log", line);
 			};
@@ -158,7 +164,8 @@ export async function appLogsResponse(
 					},
 				)
 				.then((result) => {
-					if (pending) channel.event("log", pending);
+					const last = pending + masker.flush();
+					if (last) channel.event("log", last);
 					channel.event("end", { exitCode: result.exitCode });
 				})
 				.catch((error) =>
