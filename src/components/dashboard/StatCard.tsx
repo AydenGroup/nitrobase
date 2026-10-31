@@ -173,7 +173,7 @@ export const StatCard: React.FC<StatCardProps> = ({
 										w={7}
 										h={7}
 										bdrs="xl"
-										bg={`${toneColors[item.tone]}.6`}
+										bg={`${item.tone === "progress" ? toneColors.success : toneColors[item.tone]}.6`}
 										style={{ flexShrink: 0 }}
 									/>
 									<Text size="xs" c="dimmed">
