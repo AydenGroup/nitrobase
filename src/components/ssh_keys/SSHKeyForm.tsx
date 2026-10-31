@@ -334,6 +334,7 @@ const KeyMaterialFields: React.FC<{
 						label={i18n._("Copy private key")}
 					/>
 				}
+				rightSectionPointerEvents="all"
 			/>
 			{passphrase && (
 				<Stack gap="xs">
@@ -367,6 +368,7 @@ const KeyMaterialFields: React.FC<{
 						label={i18n._("Copy public key")}
 					/>
 				}
+				rightSectionPointerEvents="all"
 			/>
 		</>
 	);
