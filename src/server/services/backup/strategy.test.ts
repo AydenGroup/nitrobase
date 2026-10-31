@@ -20,6 +20,19 @@ describe("postgresStrategy", () => {
 		expect(strategy.file).toBe("cluster.sql");
 	});
 
+	it("keeps each database's owner and ALTER DATABASE settings", () => {
+		const command = strategy.dumpCommand("supabase-1-db");
+		expect(command).toContain("pg_get_userbyid(datdba)");
+		expect(command).toContain("ALTER DATABASE %I OWNER TO %I");
+		expect(command).toContain("pg_db_role_setting");
+		expect(command).toContain("ALTER DATABASE %I SET %I TO %s");
+		// The settings come after the connect and before the data of that database.
+		expect(command.indexOf("pg_db_role_setting")).toBeLessThan(
+			command.indexOf('pg_dump -U "$1" -d "$db"'),
+		);
+		expect(command).not.toContain("DROP DATABASE");
+	});
+
 	it("restores from stdin with psql, continuing past errors", () => {
 		expect(strategy.restoreCommand("supabase-1-db")).toBe(
 			"docker exec -i 'supabase-1-db' psql -X -q -U 'supabase_admin' -d 'postgres' -v ON_ERROR_STOP=0",
