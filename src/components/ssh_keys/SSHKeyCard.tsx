@@ -4,7 +4,6 @@ import {
 	Badge,
 	Button,
 	Card,
-	CopyButton,
 	Group,
 	Menu,
 	Stack,
@@ -22,7 +21,7 @@ import {
 	Server,
 	Trash2,
 } from "lucide-react";
-import { CopyIconButton } from "#/components/ui/CopyIconButton";
+import { CopyButton, CopyIconButton } from "#/components/ui/CopyIconButton";
 import { LocalDate } from "#/components/ui/LocalDate";
 import { sshKeyTypes } from "#/config/ssh-key-types.ts";
 import type { SSHKeyDTO } from "#/features/ssh_keys/schema.ts";
