@@ -349,6 +349,8 @@ claude mcp add --transport http nitrobase https://panel.example.com/api/mcp \
 
 Its tools are generated from the REST API (`list_apps`, `deploy_app`, `get_job`, …), so every REST operation is a tool. An agent only sees the tools its token's permissions allow; read-only and destructive tools are marked as such. Deploys and backups return a job id to poll with `get_job`. Actions are audited like REST calls, tagged `channel: mcp`.
 
+Settings → API tokens has a **Connect an AI agent** panel with the endpoint URL and copyable setup for Claude Code and for clients that read an `mcpServers` JSON config (Cursor, `.mcp.json`); a new token's one-time reveal shows the same snippets with the token filled in. Two token presets fit agents: **AI agent (read-only)** (`server.view`, `app.view`, `backup.view`, `monitoring.view`: every read-only tool) and **AI agent (operator)** (those plus `app.deploy` and `backup.create`: every tool, including create, deploy, start, stop, restart and backup). Most clients ask before running a tool marked destructive.
+
 ## Development
 
 **Requirements:** [Bun](https://bun.sh) and Docker (for the local PostgreSQL).
