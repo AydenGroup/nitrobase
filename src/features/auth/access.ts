@@ -24,6 +24,11 @@ export interface Actor {
 	sessionId?: string;
 	tokenId?: string;
 	/**
+	 * Surface a token request came through (REST `/api/v1` or the MCP
+	 * server `/api/mcp`); recorded in the audit meta of its actions.
+	 */
+	channel?: "api" | "mcp";
+	/**
 	 * The permission the request's gate checked (server function middleware,
 	 * REST route). Resource checks that remap permissions (database rows,
 	 * see `databaseRowPermission`) re-check it against the resource.
