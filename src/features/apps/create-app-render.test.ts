@@ -130,3 +130,24 @@ describe("createAppRecord with dryRender", () => {
 		expect(state.transactions).toBe(1);
 	});
 });
+
+describe("createAppRecord for the database template", () => {
+	const database = { ...input, templateId: "database" };
+
+	it("needs database.manage besides app.deploy (any entry point)", async () => {
+		await expect(createAppRecord(actor, database)).rejects.toMatchObject({
+			code: "FORBIDDEN",
+			params: { permission: "database.manage" },
+		});
+		expect(state.transactions).toBe(0);
+	});
+
+	it("creates it for a member who manages databases", async () => {
+		const manager = {
+			...(actor as object),
+			permissions: new Set(withImplied(["database.manage"])),
+		} as never;
+		await createAppRecord(manager, database);
+		expect(state.transactions).toBe(1);
+	});
+});

@@ -66,11 +66,8 @@ export const databaseSourceDriver: AppSourceDriver = {
 			? databaseVersionRef(input.database.engine, input.database.version)
 			: (input.version ?? null);
 		const parsed = ref ? parseDatabaseVersion(ref) : null;
-		if (
-			!ref ||
-			!parsed ||
-			(input.database && !engineVersion(parsed.engine, parsed.tag))
-		) {
+		// Also a bare `version` (no `database` choice) must be a known tag.
+		if (!ref || !parsed || !engineVersion(parsed.engine, parsed.tag)) {
 			throw new AppError("DATABASE_VERSION_INVALID", { version: ref ?? "" });
 		}
 		const user = input.inputs.DB_USER;

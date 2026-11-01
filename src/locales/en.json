@@ -1,4 +1,5 @@
 {
+	"Template {template} can't be deployed through the API: create databases, git apps and custom compose apps in the web interface": "Template {template} can't be deployed through the API: create databases, git apps and custom compose apps in the web interface",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.",
 	"Umami release (image tag)": "Umami release (image tag)",

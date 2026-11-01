@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getConfig } from "#/config/server.ts";
 import {
 	appLocation,
+	appSecretValues,
 	deployedServices,
 	getAppRow,
 	getAppServer,
@@ -15,6 +16,7 @@ import { getExecutor } from "#/features/servers/servers.server.ts";
 import { splitLogChunk } from "#/libs/job-log.ts";
 import { composeLogsCommand } from "#/server/services/apps/commands.ts";
 import { createSseStream, sseResponse } from "#/server/services/sse.ts";
+import { createSecretMasker } from "#/server/services/tasks/commands.ts";
 import { AppError } from "#/utils/error.ts";
 
 /**
@@ -33,6 +35,86 @@ const QuerySchema = z.object({
 	download: z.enum(["1"]).optional(),
 	timestamps: z.enum(["0", "1"]).optional(),
 });
+
+/** The requested tail, bounded by the instance's configured maximum. */
+function boundedTail(tail: number | undefined): number {
+	const config = getConfig();
+	return Math.min(
+		tail ?? config.APP_LOGS_TAIL_DEFAULT,
+		config.APP_LOGS_TAIL_MAX,
+	);
+}
+
+/** The last `tail` log lines of the app (or one service), not followed. */
+async function tailLogs(
+	app: Awaited<ReturnType<typeof getAppRow>>,
+	options: { service?: string; tail: number; timestamps: boolean },
+): Promise<string> {
+	const executor = await getExecutor(await getAppServer(app));
+	try {
+		const result = await executor.exec(
+			composeLogsCommand(appLocation(app), { ...options, follow: false }),
+		);
+		return `${result.stdout}\n${result.stderr}`;
+	} finally {
+		executor.close();
+	}
+}
+
+/**
+ * The last `maxBytes` bytes of `text`, starting at a whole line (unless one
+ * line alone is longer); whether anything was cut.
+ */
+export function lastBytes(
+	text: string,
+	maxBytes: number,
+): { text: string; truncated: boolean } {
+	const bytes = Buffer.from(text);
+	if (bytes.length <= maxBytes) return { text, truncated: false };
+	const tail = bytes.subarray(bytes.length - maxBytes).toString();
+	const start = tail.indexOf("\n");
+	return { text: start < 0 ? tail : tail.slice(start + 1), truncated: true };
+}
+
+/**
+ * Recent logs of an app or one of its services as text (REST API, AI
+ * agents): what the logs download returns, team-scoped through `actor`,
+ * with the app's secret values masked and at most APP_LOGS_API_MAX_BYTES
+ * (the last ones) returned.
+ */
+export async function readAppLogs(
+	actor: Actor,
+	input: {
+		appId: string;
+		service?: string;
+		tail?: number;
+		timestamps?: boolean;
+	},
+): Promise<{
+	service: string | null;
+	tail: number;
+	text: string;
+	truncated: boolean;
+}> {
+	const app = await getAppRow(actor, input.appId);
+	const { service } = input;
+	if (service && !deployedServices(app).includes(service)) {
+		throw new AppError("APP_SERVICE_NOT_FOUND", { service });
+	}
+	const tail = boundedTail(input.tail);
+	const raw = await tailLogs(app, {
+		service,
+		tail,
+		timestamps: input.timestamps ?? true,
+	});
+	const masker = createSecretMasker(await appSecretValues(app));
+	const masked = masker.push(raw) + masker.flush();
+	const { text, truncated } = lastBytes(
+		masked.trim(),
+		getConfig().APP_LOGS_API_MAX_BYTES,
+	);
+	return { service: service ?? null, tail, text, truncated };
+}
 
 const activeStreams = new Map<string, number>();
 
@@ -78,33 +160,17 @@ export async function appLogsResponse(
 		return Response.json({ message: "Unknown service" }, { status: 400 });
 	}
 	const config = getConfig();
-	const tail = Math.min(
-		query.data.tail ?? config.APP_LOGS_TAIL_DEFAULT,
-		config.APP_LOGS_TAIL_MAX,
-	);
+	const tail = boundedTail(query.data.tail);
 	const location = appLocation(app);
 
 	if (download) {
-		const executor = await getExecutor(await getAppServer(app));
-		try {
-			const result = await executor.exec(
-				composeLogsCommand(location, {
-					service,
-					tail,
-					follow: false,
-					timestamps,
-				}),
-			);
-			const name = `${app.folder}${service ? `-${service}` : ""}.log`;
-			return new Response(`${result.stdout}\n${result.stderr}`, {
-				headers: {
-					"Content-Type": "text/plain; charset=utf-8",
-					"Content-Disposition": `attachment; filename="${name}"`,
-				},
-			});
-		} finally {
-			executor.close();
-		}
+		const name = `${app.folder}${service ? `-${service}` : ""}.log`;
+		return new Response(await tailLogs(app, { service, tail, timestamps }), {
+			headers: {
+				"Content-Type": "text/plain; charset=utf-8",
+				"Content-Disposition": `attachment; filename="${name}"`,
+			},
+		});
 	}
 
 	const release = takeStreamSlot(userId);

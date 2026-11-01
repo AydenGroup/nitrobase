@@ -51,6 +51,7 @@ export interface ErrorParamsMap
 	DOMAIN_NOT_FOUND: Record<never, never>;
 	DOMAIN_PRIMARY_REQUIRED: Record<never, never>;
 	TEMPLATE_ACK_REQUIRED: Record<never, never>;
+	TEMPLATE_API_UNSUPPORTED: { template: string };
 	TEMPLATE_SOURCE_ERROR: { reason: CodedValue };
 	GITHUB_RATE_LIMITED: { reset: CodedValue };
 	CANNOT_DELETE_DEFAULT_SERVER: Record<never, never>;
@@ -900,6 +901,9 @@ export const errorCodes = {
 	}),
 	TEMPLATE_ACK_REQUIRED: msg({
 		id: "Confirm the template's warnings before deploying",
+	}),
+	TEMPLATE_API_UNSUPPORTED: msg({
+		id: "Template {template} can't be deployed through the API: create databases, git apps and custom compose apps in the web interface",
 	}),
 	TEMPLATE_SOURCE_ERROR: msg({
 		id: "Could not fetch the template from GitHub: {reason}",
