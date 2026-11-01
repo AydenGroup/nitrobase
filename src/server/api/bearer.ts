@@ -1,6 +1,7 @@
 import { getConfig } from "#/config/server.ts";
 import { APP_ID } from "#/config/shared.ts";
 import type { Actor } from "#/features/auth/access.ts";
+import { TOKEN_PREFIX } from "#/features/tokens/token-format.ts";
 import {
 	authenticateToken,
 	tokenPublicPart,
@@ -82,13 +83,23 @@ export async function authenticateBearer(
 			},
 			request: info,
 		});
-		return Response.json(
-			{ error: "unauthorized", message: "Missing or invalid API token" },
-			{
-				status: 401,
-				headers: { "WWW-Authenticate": `Bearer realm="${APP_ID}"` },
-			},
-		);
+		// No Bearer challenge over MCP: clients take it as a cue to start
+		// OAuth discovery, which this server does not offer.
+		return channel === "mcp"
+			? Response.json(
+					{
+						error: "unauthorized",
+						message: `Missing or invalid API token: pass "Authorization: Bearer ${TOKEN_PREFIX}…" (Settings → API tokens)`,
+					},
+					{ status: 401 },
+				)
+			: Response.json(
+					{ error: "unauthorized", message: "Missing or invalid API token" },
+					{
+						status: 401,
+						headers: { "WWW-Authenticate": `Bearer realm="${APP_ID}"` },
+					},
+				);
 	}
 	const tokenKey = actor.tokenId ?? clientKey;
 	if (tokens.isLimited(tokenKey)) return rateLimited(tokens, tokenKey);

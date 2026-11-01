@@ -1,4 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+	DEFAULT_MAX_REQUEST_BODY_SIZE,
+	readRequestBody,
+	requestBodyTooLargeMessage,
+} from "@modelcontextprotocol/sdk/server/requestBody.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type {
 	CallToolResult,
@@ -18,7 +23,9 @@ import { type ApiRoute, apiRoutes } from "./v1";
  * registry (#/server/api/v1.ts): one tool per entry (stream entries
  * excepted), listed only when the token holds the entry's permission, run
  * through the same checks as REST (./run.ts). Stateless Streamable HTTP:
- * a fresh server and transport per POST, JSON responses.
+ * a fresh server and transport per POST, JSON responses, one message per
+ * POST (no JSON-RPC batches: each POST counts once against the token's
+ * rate limit, and batching left the spec in 2025-06-18).
  */
 
 export interface McpTool {
@@ -53,25 +60,93 @@ function annotationsOf(route: ApiRoute): ToolAnnotations {
 	};
 }
 
-/** The tools of a registry: params and body merged into one input. */
+/**
+ * The tools of a registry: params and body merged into one input. Throws
+ * on an entry that cannot be a tool (non-object schemas, a key in both
+ * params and body, two ids with the same tool name); the registry test
+ * runs it on the real registry so that fails in CI.
+ */
 export function mcpTools(routes: readonly ApiRoute[] = apiRoutes): McpTool[] {
+	const names = new Set<string>();
 	return routes
 		.filter((route) => !route.stream)
-		.map((route) => ({
-			name: mcpToolName(route.id),
-			description: `${route.summary}. Requires the \`${route.permission}\` permission.`,
-			inputSchema: z.object({
-				...shapeOf(route, route.params),
-				...shapeOf(route, route.body),
-			}),
-			annotations: annotationsOf(route),
-			route,
-		}));
+		.map((route) => {
+			const name = mcpToolName(route.id);
+			if (names.has(name)) {
+				throw new Error(`[mcp] ${route.id}: duplicate tool name ${name}`);
+			}
+			names.add(name);
+			const params = shapeOf(route, route.params);
+			const body = shapeOf(route, route.body);
+			const shared = Object.keys(params).filter((key) => key in body);
+			if (shared.length) {
+				throw new Error(
+					`[mcp] ${route.id}: ${shared.join(", ")} in both params and body`,
+				);
+			}
+			return {
+				name,
+				description: `${route.summary}. Requires the \`${route.permission}\` permission.`,
+				inputSchema: z.object({ ...params, ...body }),
+				annotations: annotationsOf(route),
+				route,
+			};
+		});
 }
 
-const jobTool = mcpToolName("getJob");
+/** Tools per registry, built once (not per POST). */
+const toolCache = new WeakMap<readonly ApiRoute[], McpTool[]>();
+function toolsOf(routes: readonly ApiRoute[]): McpTool[] {
+	let tools = toolCache.get(routes);
+	if (!tools) {
+		tools = mcpTools(routes);
+		toolCache.set(routes, tools);
+	}
+	return tools;
+}
 
-const instructions = `${APP_NAME} is a self-hosted platform that deploys and operates apps on the team's servers. Tools act on the team of the API token and are limited to its permissions. Deploy, restart and backup tools start a job and return its id at once: poll ${jobTool} until it finishes. Tools that are not read-only change running production apps: confirm with the user before calling them.`;
+function instructionsFor(routes: readonly ApiRoute[]): string {
+	const job = routes.find((route) => route.id === "getJob");
+	const poll = job
+		? ` Tools that start work (deploy, restart, backup, start, stop, create...) return a job id at once: when your token has ${job.permission}, poll ${mcpToolName(job.id)} until it finishes.`
+		: "";
+	return `${APP_NAME} is a self-hosted platform that deploys and operates apps on the team's servers. Tools act on the team of the API token and are limited to its permissions.${poll} Tools that are not read-only change running production apps: confirm with the user before calling them.`;
+}
+
+const rpcError = (
+	status: number,
+	code: number,
+	message: string,
+	headers?: HeadersInit,
+) =>
+	Response.json(
+		{ jsonrpc: "2.0", error: { code, message }, id: null },
+		{ status, headers },
+	);
+
+/** The POST's single JSON-RPC message, or the error response. */
+async function readMessage(
+	request: Request,
+): Promise<{ message: unknown } | Response> {
+	const body = await readRequestBody(request, DEFAULT_MAX_REQUEST_BODY_SIZE);
+	if (body.tooLarge) {
+		return rpcError(
+			413,
+			-32000,
+			requestBodyTooLargeMessage(DEFAULT_MAX_REQUEST_BODY_SIZE),
+		);
+	}
+	let message: unknown;
+	try {
+		message = JSON.parse(body.text);
+	} catch {
+		return rpcError(400, -32700, "Parse error: Invalid JSON");
+	}
+	if (Array.isArray(message)) {
+		return rpcError(400, -32600, "Invalid Request: batching is not supported");
+	}
+	return { message };
+}
 
 function toolResult(outcome: ApiOutcome): CallToolResult {
 	const value = outcome.ok ? outcome.value : outcome.body;
@@ -94,9 +169,9 @@ export function createMcpServer(
 ): McpServer {
 	const server = new McpServer(
 		{ name: APP_ID, title: APP_NAME, version: APP_VERSION },
-		{ capabilities: { tools: {} }, instructions },
+		{ capabilities: { tools: {} }, instructions: instructionsFor(routes) },
 	);
-	for (const tool of mcpTools(routes)) {
+	for (const tool of toolsOf(routes)) {
 		if (!can(actor, tool.route.permission)) continue;
 		server.registerTool(
 			tool.name,
@@ -127,28 +202,32 @@ export async function handleMcpRequest(
 ): Promise<Response> {
 	if (request.method !== "POST") {
 		// Stateless: no standalone event stream (GET) nor session (DELETE).
-		return Response.json(
-			{
-				jsonrpc: "2.0",
-				error: { code: -32000, message: "Method not allowed" },
-				id: null,
-			},
-			{ status: 405, headers: { Allow: "POST" } },
-		);
+		return rpcError(405, -32000, "Method not allowed", { Allow: "POST" });
 	}
 	const actor = await authenticateBearer(request, {
 		path: new URL(request.url).pathname,
 		channel: "mcp",
 	});
 	if (actor instanceof Response) return actor;
-	const server = createMcpServer(actor, request, routes);
+	const read = await readMessage(request);
+	if (read instanceof Response) return read;
+	let server: McpServer;
+	try {
+		server = createMcpServer(actor, request, routes);
+	} catch (error) {
+		// A registry entry that cannot be a tool (see mcpTools).
+		console.error("[mcp] cannot build the tools", error);
+		return rpcError(500, -32603, "Internal error");
+	}
 	const transport = new WebStandardStreamableHTTPServerTransport({
 		sessionIdGenerator: undefined,
 		enableJsonResponse: true,
 	});
 	await server.connect(transport);
 	try {
-		return await transport.handleRequest(request);
+		return await transport.handleRequest(request, {
+			parsedBody: read.message,
+		});
 	} finally {
 		await server.close();
 	}

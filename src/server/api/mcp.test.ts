@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { Permission } from "#/config/permissions.ts";
 import type { Actor } from "#/features/auth/access.ts";
@@ -14,10 +14,14 @@ const state = vi.hoisted(() => ({
 	audits: [] as Array<{ action: string; meta?: Record<string, unknown> }>,
 	tokens: new Map<string, string[]>(),
 	deployCalls: [] as unknown[],
+	rateLimit: 1000,
 }));
 
 vi.mock("#/config/server.ts", () => ({
-	getConfig: () => ({ API_RATE_LIMIT: 1000, API_RATE_WINDOW_MS: 60_000 }),
+	getConfig: () => ({
+		API_RATE_LIMIT: state.rateLimit,
+		API_RATE_WINDOW_MS: 60_000,
+	}),
 	appBaseUrl: () => null,
 }));
 vi.mock("#/server/services/request-info.ts", () => ({
@@ -68,6 +72,7 @@ vi.mock("#/features/deployments/stream.server.ts", () => ({
 }));
 
 const { handleMcpRequest, mcpTools, mcpToolName } = await import("./mcp");
+const { assertCanAccess } = await import("#/features/auth/access.ts");
 const { runApiRoute } = await import("./run");
 const { apiRoutes } = await import("./v1");
 const { handleApiRequest } = await import("./v1-handler");
@@ -94,8 +99,31 @@ async function connect(
 	return client;
 }
 
+/** A raw POST to /api/mcp (body as given when a string). */
+const post = (body: unknown, headers: Record<string, string> = {}) =>
+	handleMcpRequest(
+		new Request(PANEL, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				accept: "application/json, text/event-stream",
+				...headers,
+			},
+			body: typeof body === "string" ? body : JSON.stringify(body),
+		}),
+	);
+
+const listTools = { jsonrpc: "2.0", id: 1, method: "tools/list" };
+
 const text = (result: Awaited<ReturnType<Client["callTool"]>>) =>
 	(result.content as Array<{ text: string }>)[0]?.text ?? "";
+
+const limits = globalThis as { __nitrobaseApiLimiters?: unknown };
+
+afterEach(() => {
+	state.rateLimit = 1000;
+	delete limits.__nitrobaseApiLimiters;
+});
 
 beforeEach(() => {
 	state.audits.length = 0;
@@ -124,6 +152,32 @@ describe("tools from the registry", () => {
 				.map((route) => mcpToolName(route.id)),
 		);
 		expect(mcpTools().some((tool) => tool.name === "stream_job")).toBe(false);
+	});
+
+	it("builds the real registry; refuses entries that cannot be tools", () => {
+		expect(() => mcpTools(apiRoutes)).not.toThrow();
+		const base = apiRoutes[0];
+		expect(() => mcpTools([base, { ...base }])).toThrow(/duplicate tool name/);
+		expect(() =>
+			mcpTools([
+				{
+					...base,
+					params: z.object({ appId: z.string() }),
+					body: z.object({ appId: z.string() }),
+				},
+			]),
+		).toThrow(/appId in both params and body/);
+		expect(() => mcpTools([{ ...base, params: z.string() }])).toThrow(
+			/z.object/,
+		);
+	});
+
+	it("does not mark creating a backup as destructive", () => {
+		const backup = mcpTools().find((tool) => tool.name === "backup_app");
+		expect(backup?.annotations).toMatchObject({
+			readOnlyHint: false,
+			destructiveHint: false,
+		});
 	});
 
 	it("derives annotations from the method; the entry can override them", () => {
@@ -204,7 +258,9 @@ describe("POST /api/mcp", () => {
 		expect(
 			tools.find((tool) => tool.name === "list_apps")?.annotations,
 		).toMatchObject({ readOnlyHint: true });
-		expect(deployer.getInstructions()).toContain("get_job");
+		expect(deployer.getInstructions()).toContain(
+			"when your token has server.view, poll get_job",
+		);
 	});
 
 	it("runs a tool and returns its JSON result", async () => {
@@ -273,22 +329,16 @@ describe("POST /api/mcp", () => {
 	});
 
 	it("answers 401 without or with a bad token, audited like REST", async () => {
-		const call = (headers: Record<string, string>) =>
-			handleMcpRequest(
-				new Request(PANEL, {
-					method: "POST",
-					headers: {
-						"content-type": "application/json",
-						accept: "application/json, text/event-stream",
-						...headers,
-					},
-					body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
-				}),
-			);
-		const missing = await call({});
+		const missing = await post(listTools);
 		expect(missing.status).toBe(401);
-		expect(missing.headers.get("www-authenticate")).toContain("Bearer");
-		const invalid = await call({ authorization: "Bearer nbk_unknown" });
+		// No challenge: MCP clients would start OAuth discovery.
+		expect(missing.headers.get("www-authenticate")).toBeNull();
+		expect((await missing.json()).message).toContain(
+			"Authorization: Bearer nbk_",
+		);
+		const invalid = await post(listTools, {
+			authorization: "Bearer nbk_unknown",
+		});
 		expect(invalid.status).toBe(401);
 		expect(state.audits).toEqual([
 			expect.objectContaining({
@@ -304,6 +354,68 @@ describe("POST /api/mcp", () => {
 				}),
 			}),
 		]);
+	});
+
+	it("refuses JSON-RPC batches and invalid JSON", async () => {
+		const auth = { authorization: `Bearer ${VIEW}` };
+		const batch = await post([listTools, { ...listTools, id: 2 }], auth);
+		expect(batch.status).toBe(400);
+		expect((await batch.json()).error).toMatchObject({
+			code: -32600,
+			message: expect.stringContaining("batching is not supported"),
+		});
+		const broken = await post("{not json", auth);
+		expect(broken.status).toBe(400);
+		expect((await broken.json()).error).toMatchObject({ code: -32700 });
+	});
+
+	it("rate limits each POST against the token", async () => {
+		state.rateLimit = 2;
+		delete limits.__nitrobaseApiLimiters;
+		const auth = { authorization: `Bearer ${VIEW}` };
+		expect((await post(listTools, auth)).status).toBe(200);
+		expect((await post(listTools, auth)).status).toBe(200);
+		const limited = await post(listTools, auth);
+		expect(limited.status).toBe(429);
+		expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+	});
+
+	it("refuses a listed tool once the permission is revoked", async () => {
+		state.tokens.set("nbk_flaky", ["app.view", "app.deploy"]);
+		const client = await connect("nbk_flaky");
+		const names = (await client.listTools()).tools.map((tool) => tool.name);
+		expect(names).toContain("restart_app");
+		state.tokens.set("nbk_flaky", ["app.view"]);
+		const result = await client.callTool({
+			name: "restart_app",
+			arguments: { appId: SERVER_ID },
+		});
+		expect(result.isError).toBe(true);
+		expect(state.deployCalls).toEqual([]);
+	});
+
+	it("returns the coded refusal of an in-call permission check", async () => {
+		const guarded: ApiRoute = {
+			id: "guardedThing",
+			method: "POST",
+			path: "/guarded",
+			permission: "app.view",
+			summary: "Guarded",
+			params: z.object({}),
+			handler: async ({ actor }) => {
+				assertCanAccess(actor, "app.deploy");
+				return { done: true };
+			},
+		};
+		const client = await connect(VIEW, { routes: [...apiRoutes, guarded] });
+		const names = (await client.listTools()).tools.map((tool) => tool.name);
+		expect(names).toContain("guarded_thing");
+		const result = await client.callTool({
+			name: "guarded_thing",
+			arguments: {},
+		});
+		expect(result.isError).toBe(true);
+		expect(result.structuredContent).toMatchObject({ error: "FORBIDDEN" });
 	});
 
 	it("answers 405 to GET and DELETE (stateless server)", async () => {
@@ -350,7 +462,9 @@ describe("shared with REST", () => {
 				}),
 				path,
 			);
-		expect((await rest("apps")).status).toBe(401);
+		const unauthorized = await rest("apps");
+		expect(unauthorized.status).toBe(401);
+		expect(unauthorized.headers.get("www-authenticate")).toContain("Bearer");
 		expect(state.audits[0]?.meta).toMatchObject({
 			path: "/apps",
 			channel: "api",

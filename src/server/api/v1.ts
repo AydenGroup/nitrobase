@@ -24,6 +24,10 @@ export interface ApiContext<P, B> {
 	actor: Actor;
 	params: P;
 	body: B;
+	/**
+	 * The incoming request, for its headers only: its body is already read
+	 * (REST: the JSON body; MCP: the JSON-RPC message of the tool call).
+	 */
 	request: Request;
 }
 
@@ -168,6 +172,8 @@ export const apiRoutes: ApiRoute[] = [
 			"Back up the app now (to `destinationId`, else its schedule's destination)",
 		params: z.object({ appId: id }),
 		body: z.object({ destinationId: id.optional() }),
+		// Adds a backup; nothing is overwritten or removed.
+		mcp: { destructive: false },
 		handler: ({ actor, params, body }) =>
 			startAppBackup(actor, {
 				appId: params.appId,
