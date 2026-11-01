@@ -417,6 +417,18 @@ export interface TokenPreset {
 	permissions: readonly Permission[] | "all";
 }
 
+/**
+ * What the MCP server's read-only tools need (servers, apps, logs, env,
+ * templates, jobs, backups, metrics; #/server/api/v1.ts). Narrower than
+ * `viewPermissions`: an agent gets no more than its tools use.
+ */
+const agentReadPermissions = [
+	"server.view",
+	"app.view",
+	"backup.view",
+	"monitoring.view",
+] as const satisfies readonly Permission[];
+
 export const tokenPresets: TokenPreset[] = [
 	{
 		id: "read-only",
@@ -448,7 +460,26 @@ export const tokenPresets: TokenPreset[] = [
 		}),
 		permissions: "all",
 	},
+	{
+		id: "agent-read-only",
+		label: msg({ id: "AI agent (read-only)" }),
+		description: msg({
+			id: "For an MCP client: reads servers, apps, logs, jobs, backups and metrics; changes nothing.",
+		}),
+		permissions: agentReadPermissions,
+	},
+	{
+		id: "agent-operator",
+		label: msg({ id: "AI agent (operator)" }),
+		description: msg({
+			id: "For an MCP client: reads everything, creates, deploys, starts, stops and restarts apps and backs them up.",
+		}),
+		permissions: [...agentReadPermissions, "app.deploy", "backup.create"],
+	},
 ];
+
+/** The preset of "Create an agent token" (Settings → API tokens). */
+export const AGENT_TOKEN_PRESET = "agent-operator";
 
 /** A preset's permissions, implied ones included. */
 export function presetPermissions(preset: TokenPreset): Permission[] {

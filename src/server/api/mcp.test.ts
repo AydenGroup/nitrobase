@@ -2,7 +2,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import type { Permission } from "#/config/permissions.ts";
+import {
+	AGENT_TOKEN_PRESET,
+	type Permission,
+	permissions,
+	presetPermissions,
+	tokenPresets,
+} from "#/config/permissions.ts";
 import type { Actor } from "#/features/auth/access.ts";
 
 /**
@@ -170,6 +176,35 @@ describe("tools from the registry", () => {
 		expect(() => mcpTools([{ ...base, params: z.string() }])).toThrow(
 			/z.object/,
 		);
+	});
+
+	it("agent presets cover the tools they are named for", () => {
+		const preset = (id: string) => {
+			const found = tokenPresets.find((item) => item.id === id);
+			if (!found) throw new Error(`no preset ${id}`);
+			return new Set(presetPermissions(found));
+		};
+		const readOnly = preset("agent-read-only");
+		const operator = preset("agent-operator");
+		const tools = mcpTools();
+		const reads = tools.filter((tool) => tool.annotations.readOnlyHint);
+		const acts = tools.filter((tool) => !tool.annotations.readOnlyHint);
+		// Every GET tool; a read-only POST (a dry run such as the
+		// pre-flight) may need the permission of the action it previews.
+		for (const tool of reads.filter((item) => item.route.method === "GET")) {
+			expect(readOnly, tool.name).toContain(tool.route.permission);
+		}
+		// Nothing that only an acting tool needs.
+		for (const tool of acts) {
+			expect(readOnly, tool.name).not.toContain(tool.route.permission);
+		}
+		// The operator: every tool but instance-level ones.
+		for (const tool of tools) {
+			if (permissions[tool.route.permission].scope === "instance") continue;
+			expect(operator, tool.name).toContain(tool.route.permission);
+		}
+		expect([...readOnly].every((id) => operator.has(id))).toBe(true);
+		expect(tokenPresets.map((item) => item.id)).toContain(AGENT_TOKEN_PRESET);
 	});
 
 	it("does not mark creating a backup as destructive", () => {
