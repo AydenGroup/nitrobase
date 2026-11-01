@@ -354,6 +354,8 @@ const ConfigSchema = z.object({
 	APP_HEALTH_IMAGE: z.string().min(1).default("curlimages/curl:8.16.0"),
 	APP_LOGS_TAIL_DEFAULT: int(200),
 	APP_LOGS_TAIL_MAX: int(5000),
+	/** Bytes of log text one API read returns at most (the last ones). */
+	APP_LOGS_API_MAX_BYTES: int(256 * 1024),
 	/** Concurrent live log streams per user (each holds an SSH channel). */
 	APP_LOG_STREAMS_PER_USER: int(4),
 	/** Minimum gap between automatic "apply pending routes" attempts per app. */

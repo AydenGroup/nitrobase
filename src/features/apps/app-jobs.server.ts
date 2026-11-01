@@ -1671,7 +1671,15 @@ export async function createAndDeployApp(
 		...extra,
 		dryRender: true,
 	});
-	audit({ actor, action: "app.create", targetType: "app", targetId: app.id });
+	audit({
+		actor,
+		action: "app.create",
+		targetType: "app",
+		targetId: app.id,
+		// The caller accepted the template's warnings (the audit's `via`
+		// tells a token from the wizard).
+		meta: input.acknowledged ? { acknowledged: true } : undefined,
+	});
 	if (await isGitApp(app)) {
 		// The first deploy builds the branch tip.
 		const { startBuildAndDeploy } = await import(

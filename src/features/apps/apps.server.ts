@@ -642,6 +642,11 @@ export async function createAppRecord(
 		.where(eq(servers.id, input.serverId))
 		.limit(1);
 	assertCanAccess(actor, server, "app.deploy", "SERVER_NOT_FOUND");
+	// A database is created with database permissions, whichever entry
+	// point (wizard, API, restore) reached here with only `app.deploy`.
+	if (input.templateId === DATABASE_TEMPLATE_ID) {
+		assertCanAccess(actor, "database.manage");
+	}
 	if (server.status !== "ready") throw new AppError("SERVER_NOT_READY");
 
 	const template = await getTemplateManifest(input.templateId);
@@ -899,6 +904,47 @@ export async function getAppEnv(
 		needsRedeploy: app.needsRedeploy,
 		version: envVersion(app),
 	};
+}
+
+/** A URL with credentials (`scheme://user:pass@host`). */
+const URL_CREDENTIALS = /[a-z][a-z0-9+.-]*:\/\/[^\s/@:]*:[^\s/@]+@/i;
+
+/**
+ * Names whose values API clients get masked: the secret ones, plus any
+ * holding a secret's value (a password copied into another variable) or a
+ * URL with credentials (a connection string).
+ */
+export function apiMaskedEnvNames(
+	values: Record<string, string>,
+	secretNames: Set<string>,
+	secretValues: string[],
+): Set<string> {
+	const masked = new Set(secretNames);
+	for (const [name, value] of Object.entries(values)) {
+		if (
+			URL_CREDENTIALS.test(value) ||
+			secretValues.some((secret) => value.includes(secret))
+		) {
+			masked.add(name);
+		}
+	}
+	return masked;
+}
+
+/**
+ * `getAppEnv` for API clients (tokens, AI agents): the `.env` text also
+ * masks copies of secret values and URL credentials (`apiMaskedEnvNames`).
+ */
+export async function getAppEnvForApi(
+	actor: Actor,
+	appId: string,
+): Promise<AppEnvView> {
+	const view = await getAppEnv(actor, appId);
+	const app = await getAppRow(actor, appId);
+	const values = currentValues(app);
+	const { keys } = await secretKeysFor(app, values);
+	const masked = apiMaskedEnvNames(values, keys, await appSecretValues(app));
+	return { ...view, text: maskedEnvText(values, masked) };
 }
 
 export async function revealAppEnv(

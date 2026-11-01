@@ -1,4 +1,5 @@
 {
+	"Template {template} can't be deployed through the API: create databases, git apps and custom compose apps in the web interface": "Không thể triển khai template {template} qua API: hãy tạo cơ sở dữ liệu, ứng dụng từ git và ứng dụng compose tùy chỉnh trong giao diện web",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Phân tích web tôn trọng quyền riêng tư, không cookie (thay thế Google Analytics), dùng Postgres.",
 	"Umami release (image tag)": "Bản phát hành Umami (tag image)",

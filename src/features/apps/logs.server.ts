@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getConfig } from "#/config/server.ts";
 import {
 	appLocation,
+	appSecretValues,
 	deployedServices,
 	getAppRow,
 	getAppServer,
@@ -15,6 +16,7 @@ import { getExecutor } from "#/features/servers/servers.server.ts";
 import { splitLogChunk } from "#/libs/job-log.ts";
 import { composeLogsCommand } from "#/server/services/apps/commands.ts";
 import { createSseStream, sseResponse } from "#/server/services/sse.ts";
+import { createSecretMasker } from "#/server/services/tasks/commands.ts";
 import { AppError } from "#/utils/error.ts";
 
 /**
@@ -60,8 +62,25 @@ async function tailLogs(
 }
 
 /**
+ * The last `maxBytes` bytes of `text`, starting at a whole line (unless one
+ * line alone is longer); whether anything was cut.
+ */
+export function lastBytes(
+	text: string,
+	maxBytes: number,
+): { text: string; truncated: boolean } {
+	const bytes = Buffer.from(text);
+	if (bytes.length <= maxBytes) return { text, truncated: false };
+	const tail = bytes.subarray(bytes.length - maxBytes).toString();
+	const start = tail.indexOf("\n");
+	return { text: start < 0 ? tail : tail.slice(start + 1), truncated: true };
+}
+
+/**
  * Recent logs of an app or one of its services as text (REST API, AI
- * agents): what the logs download returns, team-scoped through `actor`.
+ * agents): what the logs download returns, team-scoped through `actor`,
+ * with the app's secret values masked and at most APP_LOGS_API_MAX_BYTES
+ * (the last ones) returned.
  */
 export async function readAppLogs(
 	actor: Actor,
@@ -71,19 +90,30 @@ export async function readAppLogs(
 		tail?: number;
 		timestamps?: boolean;
 	},
-): Promise<{ service: string | null; tail: number; text: string }> {
+): Promise<{
+	service: string | null;
+	tail: number;
+	text: string;
+	truncated: boolean;
+}> {
 	const app = await getAppRow(actor, input.appId);
 	const { service } = input;
 	if (service && !deployedServices(app).includes(service)) {
 		throw new AppError("APP_SERVICE_NOT_FOUND", { service });
 	}
 	const tail = boundedTail(input.tail);
-	const text = await tailLogs(app, {
+	const raw = await tailLogs(app, {
 		service,
 		tail,
 		timestamps: input.timestamps ?? true,
 	});
-	return { service: service ?? null, tail, text: text.trim() };
+	const masker = createSecretMasker(await appSecretValues(app));
+	const masked = masker.push(raw) + masker.flush();
+	const { text, truncated } = lastBytes(
+		masked.trim(),
+		getConfig().APP_LOGS_API_MAX_BYTES,
+	);
+	return { service: service ?? null, tail, text, truncated };
 }
 
 const activeStreams = new Map<string, number>();

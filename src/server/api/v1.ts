@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { appSourceKindOf } from "#/config/app-sources.ts";
 import type { Permission } from "#/config/permissions.ts";
 import { APP_NAME } from "#/config/shared.ts";
 import {
@@ -6,8 +7,9 @@ import {
 	startAppAction,
 } from "#/features/apps/app-jobs.server.ts";
 import {
-	getAppEnv,
+	getAppEnvForApi,
 	getAppOverview,
+	getAppRow,
 	listAppDeployments,
 	listApps,
 } from "#/features/apps/apps.server.ts";
@@ -34,13 +36,11 @@ import {
 } from "#/features/servers/servers.server.ts";
 import { TemplateVersionsInputSchema } from "#/features/templates/schema.ts";
 import {
+	getTemplateManifest,
 	getTemplateVersions,
 	listTemplates,
 } from "#/features/templates/templates.server.ts";
-import {
-	localeFromAcceptLanguage,
-	serverI18n,
-} from "#/server/services/i18n.ts";
+import { serverI18n } from "#/server/services/i18n.ts";
 import { AppError } from "#/utils/error.ts";
 
 /**
@@ -77,24 +77,54 @@ const route = <P, B>(definition: ApiRoute<P, B>) =>
 const id = z.guid();
 const none = z.object({});
 
-/** A new app as the deploy wizard sends it (pre-flight and create). */
-const newAppBody = PreflightInputSchema.extend({
-	templateId: PreflightInputSchema.shape.templateId.describe(
-		"Template id from listTemplates",
-	),
-	serverId: PreflightInputSchema.shape.serverId.describe(
-		"A ready server of the team (listServers)",
-	),
-	version: PreflightInputSchema.shape.version.describe(
-		"A `ref` from listTemplateVersions; omitted: the template's default",
-	),
-	domain: PreflightInputSchema.shape.domain.describe(
+/** Field docs of a new app (pre-flight and create bodies). */
+const newAppDocs = {
+	templateId: "Template id from listTemplates (marketplace templates only)",
+	serverId: "A ready server of the team (listServers)",
+	version: "A `ref` from listTemplateVersions; omitted: the template's default",
+	domain:
 		"Primary host name pointing to the server; empty or omitted: a free generated domain",
-	),
-	inputs: PreflightInputSchema.shape.inputs.describe(
+	inputs:
 		"Template variable values by name (the template's `inputs`); empty values keep the default",
+	name: "Display name of the app",
+	acknowledged:
+		"Set true to accept the warnings of an `advanced` template or one needing extra security permissions (else TEMPLATE_ACK_REQUIRED); recorded in the audit log",
+} as const;
+
+function describeFields<S extends z.ZodRawShape>(shape: S): S {
+	return Object.fromEntries(
+		Object.entries(shape).map(([name, schema]) => {
+			const text = newAppDocs[name as keyof typeof newAppDocs];
+			return [name, text ? (schema as z.ZodType).describe(text) : schema];
+		}),
+	) as S;
+}
+
+/** A new app as the deploy wizard sends it to the pre-flight. */
+const preflightBody = z.object(describeFields(PreflightInputSchema.shape));
+
+/**
+ * The wizard's create input (same constraints) for marketplace templates:
+ * databases, git and custom compose have their own fields and flows.
+ * Validation messages are the source (English) ones.
+ */
+const createAppBody = z.object(
+	describeFields(
+		CreateAppSchema(serverI18n()).omit({
+			custom: true,
+			git: true,
+			database: true,
+		}).shape,
 	),
-});
+);
+
+/** Only marketplace templates are created through the API. */
+async function assertApiTemplate(templateId: string): Promise<void> {
+	const manifest = await getTemplateManifest(templateId);
+	if (appSourceKindOf(manifest.source.type) !== "template") {
+		throw new AppError("TEMPLATE_API_UNSUPPORTED", { template: templateId });
+	}
+}
 
 const apiRoutes: ApiRoute[] = [
 	route({
@@ -257,7 +287,7 @@ const apiRoutes: ApiRoute[] = [
 		path: "/apps/{appId}/logs",
 		permission: "app.view",
 		summary:
-			"Read-only: the last `tail` container log lines of the app, or of one `service`, as text (not followed). Returns { service, tail, text }",
+			"Read-only: the last `tail` container log lines of the app, or of one `service`, as text (not followed), with the app's secret values masked. Returns { service, tail, text, truncated }: at most APP_LOGS_API_MAX_BYTES of the newest lines (truncated: older lines were cut)",
 		params: z.object({ appId: id }),
 		body: z.object({
 			service: serviceName
@@ -323,9 +353,9 @@ const apiRoutes: ApiRoute[] = [
 		path: "/apps/{appId}/env",
 		permission: "app.view",
 		summary:
-			"The app's environment variables with secret values masked: `.env` text plus per-variable metadata (secret, template, locked, needsRedeploy). Never returns secret values",
+			"The app's environment variables with secret values masked (also copies of secrets and URL credentials): `.env` text plus per-variable metadata (secret, template, locked, needsRedeploy). Never returns secret values",
 		params: z.object({ appId: id }),
-		handler: ({ actor, params }) => getAppEnv(actor, params.appId),
+		handler: ({ actor, params }) => getAppEnvForApi(actor, params.appId),
 	}),
 	route({
 		id: "listTemplates",
@@ -357,9 +387,14 @@ const apiRoutes: ApiRoute[] = [
 		summary:
 			"Read-only pre-flight of a new app (server ready, resources, ports, domain, version): returns { ok, checks }; createApp is refused while ok is false",
 		params: none,
-		body: newAppBody,
-		handler: ({ actor, body }) =>
-			runPreflight(actor, { ...body, domain: body.domain || undefined }),
+		body: preflightBody,
+		handler: async ({ actor, body }) => {
+			await assertApiTemplate(body.templateId);
+			return runPreflight(actor, {
+				...body,
+				domain: body.domain || undefined,
+			});
+		},
 	}),
 	route({
 		id: "createApp",
@@ -367,27 +402,17 @@ const apiRoutes: ApiRoute[] = [
 		path: "/apps",
 		permission: "app.deploy",
 		summary:
-			"Create an app from a template on a server and deploy it. Runs the pre-flight first: if a check fails nothing is created and { preflight } is returned. Otherwise returns { appId, deploymentId }: a job id; poll getJob",
+			"Create an app from a marketplace template on a server and deploy it (databases, git repositories and custom compose are refused: TEMPLATE_API_UNSUPPORTED). `acknowledged: true` means the caller accepts the template's security/advanced warnings (audited). Runs the pre-flight first: if a check fails nothing is created and { preflight } is returned. Otherwise returns { appId, deploymentId }: a job id; poll getJob",
 		params: none,
-		body: newAppBody.extend({
-			name: z.string().trim().min(1).describe("Display name of the app"),
-			acknowledged: z
-				.boolean()
-				.default(false)
-				.describe(
-					"Set true to accept an `advanced` template or one needing extra security permissions (else TEMPLATE_ACK_REQUIRED)",
-				),
-		}),
-		handler: async ({ actor, body, request }) => {
+		body: createAppBody,
+		handler: async ({ actor, body }) => {
+			await assertApiTemplate(body.templateId);
 			const preflight = await runPreflight(actor, {
 				...body,
 				domain: body.domain || undefined,
 			});
 			if (!preflight.ok) return { preflight };
-			const i18n = serverI18n(
-				localeFromAcceptLanguage(request.headers.get("accept-language")),
-			);
-			return createAndDeployApp(actor, CreateAppSchema(i18n).parse(body));
+			return createAndDeployApp(actor, body);
 		},
 	}),
 	route({
@@ -428,7 +453,11 @@ const apiRoutes: ApiRoute[] = [
 		summary:
 			"List the app's backups (newest first): id, status, kind, size, destination, timestamps. Start one with backupApp",
 		params: z.object({ appId: id }),
-		handler: ({ actor, params }) => listBackups(actor, { appId: params.appId }),
+		handler: async ({ actor, params }) => {
+			// Unknown or foreign apps are APP_NOT_FOUND; databases need their view.
+			await getAppRow(actor, params.appId, "backup.view");
+			return listBackups(actor, { appId: params.appId });
+		},
 	}),
 	route({
 		id: "listBackupDestinations",
