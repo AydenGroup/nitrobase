@@ -1,6 +1,4 @@
 {
-	"Config file (Cursor, Claude Code .mcp.json)": "Tệp cấu hình (Cursor, .mcp.json của Claude Code)",
-	"This file holds the secret token: save it in your user-level config (for example ~/.cursor/mcp.json), never in a repository, and never commit it. `claude mcp add` keeps the token in your local Claude Code config.": "Tệp này chứa token bí mật: hãy lưu trong cấu hình cấp người dùng (ví dụ ~/.cursor/mcp.json), không bao giờ đặt trong kho mã và không bao giờ commit. `claude mcp add` giữ token trong cấu hình Claude Code cục bộ của bạn.",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Phân tích web tôn trọng quyền riêng tư, không cookie (thay thế Google Analytics), dùng Postgres.",
 	"Umami release (image tag)": "Bản phát hành Umami (tag image)",
@@ -1171,6 +1169,7 @@
 	"Supabase, Appwrite, PocketBase, databases and your Git apps, with HTTPS, backups and monitoring built in.": "Supabase, Appwrite, PocketBase, cơ sở dữ liệu và ứng dụng Git của bạn, có sẵn HTTPS, sao lưu và giám sát.",
 	"Self-hosted infrastructure platform": "Nền tảng cơ sở hạ tầng tự lưu trữ",
 	"Claude Code": "Claude Code",
+	"Config file (Cursor, Claude Code .mcp.json)": "Tệp cấu hình (Cursor, .mcp.json của Claude Code)",
 	"Enter a name": "Nhập tên",
 	"Use at most 80 characters": "Tối đa 80 ký tự",
 	"Pick at least one permission": "Chọn ít nhất một quyền",
@@ -2319,6 +2318,7 @@
 	"Start from a preset": "Bắt đầu từ mẫu có sẵn",
 	"Permissions another one needs are added automatically (for example, deploying needs viewing apps).": "Quyền mà quyền khác cần sẽ được thêm tự động (ví dụ triển khai cần xem ứng dụng).",
 	"Needed by another permission": "Cần cho một quyền khác",
+	"This file holds the secret token: save it in your user-level config (for example ~/.cursor/mcp.json), never in a repository, and never commit it. `claude mcp add` keeps the token in your local Claude Code config.": "Tệp này chứa token bí mật: hãy lưu trong cấu hình cấp người dùng (ví dụ ~/.cursor/mcp.json), không bao giờ đặt trong kho mã và không bao giờ commit. `claude mcp add` giữ token trong cấu hình Claude Code cục bộ của bạn.",
 	"Connect an AI agent": "Kết nối AI agent",
 	"Agents such as Claude Code or Cursor can drive {appName} through its MCP server, with an API token.": "Các agent như Claude Code hoặc Cursor có thể điều khiển {appName} qua máy chủ MCP của nó, bằng một API token.",
 	"Create an agent token": "Tạo token cho agent",
