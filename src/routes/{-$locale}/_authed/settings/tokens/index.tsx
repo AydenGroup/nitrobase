@@ -3,11 +3,17 @@ import { Stack } from "@mantine/core";
 import { createFileRoute } from "@tanstack/react-router";
 import { ApiTokensCard } from "#/components/teams/ApiTokens";
 import { PageHeader } from "#/components/ui/PageHeader";
-import { apiTokensQueryOptions } from "#/features/tokens/tokens.query.ts";
+import {
+	apiBaseUrlQueryOptions,
+	apiTokensQueryOptions,
+} from "#/features/tokens/tokens.query.ts";
 
 export const Route = createFileRoute("/{-$locale}/_authed/settings/tokens/")({
 	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData(apiTokensQueryOptions);
+		await Promise.all([
+			context.queryClient.ensureQueryData(apiTokensQueryOptions),
+			context.queryClient.ensureQueryData(apiBaseUrlQueryOptions),
+		]);
 		return { crumb: context.i18n._("API tokens") };
 	},
 	component: TokensPage,

@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { appBaseUrl } from "#/config/server.ts";
 import { requirePermission } from "#/features/auth/permissionMiddleware";
 import { i18nMiddleware } from "#/libs/i18n.ts";
+import { publicBaseUrl } from "./mcp-snippets";
 import { CreateApiTokenSchema } from "./schema";
 import { createApiToken, listApiTokens, revokeApiToken } from "./tokens.server";
 
@@ -31,3 +33,11 @@ export const revokeApiTokenFn = createServerFn({ method: "POST" })
 		await revokeApiToken(context.actor, data);
 		return { success: true };
 	});
+
+/**
+ * The panel's configured public URL (APP_URL), or null: the client then
+ * uses the browser origin. Base of the API and MCP URLs the page shows.
+ */
+export const apiBaseUrlFn = createServerFn({ method: "GET" })
+	.middleware([requirePermission("team.view")])
+	.handler(async () => publicBaseUrl(appBaseUrl()));

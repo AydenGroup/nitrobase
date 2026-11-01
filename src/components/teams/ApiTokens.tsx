@@ -25,6 +25,7 @@ import { DataTable } from "#/components/ui/DataTable";
 import { SectionCard } from "#/components/ui/SectionCard";
 import { useAppMutation } from "#/components/ui/useAppMutation";
 import {
+	AGENT_TOKEN_PRESET,
 	impliedBy,
 	type Permission,
 	type PermissionGroup,
@@ -34,6 +35,7 @@ import {
 	tokenPresets,
 	withImplied,
 } from "#/config/permissions.ts";
+import { mcpEndpoint } from "#/features/tokens/mcp-snippets.ts";
 import {
 	API_TOKEN_EXPIRY_DAYS,
 	type CreateApiTokenInput,
@@ -48,6 +50,11 @@ import {
 } from "#/features/tokens/tokens.functions.ts";
 import { apiTokensQueryOptions } from "#/features/tokens/tokens.query.ts";
 import { formatDate } from "#/libs/intl.ts";
+import {
+	ConnectAgentCard,
+	McpClientSnippets,
+	useApiBaseUrl,
+} from "./ConnectAgent";
 import { useCan } from "./useCan";
 
 /** Settings → API tokens: list, create (secret shown once), revoke. */
@@ -57,6 +64,12 @@ export const ApiTokensCard: React.FC = () => {
 	const queryClient = useQueryClient();
 	const { data: tokens = [], isLoading } = useQuery(apiTokensQueryOptions);
 	const [creating, setCreating] = useState(false);
+	// The preset the create form starts from; kept while it closes.
+	const [startPreset, setStartPreset] = useState<string>();
+	const openCreate = (preset?: string) => {
+		setStartPreset(preset);
+		setCreating(true);
+	};
 	const [created, setCreated] = useState<CreatedApiToken | null>(null);
 	const revoke = useAppMutation({
 		mutationFn: (id: string) => revokeApiTokenFn({ data: id }),
@@ -64,7 +77,7 @@ export const ApiTokensCard: React.FC = () => {
 		onSuccess: () =>
 			queryClient.invalidateQueries({ queryKey: ["api-tokens"] }),
 	});
-	const apiBase = typeof window === "undefined" ? "" : window.location.origin;
+	const apiBase = useApiBaseUrl();
 
 	return (
 		<Stack gap="lg">
@@ -95,6 +108,13 @@ export const ApiTokensCard: React.FC = () => {
 						<Code block>
 							{`curl -H "Authorization: Bearer ${created.secret}" ${apiBase}/api/v1/${created.token.permissions.includes("app.view") ? "apps" : "servers"}`}
 						</Code>
+						<Text size="xs" fw={500}>
+							{i18n._("Connect an AI agent:")}
+						</Text>
+						<McpClientSnippets
+							url={mcpEndpoint(apiBase)}
+							token={created.secret}
+						/>
 					</Stack>
 				</Alert>
 			)}
@@ -104,10 +124,7 @@ export const ApiTokensCard: React.FC = () => {
 					"Tokens call the REST API at /api/v1 (OpenAPI description at /api/v1/openapi.json). Personal tokens act as you and never beyond your current role; team tokens belong to the team.",
 				)}
 				actions={
-					<Button
-						leftSection={<Plus size={16} />}
-						onClick={() => setCreating(true)}
-					>
+					<Button leftSection={<Plus size={16} />} onClick={() => openCreate()}>
 						{i18n._("Create token")}
 					</Button>
 				}
@@ -247,7 +264,11 @@ export const ApiTokensCard: React.FC = () => {
 					]}
 				/>
 			</SectionCard>
+			<ConnectAgentCard onCreateToken={() => openCreate(AGENT_TOKEN_PRESET)} />
 			<CreateTokenModal
+				// A new form per starting preset (its initial permissions).
+				key={startPreset ?? ""}
+				preset={startPreset}
 				opened={creating}
 				onClose={() => setCreating(false)}
 				onCreated={(result) => {
@@ -261,19 +282,24 @@ export const ApiTokensCard: React.FC = () => {
 
 const CreateTokenModal: React.FC<{
 	opened: boolean;
+	/** Id of the preset the form starts from (default: every view permission). */
+	preset?: string;
 	onClose: () => void;
 	onCreated: (token: CreatedApiToken) => void;
-}> = ({ opened, onClose, onCreated }) => {
+}> = ({ opened, preset, onClose, onCreated }) => {
 	const { i18n } = useLingui();
 	const can = useCan();
 	const queryClient = useQueryClient();
 	const available = tokenPermissionIds.filter((id) => can(id));
+	const startFrom = tokenPresets.find((item) => item.id === preset);
 	const form = useForm<CreateApiTokenInput>({
 		mode: "controlled",
 		initialValues: {
 			name: "",
 			scope: "personal",
-			permissions: available.filter((id) => id.endsWith(".view")),
+			permissions: startFrom
+				? presetPermissions(startFrom).filter((id) => available.includes(id))
+				: available.filter((id) => id.endsWith(".view")),
 			expiresInDays: 90,
 		},
 		validate: schemaResolver(CreateApiTokenSchema(i18n), { sync: true }),
