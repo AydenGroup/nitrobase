@@ -27,7 +27,7 @@ export interface AuditEvent {
  * Record a security-relevant action in `audit_events` (fire and forget: a
  * failed write is logged, never fails the action). Actions mapped to a
  * notification event in the registry also emit it. Actions taken with an
- * API token carry the token id in `meta`.
+ * API token carry the token id in `meta` (and the channel: api or mcp).
  */
 export function audit(event: AuditEvent): void {
 	const info = event.request ?? currentRequestInfo();
@@ -41,6 +41,7 @@ export function audit(event: AuditEvent): void {
 					via: event.actor.tokenId
 						? `api_token:${event.actor.tokenId}`
 						: event.actor.via,
+					...(event.actor.channel ? { channel: event.actor.channel } : {}),
 				}
 			: {};
 	const meta = redactAuditMeta(

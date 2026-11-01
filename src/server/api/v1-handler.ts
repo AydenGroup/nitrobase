@@ -1,61 +1,41 @@
-import { appBaseUrl, getConfig } from "#/config/server.ts";
-import { APP_ID } from "#/config/shared.ts";
-import { can } from "#/features/auth/access.ts";
+import { appBaseUrl } from "#/config/server.ts";
 import { deploymentStreamResponse } from "#/features/deployments/stream.server.ts";
 import { getDeployment } from "#/features/servers/servers.server.ts";
+import { authenticateBearer } from "./bearer";
 import {
-	authenticateToken,
-	tokenPublicPart,
-} from "#/features/tokens/tokens.server.ts";
-import { audit } from "#/server/services/audit.ts";
-import {
-	localeFromAcceptLanguage,
-	serverI18n,
-} from "#/server/services/i18n.ts";
-import {
-	createRateLimiter,
-	type RateLimiter,
-} from "#/server/services/rate-limit.ts";
-import { currentRequestInfo } from "#/server/services/request-info.ts";
-import { AppError, getAppErrorMessage } from "#/utils/error.ts";
+	type ApiFailure,
+	apiErrorFailure,
+	prepareApiCall,
+	runApiRoute,
+} from "./run";
 import { matchApiRoute, openApiDocument } from "./v1";
 
 /**
  * `/api/v1/*`: the bearer-token REST surface. Every operation comes from
  * the registry in #/server/api/v1.ts, which names its permission; this
- * route authenticates the token, rate-limits, checks the permission,
- * validates input with the entry's zod schemas and maps errors to HTTP.
- * Session cookies are ignored here (no CSRF surface); bearer calls are
+ * route authenticates the token and rate-limits (./bearer.ts), then checks
+ * the permission, validates input with the entry's zod schemas and maps
+ * errors to HTTP (./run.ts, shared with the MCP server). Bearer calls are
  * audited through the actions they perform (tagged with the token id).
  */
 
-const globalLimits = globalThis as typeof globalThis & {
-	__nitrobaseApiLimiters?: { tokens: RateLimiter; failures: RateLimiter };
-};
+const json = (status: number, body: unknown) => Response.json(body, { status });
 
-function limiters() {
-	const config = getConfig();
-	globalLimits.__nitrobaseApiLimiters ??= {
-		tokens: createRateLimiter({
-			limit: config.API_RATE_LIMIT,
-			windowMs: config.API_RATE_WINDOW_MS,
-		}),
-		failures: createRateLimiter({
-			limit: config.API_RATE_LIMIT,
-			windowMs: config.API_RATE_WINDOW_MS,
-		}),
-	};
-	return globalLimits.__nitrobaseApiLimiters;
-}
+const failed = (outcome: ApiFailure) => json(outcome.status, outcome.body);
 
-const json = (status: number, body: unknown, headers?: HeadersInit) =>
-	Response.json(body, { status, headers });
-
-function errorStatus(code: string): number {
-	if (code === "FORBIDDEN") return 403;
-	if (code.endsWith("_NOT_FOUND") || code === "NOT_FOUND") return 404;
-	if (code === "SERVER_BUSY") return 409;
-	return 400;
+async function readJsonBody(request: Request) {
+	if (request.method !== "POST") return { ok: true as const, value: {} };
+	const text = await request.text();
+	if (!text.trim()) return { ok: true as const, value: {} };
+	try {
+		return { ok: true as const, value: JSON.parse(text) as unknown };
+	} catch {
+		return {
+			ok: false as const,
+			status: 400,
+			body: { error: "bad_request", message: "Invalid JSON body" },
+		};
+	}
 }
 
 /** Handle one `/api/v1/<splat>` request. */
@@ -70,111 +50,30 @@ export async function handleApiRequest(
 		return json(200, openApiDocument(base));
 	}
 
-	const info = currentRequestInfo();
-	const { tokens, failures } = limiters();
-	const clientKey = info.ip ?? "unknown";
-	if (failures.isLimited(clientKey)) {
-		const retry = Math.ceil(failures.retryAfterMs(clientKey) / 1000);
-		return json(
-			429,
-			{ error: "rate_limited" },
-			{ "Retry-After": String(retry) },
-		);
-	}
-	const header = request.headers.get("authorization") ?? "";
-	const bearer = header.match(/^Bearer\s+(\S+)$/i)?.[1] ?? "";
-	const actor = bearer ? await authenticateToken(bearer, info.ip) : null;
-	if (!actor) {
-		failures.hit(clientKey);
-		audit({
-			userId: null,
-			teamId: null,
-			action: "api.auth_failed",
-			meta: {
-				path,
-				// Only our own public prefix: a pasted foreign secret (a GitHub
-				// token, a password) must not land in the audit log.
-				prefix: tokenPublicPart(bearer) ?? (bearer ? "malformed" : null),
-				reason: bearer ? "invalid" : "missing",
-			},
-			request: info,
-		});
-		return json(
-			401,
-			{ error: "unauthorized", message: "Missing or invalid API token" },
-			{ "WWW-Authenticate": `Bearer realm="${APP_ID}"` },
-		);
-	}
-	const tokenKey = actor.tokenId ?? clientKey;
-	if (tokens.isLimited(tokenKey)) {
-		const retry = Math.ceil(tokens.retryAfterMs(tokenKey) / 1000);
-		return json(
-			429,
-			{ error: "rate_limited" },
-			{ "Retry-After": String(retry) },
-		);
-	}
-	tokens.hit(tokenKey);
+	const actor = await authenticateBearer(request, { path, channel: "api" });
+	if (actor instanceof Response) return actor;
 
 	const matched = matchApiRoute(request.method, path);
 	if (matched === "method") return json(405, { error: "method_not_allowed" });
 	if (!matched) return json(404, { error: "not_found" });
 	const { route } = matched;
-	if (!can(actor, route.permission)) {
-		return json(403, { error: "forbidden", permission: route.permission });
-	}
-	const params = route.params.safeParse(matched.params);
-	if (!params.success) {
-		return json(400, { error: "bad_request", issues: params.error.issues });
-	}
-	let rawBody: unknown = {};
-	if (request.method === "POST") {
-		const text = await request.text();
-		if (text.trim()) {
-			try {
-				rawBody = JSON.parse(text);
-			} catch {
-				return json(400, {
-					error: "bad_request",
-					message: "Invalid JSON body",
-				});
-			}
-		}
-	}
-	const body = route.body ? route.body.safeParse(rawBody) : null;
-	if (body && !body.success) {
-		return json(400, { error: "bad_request", issues: body.error.issues });
-	}
+	const input = { params: matched.params, body: () => readJsonBody(request) };
+	const label = `${request.method} ${path}`;
 
-	try {
-		if (route.stream) {
-			const jobId = (params.data as { jobId: string }).jobId;
+	if (route.stream) {
+		const prepared = await prepareApiCall(actor, route, input);
+		if (!prepared.ok) return failed(prepared);
+		try {
+			const jobId = (prepared.params as { jobId: string }).jobId;
 			await getDeployment(actor, jobId);
 			return deploymentStreamResponse(actor, jobId, request, {
 				permission: route.permission,
 				coded: false,
 			});
+		} catch (error) {
+			return failed(apiErrorFailure(error, request, label));
 		}
-		const result = await route.handler({
-			actor: { ...actor, gate: route.permission },
-			params: params.data,
-			body: body?.data ?? {},
-			request,
-		});
-		return json(200, result ?? null);
-	} catch (error) {
-		if (error instanceof AppError) {
-			return json(errorStatus(error.code), {
-				error: error.code,
-				message: getAppErrorMessage(
-					serverI18n(
-						localeFromAcceptLanguage(request.headers.get("accept-language")),
-					),
-					error,
-				),
-			});
-		}
-		console.error(`[api] ${request.method} ${path} failed`, error);
-		return json(500, { error: "internal_error" });
 	}
+	const outcome = await runApiRoute(actor, route, input, request, label);
+	return outcome.ok ? json(200, outcome.value) : failed(outcome);
 }

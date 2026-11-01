@@ -338,6 +338,17 @@ curl -X POST -H "Authorization: Bearer $TOKEN" https://panel.example.com/api/v1/
 curl -N -H "Authorization: Bearer $TOKEN" https://panel.example.com/api/v1/jobs/<jobId>/stream
 ```
 
+#### MCP server
+
+AI agents (Claude Code, Cursor, …) can drive the panel through its MCP server at `/api/mcp` (Streamable HTTP, stateless), with the same API tokens:
+
+```bash
+claude mcp add --transport http nitrobase https://panel.example.com/api/mcp \
+  --header "Authorization: Bearer nbk_…"
+```
+
+Its tools are generated from the REST API (`list_apps`, `deploy_app`, `get_job`, …), so every REST operation is a tool. An agent only sees the tools its token's permissions allow; read-only and destructive tools are marked as such. Deploys and backups return a job id to poll with `get_job`. Actions are audited like REST calls, tagged `channel: mcp`.
+
 ## Development
 
 **Requirements:** [Bun](https://bun.sh) and Docker (for the local PostgreSQL).
