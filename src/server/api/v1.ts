@@ -1,15 +1,46 @@
 import { z } from "zod";
 import type { Permission } from "#/config/permissions.ts";
 import { APP_NAME } from "#/config/shared.ts";
-import { startAppAction } from "#/features/apps/app-jobs.server.ts";
-import { getAppOverview, listApps } from "#/features/apps/apps.server.ts";
+import {
+	createAndDeployApp,
+	startAppAction,
+} from "#/features/apps/app-jobs.server.ts";
+import {
+	getAppEnv,
+	getAppOverview,
+	listAppDeployments,
+	listApps,
+} from "#/features/apps/apps.server.ts";
+import { readAppLogs } from "#/features/apps/logs.server.ts";
+import { runPreflight } from "#/features/apps/preflight.server.ts";
+import {
+	CreateAppSchema,
+	PreflightInputSchema,
+	serviceName,
+} from "#/features/apps/schema.ts";
 import type { Actor } from "#/features/auth/access.ts";
+import { listBackups } from "#/features/backups/backups.server.ts";
+import { listDestinations } from "#/features/backups/destinations.server.ts";
 import { startAppBackup } from "#/features/backups/jobs.server.ts";
+import { listJobs } from "#/features/deployments/jobs.server.ts";
+import { JobFiltersSchema } from "#/features/deployments/schema.ts";
+import { serverHistory } from "#/features/monitoring/monitoring.server.ts";
+import { ServerHistoryInputSchema } from "#/features/monitoring/schema.ts";
 import {
 	getDeployment,
 	getServer,
+	listServerSummaries,
 	listServers,
 } from "#/features/servers/servers.server.ts";
+import { TemplateVersionsInputSchema } from "#/features/templates/schema.ts";
+import {
+	getTemplateVersions,
+	listTemplates,
+} from "#/features/templates/templates.server.ts";
+import {
+	localeFromAcceptLanguage,
+	serverI18n,
+} from "#/server/services/i18n.ts";
 import { AppError } from "#/utils/error.ts";
 
 /**
@@ -45,6 +76,25 @@ const route = <P, B>(definition: ApiRoute<P, B>) =>
 
 const id = z.guid();
 const none = z.object({});
+
+/** A new app as the deploy wizard sends it (pre-flight and create). */
+const newAppBody = PreflightInputSchema.extend({
+	templateId: PreflightInputSchema.shape.templateId.describe(
+		"Template id from listTemplates",
+	),
+	serverId: PreflightInputSchema.shape.serverId.describe(
+		"A ready server of the team (listServers)",
+	),
+	version: PreflightInputSchema.shape.version.describe(
+		"A `ref` from listTemplateVersions; omitted: the template's default",
+	),
+	domain: PreflightInputSchema.shape.domain.describe(
+		"Primary host name pointing to the server; empty or omitted: a free generated domain",
+	),
+	inputs: PreflightInputSchema.shape.inputs.describe(
+		"Template variable values by name (the template's `inputs`); empty values keep the default",
+	),
+});
 
 const apiRoutes: ApiRoute[] = [
 	route({
@@ -187,6 +237,223 @@ const apiRoutes: ApiRoute[] = [
 		stream: true,
 		// Handled by the route (needs the raw request and a streaming body).
 		handler: async () => null,
+	}),
+
+	// Operating apps (also what AI agents get as tools): each entry calls the
+	// feature function its UI server function calls, with the token's actor.
+	route({
+		id: "listAppDeployments",
+		method: "GET",
+		path: "/apps/{appId}/deployments",
+		permission: "app.view",
+		summary:
+			"List the app's deployment history (newest first, last 50): job id, type, status, error, commit, timestamps. Use getJob for one job's details",
+		params: z.object({ appId: id }),
+		handler: ({ actor, params }) => listAppDeployments(actor, params.appId),
+	}),
+	route({
+		id: "getAppLogs",
+		method: "POST",
+		path: "/apps/{appId}/logs",
+		permission: "app.view",
+		summary:
+			"Read-only: the last `tail` container log lines of the app, or of one `service`, as text (not followed). Returns { service, tail, text }",
+		params: z.object({ appId: id }),
+		body: z.object({
+			service: serviceName
+				.optional()
+				.describe(
+					"One compose service (see getApp's services); omitted: all services",
+				),
+			tail: z
+				.number()
+				.int()
+				.min(1)
+				.optional()
+				.describe(
+					"Lines to return; capped by the instance maximum (APP_LOGS_TAIL_MAX), default APP_LOGS_TAIL_DEFAULT",
+				),
+			timestamps: z
+				.boolean()
+				.optional()
+				.describe("Prefix each line with its timestamp (default true)"),
+		}),
+		handler: ({ actor, params, body }) =>
+			readAppLogs(actor, { appId: params.appId, ...body }),
+	}),
+	route({
+		id: "startApp",
+		method: "POST",
+		path: "/apps/{appId}/start",
+		permission: "app.deploy",
+		summary:
+			"Start the stopped app, or one `service` of it. Returns { deploymentId }: a job id; poll getJob",
+		params: z.object({ appId: id }),
+		body: z.object({
+			service: serviceName.optional().describe("Only this compose service"),
+		}),
+		handler: ({ actor, params, body }) =>
+			startAppAction(actor, {
+				appId: params.appId,
+				action: "start",
+				service: body.service,
+			}),
+	}),
+	route({
+		id: "stopApp",
+		method: "POST",
+		path: "/apps/{appId}/stop",
+		permission: "app.deploy",
+		summary:
+			"Stop the app (its containers; data is kept), or one `service` of it. Returns { deploymentId }: a job id; poll getJob",
+		params: z.object({ appId: id }),
+		body: z.object({
+			service: serviceName.optional().describe("Only this compose service"),
+		}),
+		handler: ({ actor, params, body }) =>
+			startAppAction(actor, {
+				appId: params.appId,
+				action: "stop",
+				service: body.service,
+			}),
+	}),
+	route({
+		id: "getAppEnv",
+		method: "GET",
+		path: "/apps/{appId}/env",
+		permission: "app.view",
+		summary:
+			"The app's environment variables with secret values masked: `.env` text plus per-variable metadata (secret, template, locked, needsRedeploy). Never returns secret values",
+		params: z.object({ appId: id }),
+		handler: ({ actor, params }) => getAppEnv(actor, params.appId),
+	}),
+	route({
+		id: "listTemplates",
+		method: "GET",
+		path: "/templates",
+		permission: "app.view",
+		summary:
+			"List the app templates that can be deployed: id, name, description, category, editable inputs, requirements, `advanced` (createApp then needs acknowledged)",
+		params: none,
+		handler: () => listTemplates(),
+	}),
+	route({
+		id: "listTemplateVersions",
+		method: "GET",
+		path: "/templates/{templateId}/versions",
+		permission: "app.view",
+		summary:
+			"Stable versions a template can deploy, and the default one (`defaultRef`). Pass a `ref` as createApp's `version`",
+		params: z.object({
+			templateId: TemplateVersionsInputSchema.shape.templateId,
+		}),
+		handler: ({ params }) => getTemplateVersions(params.templateId),
+	}),
+	route({
+		id: "preflightApp",
+		method: "POST",
+		path: "/apps/preflight",
+		permission: "app.deploy",
+		summary:
+			"Read-only pre-flight of a new app (server ready, resources, ports, domain, version): returns { ok, checks }; createApp is refused while ok is false",
+		params: none,
+		body: newAppBody,
+		handler: ({ actor, body }) =>
+			runPreflight(actor, { ...body, domain: body.domain || undefined }),
+	}),
+	route({
+		id: "createApp",
+		method: "POST",
+		path: "/apps",
+		permission: "app.deploy",
+		summary:
+			"Create an app from a template on a server and deploy it. Runs the pre-flight first: if a check fails nothing is created and { preflight } is returned. Otherwise returns { appId, deploymentId }: a job id; poll getJob",
+		params: none,
+		body: newAppBody.extend({
+			name: z.string().trim().min(1).describe("Display name of the app"),
+			acknowledged: z
+				.boolean()
+				.default(false)
+				.describe(
+					"Set true to accept an `advanced` template or one needing extra security permissions (else TEMPLATE_ACK_REQUIRED)",
+				),
+		}),
+		handler: async ({ actor, body, request }) => {
+			const preflight = await runPreflight(actor, {
+				...body,
+				domain: body.domain || undefined,
+			});
+			if (!preflight.ok) return { preflight };
+			const i18n = serverI18n(
+				localeFromAcceptLanguage(request.headers.get("accept-language")),
+			);
+			return createAndDeployApp(actor, CreateAppSchema(i18n).parse(body));
+		},
+	}),
+	route({
+		id: "getServerHealth",
+		method: "GET",
+		path: "/servers/{serverId}/health",
+		permission: "server.view",
+		summary:
+			"Latest health of one server (CPU, memory, disk, load, last sample time), its app and database counts, and the alert thresholds",
+		params: z.object({ serverId: id }),
+		handler: async ({ actor, params }) => {
+			const server = await getServer(actor, params.serverId);
+			if (!server) throw new AppError("SERVER_NOT_FOUND");
+			const { servers, thresholds } = await listServerSummaries(actor);
+			const summary = servers.find((item) => item.serverId === server.id);
+			return { ...summary, thresholds };
+		},
+	}),
+	route({
+		id: "getServerMetrics",
+		method: "GET",
+		path: "/servers/{serverId}/metrics/{range}",
+		permission: "monitoring.view",
+		summary:
+			"Metric history of one server over `range` (1h, 24h, 7d): binned CPU, load, memory, swap, network and disk series",
+		params: ServerHistoryInputSchema,
+		handler: async ({ actor, params }) => {
+			const server = await getServer(actor, params.serverId);
+			if (!server) throw new AppError("SERVER_NOT_FOUND");
+			return serverHistory(server.id, params.range);
+		},
+	}),
+	route({
+		id: "listAppBackups",
+		method: "GET",
+		path: "/apps/{appId}/backups",
+		permission: "backup.view",
+		summary:
+			"List the app's backups (newest first): id, status, kind, size, destination, timestamps. Start one with backupApp",
+		params: z.object({ appId: id }),
+		handler: ({ actor, params }) => listBackups(actor, { appId: params.appId }),
+	}),
+	route({
+		id: "listBackupDestinations",
+		method: "GET",
+		path: "/backups/destinations",
+		permission: "backup.view",
+		summary:
+			"List the team's backup destinations as { id, name, type } (no credentials). Pass an id as backupApp's destinationId",
+		params: none,
+		handler: async ({ actor }) =>
+			(await listDestinations(actor)).map((row) => ({
+				id: row.id,
+				name: row.name,
+				type: row.type,
+			})),
+	}),
+	route({
+		id: "listJobs",
+		method: "GET",
+		path: "/jobs",
+		permission: "server.view",
+		summary:
+			"List the team's most recent jobs (deploys, backups, server actions; newest first) with status, app and server. Use getJob or streamJob for one",
+		params: none,
+		handler: ({ actor }) => listJobs(actor, JobFiltersSchema.parse({})),
 	}),
 ];
 

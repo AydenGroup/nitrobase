@@ -34,6 +34,58 @@ const QuerySchema = z.object({
 	timestamps: z.enum(["0", "1"]).optional(),
 });
 
+/** The requested tail, bounded by the instance's configured maximum. */
+function boundedTail(tail: number | undefined): number {
+	const config = getConfig();
+	return Math.min(
+		tail ?? config.APP_LOGS_TAIL_DEFAULT,
+		config.APP_LOGS_TAIL_MAX,
+	);
+}
+
+/** The last `tail` log lines of the app (or one service), not followed. */
+async function tailLogs(
+	app: Awaited<ReturnType<typeof getAppRow>>,
+	options: { service?: string; tail: number; timestamps: boolean },
+): Promise<string> {
+	const executor = await getExecutor(await getAppServer(app));
+	try {
+		const result = await executor.exec(
+			composeLogsCommand(appLocation(app), { ...options, follow: false }),
+		);
+		return `${result.stdout}\n${result.stderr}`;
+	} finally {
+		executor.close();
+	}
+}
+
+/**
+ * Recent logs of an app or one of its services as text (REST API, AI
+ * agents): what the logs download returns, team-scoped through `actor`.
+ */
+export async function readAppLogs(
+	actor: Actor,
+	input: {
+		appId: string;
+		service?: string;
+		tail?: number;
+		timestamps?: boolean;
+	},
+): Promise<{ service: string | null; tail: number; text: string }> {
+	const app = await getAppRow(actor, input.appId);
+	const { service } = input;
+	if (service && !deployedServices(app).includes(service)) {
+		throw new AppError("APP_SERVICE_NOT_FOUND", { service });
+	}
+	const tail = boundedTail(input.tail);
+	const text = await tailLogs(app, {
+		service,
+		tail,
+		timestamps: input.timestamps ?? true,
+	});
+	return { service: service ?? null, tail, text: text.trim() };
+}
+
 const activeStreams = new Map<string, number>();
 
 /** One more live stream for `userId`; null when the cap is reached. */
@@ -78,33 +130,17 @@ export async function appLogsResponse(
 		return Response.json({ message: "Unknown service" }, { status: 400 });
 	}
 	const config = getConfig();
-	const tail = Math.min(
-		query.data.tail ?? config.APP_LOGS_TAIL_DEFAULT,
-		config.APP_LOGS_TAIL_MAX,
-	);
+	const tail = boundedTail(query.data.tail);
 	const location = appLocation(app);
 
 	if (download) {
-		const executor = await getExecutor(await getAppServer(app));
-		try {
-			const result = await executor.exec(
-				composeLogsCommand(location, {
-					service,
-					tail,
-					follow: false,
-					timestamps,
-				}),
-			);
-			const name = `${app.folder}${service ? `-${service}` : ""}.log`;
-			return new Response(`${result.stdout}\n${result.stderr}`, {
-				headers: {
-					"Content-Type": "text/plain; charset=utf-8",
-					"Content-Disposition": `attachment; filename="${name}"`,
-				},
-			});
-		} finally {
-			executor.close();
-		}
+		const name = `${app.folder}${service ? `-${service}` : ""}.log`;
+		return new Response(await tailLogs(app, { service, tail, timestamps }), {
+			headers: {
+				"Content-Type": "text/plain; charset=utf-8",
+				"Content-Disposition": `attachment; filename="${name}"`,
+			},
+		});
 	}
 
 	const release = takeStreamSlot(userId);

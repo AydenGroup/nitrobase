@@ -44,7 +44,7 @@ const versionRef = z
 	.min(1)
 	.max(200)
 	.regex(/^[\w][\w./@-]*$/);
-const serviceName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/);
+export const serviceName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/);
 
 export const CreateAppSchema = (i18n: I18n) =>
 	z.object({
