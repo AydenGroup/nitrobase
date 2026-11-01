@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { APP_ID } from "#/config/shared.ts";
 
 /**
@@ -55,3 +57,23 @@ export function mcpJsonConfig(url: string, token: string): string {
 		2,
 	);
 }
+
+export interface McpClientSnippet {
+	id: string;
+	label: MessageDescriptor;
+	build: (url: string, token: string) => string;
+}
+
+/** The snippets the panel offers, in order. Add a client = add an entry. */
+export const mcpClientSnippets: McpClientSnippet[] = [
+	{
+		id: "claude-code",
+		label: msg({ id: "Claude Code" }),
+		build: claudeCodeCommand,
+	},
+	{
+		id: "json",
+		label: msg({ id: "Config file (Cursor and other clients)" }),
+		build: mcpJsonConfig,
+	},
+];
