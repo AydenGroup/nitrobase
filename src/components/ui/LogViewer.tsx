@@ -12,7 +12,6 @@ import {
 	TextInput,
 	Tooltip,
 } from "@mantine/core";
-import { useClipboard } from "@mantine/hooks";
 import {
 	ArrowDownToLine,
 	Check,
@@ -34,6 +33,7 @@ import { LOG_LEVEL_IDS, LOG_VIEWER, logLevels } from "#/config/log-levels.ts";
 import { type LogLevel, parseLogLine } from "#/libs/job-log.ts";
 import { detectLogLine } from "#/libs/log-level.ts";
 import { toneColors } from "#/theme/tokens.ts";
+import { useClipboard } from "./CopyIconButton";
 
 export interface LogEntry {
 	/** Stable key (sequence number or index). */

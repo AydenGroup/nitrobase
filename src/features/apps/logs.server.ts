@@ -162,10 +162,14 @@ export async function appLogsResponse(
 	const config = getConfig();
 	const tail = boundedTail(query.data.tail);
 	const location = appLocation(app);
+	// The log is the app's own output: a secret it prints is masked like in
+	// task and build output, so a viewer cannot read it here.
+	const masker = createSecretMasker(await appSecretValues(app));
 
 	if (download) {
 		const name = `${app.folder}${service ? `-${service}` : ""}.log`;
-		return new Response(await tailLogs(app, { service, tail, timestamps }), {
+		const text = await tailLogs(app, { service, tail, timestamps });
+		return new Response(masker.push(text) + masker.flush(), {
 			headers: {
 				"Content-Type": "text/plain; charset=utf-8",
 				"Content-Disposition": `attachment; filename="${name}"`,
@@ -203,7 +207,7 @@ export async function appLogsResponse(
 			});
 			let pending = "";
 			const onChunk = (chunk: string) => {
-				const { lines, rest } = splitLogChunk(pending, chunk);
+				const { lines, rest } = splitLogChunk(pending, masker.push(chunk));
 				pending = rest;
 				for (const line of lines) channel.event("log", line);
 			};
@@ -224,7 +228,8 @@ export async function appLogsResponse(
 					},
 				)
 				.then((result) => {
-					if (pending) channel.event("log", pending);
+					const last = pending + masker.flush();
+					if (last) channel.event("log", last);
 					channel.event("end", { exitCode: result.exitCode });
 				})
 				.catch((error) =>

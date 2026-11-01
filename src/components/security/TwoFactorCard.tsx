@@ -4,7 +4,6 @@ import {
 	Alert,
 	Button,
 	Code,
-	CopyButton,
 	Group,
 	Image,
 	Modal,
@@ -18,6 +17,7 @@ import { useMounted } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { CopyButton } from "#/components/ui/CopyIconButton";
 import { SectionCard } from "#/components/ui/SectionCard";
 import { StatusBadge } from "#/components/ui/StatusBadge";
 import { useAppMutation } from "#/components/ui/useAppMutation";

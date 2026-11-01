@@ -33,7 +33,11 @@ export const StatusDot: React.FC<{
 }> = ({ meta, size = 8, withLabel = false }) => {
 	const { i18n } = useLingui();
 	const label = meta ? i18n._(meta.label) : "";
-	const color = meta ? toneColors[meta.tone] : "gray";
+	const color = !meta
+		? "gray"
+		: meta.tone === "progress"
+			? toneColors.success
+			: toneColors[meta.tone];
 	const dot = (
 		<Box
 			component="span"
