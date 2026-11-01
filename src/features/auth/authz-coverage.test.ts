@@ -170,6 +170,8 @@ describe("authorization coverage", () => {
 			"account: generated identicons of any member",
 		"src/routes/api/v1/$.ts":
 			"API surface: every registry entry declares a permission (tested below)",
+		"src/routes/api/mcp.ts":
+			"MCP surface: tools are the API registry entries, listed and run under their permission (src/server/api/mcp.test.ts)",
 		"src/routes/api/health.ts":
 			"public: liveness of the container health check (no data)",
 		"src/routes/api/install[.]sh.ts":

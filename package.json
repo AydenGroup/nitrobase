@@ -43,6 +43,7 @@
     "@mantine/notifications": "^9.6.1",
     "@mantine/nprogress": "^9.6.1",
     "@mantine/spotlight": "^9.6.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@monaco-editor/react": "^4.7.0",
     "@parvineyvazov/json-translator": "^4.1.0",
     "@tanstack/react-devtools": "latest",

@@ -17,9 +17,10 @@ import { AppError } from "#/utils/error.ts";
  * registry entry per operation: method, path template, the permission it
  * needs (checked before the handler), zod schemas for path params and the
  * JSON body (validated, and turned into the OpenAPI document). Add an
- * endpoint = add an entry; it is gated and documented automatically.
+ * endpoint = add an entry; it is gated, documented and exposed as an MCP
+ * tool (#/server/api/mcp.ts) automatically.
  */
-interface ApiContext<P, B> {
+export interface ApiContext<P, B> {
 	actor: Actor;
 	params: P;
 	body: B;
@@ -35,8 +36,14 @@ export interface ApiRoute<P = unknown, B = unknown> {
 	summary: string;
 	params: z.ZodType<P>;
 	body?: z.ZodType<B>;
-	/** Server-sent events instead of JSON. */
+	/** Server-sent events instead of JSON (not exposed as an MCP tool). */
 	stream?: boolean;
+	/**
+	 * MCP tool hints, overriding the defaults derived from the method (GET:
+	 * read-only; POST: destructive, not idempotent). `readOnly` marks a POST
+	 * that only reads (it takes a body). See #/server/api/mcp.ts.
+	 */
+	mcp?: { readOnly?: boolean; destructive?: boolean; idempotent?: boolean };
 	handler: (ctx: ApiContext<P, B>) => Promise<unknown>;
 }
 
@@ -46,7 +53,7 @@ const route = <P, B>(definition: ApiRoute<P, B>) =>
 const id = z.guid();
 const none = z.object({});
 
-const apiRoutes: ApiRoute[] = [
+export const apiRoutes: ApiRoute[] = [
 	route({
 		id: "listServers",
 		method: "GET",

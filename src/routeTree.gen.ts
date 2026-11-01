@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as Char123LocaleChar125RouteRouteImport } from './routes/{-$locale}/route'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiInstallDotshRouteImport } from './routes/api/install[.]sh'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as Char123LocaleChar125AuthedRouteImport } from './routes/{-$locale}/_authed'
 import { Route as Char123LocaleChar125LoginRouteImport } from './routes/{-$locale}/login'
 import { Route as Char123LocaleChar125RegisterRouteImport } from './routes/{-$locale}/register'
@@ -67,6 +68,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const ApiInstallDotshRoute = ApiInstallDotshRouteImport.update({
   id: '/api/install.sh',
   path: '/api/install.sh',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char123LocaleChar125AuthedRoute =
@@ -306,6 +312,7 @@ export interface FileRoutesByFullPath {
   '/{-$locale}': typeof Char123LocaleChar125RouteRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/install.sh': typeof ApiInstallDotshRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/{-$locale}/login': typeof Char123LocaleChar125LoginRoute
   '/{-$locale}/register': typeof Char123LocaleChar125RegisterRoute
   '/api/audit/export': typeof ApiAuditExportRoute
@@ -350,6 +357,7 @@ export interface FileRoutesByTo {
   '/{-$locale}': typeof Char123LocaleChar125AuthedIndexRoute
   '/api/health': typeof ApiHealthRoute
   '/api/install.sh': typeof ApiInstallDotshRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/{-$locale}/login': typeof Char123LocaleChar125LoginRoute
   '/{-$locale}/register': typeof Char123LocaleChar125RegisterRoute
   '/api/audit/export': typeof ApiAuditExportRoute
@@ -394,6 +402,7 @@ export interface FileRoutesById {
   '/{-$locale}': typeof Char123LocaleChar125RouteRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/install.sh': typeof ApiInstallDotshRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/{-$locale}/_authed': typeof Char123LocaleChar125AuthedRouteWithChildren
   '/{-$locale}/login': typeof Char123LocaleChar125LoginRoute
   '/{-$locale}/register': typeof Char123LocaleChar125RegisterRoute
@@ -441,6 +450,7 @@ export interface FileRouteTypes {
     | '/{-$locale}'
     | '/api/health'
     | '/api/install.sh'
+    | '/api/mcp'
     | '/{-$locale}/login'
     | '/{-$locale}/register'
     | '/api/audit/export'
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/{-$locale}'
     | '/api/health'
     | '/api/install.sh'
+    | '/api/mcp'
     | '/{-$locale}/login'
     | '/{-$locale}/register'
     | '/api/audit/export'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/{-$locale}'
     | '/api/health'
     | '/api/install.sh'
+    | '/api/mcp'
     | '/{-$locale}/_authed'
     | '/{-$locale}/login'
     | '/{-$locale}/register'
@@ -574,6 +586,7 @@ export interface RootRouteChildren {
   Char123LocaleChar125RouteRoute: typeof Char123LocaleChar125RouteRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
   ApiInstallDotshRoute: typeof ApiInstallDotshRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   ApiAuditExportRoute: typeof ApiAuditExportRoute
   ApiSetupRestoreRoute: typeof ApiSetupRestoreRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
@@ -608,6 +621,13 @@ declare module '@tanstack/react-router' {
       path: '/api/install.sh'
       fullPath: '/api/install.sh'
       preLoaderRoute: typeof ApiInstallDotshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/{-$locale}/_authed': {
@@ -1004,6 +1024,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char123LocaleChar125RouteRoute: Char123LocaleChar125RouteRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
   ApiInstallDotshRoute: ApiInstallDotshRoute,
+  ApiMcpRoute: ApiMcpRoute,
   ApiAuditExportRoute: ApiAuditExportRoute,
   ApiSetupRestoreRoute: ApiSetupRestoreRoute,
   ApiV1SplatRoute: ApiV1SplatRoute,
