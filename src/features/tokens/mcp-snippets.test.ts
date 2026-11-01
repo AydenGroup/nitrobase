@@ -4,6 +4,7 @@ import {
 	claudeCodeCommand,
 	mcpEndpoint,
 	mcpJsonConfig,
+	publicBaseUrl,
 	shellQuote,
 	TOKEN_PLACEHOLDER,
 } from "./mcp-snippets";
@@ -17,6 +18,18 @@ describe("MCP client snippets", () => {
 		expect(mcpEndpoint("http://10.0.0.5:3000")).toBe(
 			"http://10.0.0.5:3000/api/mcp",
 		);
+	});
+
+	it("shows the base URL without credentials, query or fragment", () => {
+		expect(publicBaseUrl("https://user:pass@panel.example.com/")).toBe(
+			"https://panel.example.com",
+		);
+		expect(publicBaseUrl("https://admin@panel.example.com/sub/?a=1#x")).toBe(
+			"https://panel.example.com/sub",
+		);
+		expect(publicBaseUrl("http://10.0.0.5:3000")).toBe("http://10.0.0.5:3000");
+		expect(publicBaseUrl(null)).toBeNull();
+		expect(publicBaseUrl("not a url")).toBeNull();
 	});
 
 	it("quotes shell words only when needed, single quotes escaped", () => {

@@ -14,6 +14,20 @@ export const MCP_PATH = "/api/mcp";
 /** Stands for the token in snippets shown without one. */
 export const TOKEN_PLACEHOLDER = "<TOKEN>";
 
+/**
+ * A base URL safe to show: origin and path only (no user:pass@, query or
+ * fragment, no trailing slash). Null when absent or not a URL.
+ */
+export function publicBaseUrl(url: string | null): string | null {
+	if (!url) return null;
+	try {
+		const parsed = new URL(url);
+		return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, "");
+	} catch {
+		return null;
+	}
+}
+
 /** `https://panel.example.com/` → `https://panel.example.com/api/mcp`. */
 export function mcpEndpoint(baseUrl: string): string {
 	return `${baseUrl.replace(/\/+$/, "")}${MCP_PATH}`;
@@ -62,6 +76,8 @@ export interface McpClientSnippet {
 	id: string;
 	label: MessageDescriptor;
 	build: (url: string, token: string) => string;
+	/** A file the user saves: warn that it holds the token. */
+	fileHoldsToken?: boolean;
 }
 
 /** The snippets the panel offers, in order. Add a client = add an entry. */
@@ -73,7 +89,8 @@ export const mcpClientSnippets: McpClientSnippet[] = [
 	},
 	{
 		id: "json",
-		label: msg({ id: "Config file (Cursor and other clients)" }),
+		label: msg({ id: "Config file (Cursor, Claude Code .mcp.json)" }),
 		build: mcpJsonConfig,
+		fileHoldsToken: true,
 	},
 ];

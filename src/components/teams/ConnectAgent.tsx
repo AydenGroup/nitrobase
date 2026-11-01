@@ -39,6 +39,13 @@ export const McpClientSnippets: React.FC<{ url: string; token: string }> = ({
 						{i18n._(snippet.label)}
 					</Text>
 					<CopyField value={snippet.build(url, token)} block />
+					{snippet.fileHoldsToken && (
+						<Text size="xs" c="orange">
+							{i18n._(
+								"This file holds the secret token: save it in your user-level config (for example ~/.cursor/mcp.json), never in a repository, and never commit it. `claude mcp add` keeps the token in your local Claude Code config.",
+							)}
+						</Text>
+					)}
 				</Stack>
 			))}
 		</Stack>

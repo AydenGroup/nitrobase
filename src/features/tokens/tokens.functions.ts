@@ -3,6 +3,7 @@ import { z } from "zod";
 import { appBaseUrl } from "#/config/server.ts";
 import { requirePermission } from "#/features/auth/permissionMiddleware";
 import { i18nMiddleware } from "#/libs/i18n.ts";
+import { publicBaseUrl } from "./mcp-snippets";
 import { CreateApiTokenSchema } from "./schema";
 import { createApiToken, listApiTokens, revokeApiToken } from "./tokens.server";
 
@@ -39,4 +40,4 @@ export const revokeApiTokenFn = createServerFn({ method: "POST" })
  */
 export const apiBaseUrlFn = createServerFn({ method: "GET" })
 	.middleware([requirePermission("team.view")])
-	.handler(async () => appBaseUrl());
+	.handler(async () => publicBaseUrl(appBaseUrl()));
