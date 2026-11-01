@@ -6,7 +6,6 @@ import {
 	Button,
 	Card,
 	Code,
-	CopyButton,
 	Group,
 	SimpleGrid,
 	Stack,
@@ -30,6 +29,7 @@ import {
 import { useState } from "react";
 import { AppDatabaseLinksCard } from "#/components/databases/AppDatabaseLinksCard";
 import { useCan } from "#/components/teams/useCan";
+import { CopyButton } from "#/components/ui/CopyIconButton";
 import { ErrorText } from "#/components/ui/ErrorText.tsx";
 import { notifications } from "#/components/ui/Notifications";
 import { appStatuses, isBusy } from "#/config/status.ts";
