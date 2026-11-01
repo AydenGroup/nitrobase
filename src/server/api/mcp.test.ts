@@ -322,10 +322,14 @@ describe("POST /api/mcp", () => {
 			name: "get_server",
 			arguments: { serverId: SERVER_ID },
 		});
-		expect(translated.structuredContent).toMatchObject({
-			error: "SERVER_NOT_FOUND",
-			message: "Không tìm thấy máy chủ",
-		});
+		// The vi catalog's text (locales stay out of tracked code).
+		const translatedBody = translated.structuredContent as {
+			error: string;
+			message: string;
+		};
+		expect(translatedBody.error).toBe("SERVER_NOT_FOUND");
+		expect(translatedBody.message).toBeTruthy();
+		expect(translatedBody.message).not.toBe("Server not found");
 	});
 
 	it("answers 401 without or with a bad token, audited like REST", async () => {

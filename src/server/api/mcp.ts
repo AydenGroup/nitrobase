@@ -13,6 +13,7 @@ import { z } from "zod";
 import { APP_ID, APP_NAME } from "#/config/shared.ts";
 import { APP_VERSION } from "#/config/version.ts";
 import { type Actor, can } from "#/features/auth/access.ts";
+import { internalError } from "#/utils/plain-errors.ts";
 import { authenticateBearer } from "./bearer";
 import { type ApiOutcome, runApiRoute } from "./run";
 import { type ApiRoute, apiRoutes } from "./v1";
@@ -43,7 +44,7 @@ export const mcpToolName = (id: string) =>
 function shapeOf(route: ApiRoute, schema: z.ZodType | undefined) {
 	if (!schema) return {};
 	if (!(schema instanceof z.ZodObject)) {
-		throw new Error(`[mcp] ${route.id}: params and body must be z.object`);
+		throw internalError(`[mcp] ${route.id}: params and body must be z.object`);
 	}
 	return schema.shape;
 }
@@ -73,14 +74,14 @@ export function mcpTools(routes: readonly ApiRoute[] = apiRoutes): McpTool[] {
 		.map((route) => {
 			const name = mcpToolName(route.id);
 			if (names.has(name)) {
-				throw new Error(`[mcp] ${route.id}: duplicate tool name ${name}`);
+				throw internalError(`[mcp] ${route.id}: duplicate tool name ${name}`);
 			}
 			names.add(name);
 			const params = shapeOf(route, route.params);
 			const body = shapeOf(route, route.body);
 			const shared = Object.keys(params).filter((key) => key in body);
 			if (shared.length) {
-				throw new Error(
+				throw internalError(
 					`[mcp] ${route.id}: ${shared.join(", ")} in both params and body`,
 				);
 			}
