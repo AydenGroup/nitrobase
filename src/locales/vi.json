@@ -1,4 +1,5 @@
 {
+	"Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.": "Không chạy: chế độ chỉ đọc chạy mỗi lần một câu lệnh. Hãy chạy từng câu một, hoặc chuyển sang chế độ ghi.",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Phân tích web tôn trọng quyền riêng tư, không cookie (thay thế Google Analytics), dùng Postgres.",
 	"Umami release (image tag)": "Bản phát hành Umami (tag image)",

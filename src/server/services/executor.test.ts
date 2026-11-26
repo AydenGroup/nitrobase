@@ -81,7 +81,7 @@ describe("withRemoteTimeout", () => {
 			"sh -c ': nitrobase-job-abcdef0123456789; sleep 1'",
 		);
 		expect(killTaggedCommand("abcdef0123456789", "TERM")).toBe(
-			"pkill -TERM -f 'nitrobase-job-abcdef0123456789' || true",
+			"pkill -TERM -f '[n]itrobase-job-abcdef0123456789' || true",
 		);
 		expect(() => killTaggedCommand("bad tag;", "KILL")).toThrow();
 	});

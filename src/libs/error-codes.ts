@@ -166,6 +166,7 @@ export interface ErrorParamsMap
 	DATABASE_QUERY_BACKSLASH: Record<never, never>;
 	DATABASE_QUERY_CLIENT_COMMAND: { command: string };
 	DATABASE_QUERY_EXECUTABLE_COMMENT: Record<never, never>;
+	DATABASE_QUERY_ONE_STATEMENT: Record<never, never>;
 	DATABASE_COMMAND_DENIED: { command: string };
 	DATABASE_COMMAND_READ_ONLY: { command: string };
 	DATABASE_CONSOLE_BUSY: Record<never, never>;
@@ -1196,6 +1197,9 @@ export const errorCodes = {
 	}),
 	DATABASE_QUERY_EXECUTABLE_COMMENT: msg({
 		id: "Not run: executable comments (/*! … */) are not allowed in read-only mode.",
+	}),
+	DATABASE_QUERY_ONE_STATEMENT: msg({
+		id: "Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.",
 	}),
 	DATABASE_COMMAND_DENIED: msg({
 		id: "Not run: {command} is not allowed from the console.",

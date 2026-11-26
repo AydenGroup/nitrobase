@@ -212,6 +212,34 @@ describe("refusal codes", () => {
 		expect(code(() => checkConsoleSql("\\! id", "postgres", ro))).toBe(
 			"DATABASE_QUERY_BACKSLASH",
 		);
+		// The timeout is armed per statement: an earlier one could lift it.
+		for (const sql of [
+			"select set_config('statement_timeout', '0', true); select pg_sleep(4)",
+			"SET statement_timeout = 0; SELECT pg_sleep(4)",
+			"select 1; select 2",
+		]) {
+			expect(
+				code(() => checkConsoleSql(sql, "postgres", ro)),
+				sql,
+			).toBe("DATABASE_QUERY_ONE_STATEMENT");
+		}
+		// One statement: the timeout already runs when set_config does.
+		expect(
+			code(() =>
+				checkConsoleSql(
+					"select set_config('statement_timeout', '0', true), pg_sleep(4);",
+					"postgres",
+					ro,
+				),
+			),
+		).toBe("none");
+		// Write mode and MySQL keep several statements.
+		expect(
+			code(() => checkConsoleSql("select 1; select 2", "postgres", rw)),
+		).toBe("none");
+		expect(code(() => checkConsoleSql("select 1; select 2", "mysql", ro))).toBe(
+			"none",
+		);
 		expect(code(() => checkConsoleSql("system id", "mysql", ro))).toBe(
 			"DATABASE_QUERY_CLIENT_COMMAND",
 		);

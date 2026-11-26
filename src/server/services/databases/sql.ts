@@ -42,6 +42,7 @@ export type ConsoleRefusalCode =
 	| "DATABASE_QUERY_BACKSLASH"
 	| "DATABASE_QUERY_CLIENT_COMMAND"
 	| "DATABASE_QUERY_EXECUTABLE_COMMENT"
+	| "DATABASE_QUERY_ONE_STATEMENT"
 	| "DATABASE_COMMAND_DENIED"
 	| "DATABASE_COMMAND_READ_ONLY";
 
@@ -309,6 +310,16 @@ export function checkConsoleSql(
 	if (scanned.statements.length === 0) throw new TemplateError("SQL_EMPTY");
 	if (scanned.backslash) {
 		throw new ConsoleRefusal("DATABASE_QUERY_BACKSLASH");
+	}
+	// Postgres arms statement_timeout per statement, with the value in force
+	// when it starts: an earlier statement could lift it for a later one
+	// (`select set_config('statement_timeout', '0', true); select …`).
+	if (
+		options.readOnly &&
+		dialect === "postgres" &&
+		scanned.statements.length > 1
+	) {
+		throw new ConsoleRefusal("DATABASE_QUERY_ONE_STATEMENT");
 	}
 	for (const statement of scanned.statements) {
 		const [first = "", second = "", third = ""] = statement.words;

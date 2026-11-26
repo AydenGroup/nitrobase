@@ -226,10 +226,17 @@ function jobMarker(tag: string): string {
 	return resourceName(`job-${tag}`);
 }
 
-/** Kill every process whose argv carries the job marker (timeout + sh). */
+/**
+ * Kill every process whose argv carries the job marker (timeout + sh). The
+ * pattern brackets its first character (`[n]itrobase-job-…`): it still
+ * matches the job, but not the shell running this command, whose own argv
+ * holds the pattern text.
+ */
 export function killTaggedCommand(
 	tag: string,
 	signal: "TERM" | "KILL",
 ): string {
-	return `pkill -${signal} -f ${shellQuote(jobMarker(tag))} || true`;
+	const marker = jobMarker(tag);
+	const pattern = `[${marker[0]}]${marker.slice(1)}`;
+	return `pkill -${signal} -f ${shellQuote(pattern)} || true`;
 }
