@@ -1,5 +1,4 @@
 {
-	"Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.": "Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.",
 	"Umami release (image tag)": "Umami release (image tag)",
@@ -548,6 +547,7 @@
 	"Not run: client commands (starting with a backslash) are not allowed.": "Not run: client commands (starting with a backslash) are not allowed.",
 	"Not run: “{command}” is a mysql client command, not SQL.": "Not run: “{command}” is a mysql client command, not SQL.",
 	"Not run: executable comments (/*! … */) are not allowed in read-only mode.": "Not run: executable comments (/*! … */) are not allowed in read-only mode.",
+	"Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.": "Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.",
 	"Not run: {command} is not allowed from the console.": "Not run: {command} is not allowed from the console.",
 	"Not run: {command} is not allowed in read-only mode. Switch to write mode to change data.": "Not run: {command} is not allowed in read-only mode. Switch to write mode to change data.",
 	"Too many console runs: wait for the running ones to finish and try again in a minute.": "Too many console runs: wait for the running ones to finish and try again in a minute.",

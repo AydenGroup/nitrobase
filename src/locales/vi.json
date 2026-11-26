@@ -1,5 +1,4 @@
 {
-	"Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.": "Không chạy: chế độ chỉ đọc chạy mỗi lần một câu lệnh. Hãy chạy từng câu một, hoặc chuyển sang chế độ ghi.",
 	"Umami": "Umami",
 	"Privacy-friendly, cookie-free web analytics (Google Analytics alternative), on Postgres.": "Phân tích web tôn trọng quyền riêng tư, không cookie (thay thế Google Analytics), dùng Postgres.",
 	"Umami release (image tag)": "Bản phát hành Umami (tag image)",
@@ -548,6 +547,7 @@
 	"Not run: client commands (starting with a backslash) are not allowed.": "Không chạy: không cho phép lệnh của trình khách (bắt đầu bằng dấu gạch chéo ngược).",
 	"Not run: “{command}” is a mysql client command, not SQL.": "Không chạy: “{command}” là lệnh của trình khách mysql, không phải SQL.",
 	"Not run: executable comments (/*! … */) are not allowed in read-only mode.": "Không chạy: không cho phép chú thích thực thi (/*! … */) ở chế độ chỉ đọc.",
+	"Not run: read-only mode runs one statement at a time. Run them one by one, or switch to write mode.": "Không chạy: chế độ chỉ đọc chạy mỗi lần một câu lệnh. Hãy chạy từng câu một, hoặc chuyển sang chế độ ghi.",
 	"Not run: {command} is not allowed from the console.": "Không chạy: {command} không được phép chạy từ console.",
 	"Not run: {command} is not allowed in read-only mode. Switch to write mode to change data.": "Không chạy: {command} không được phép ở chế độ chỉ đọc. Chuyển sang chế độ ghi để thay đổi dữ liệu.",
 	"Too many console runs: wait for the running ones to finish and try again in a minute.": "Chạy console quá nhiều: hãy đợi các lần đang chạy xong và thử lại sau một phút.",

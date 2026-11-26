@@ -79,11 +79,11 @@ describe("read-only enforcement (statement rules)", () => {
 		// Writes are left to the server (read-only role + transaction).
 		expect(
 			checkConsoleSql(
-				"SELECT 1; WITH x AS (SELECT 2) SELECT * FROM x",
+				"WITH x AS (SELECT 2) INSERT INTO t SELECT * FROM x",
 				"postgres",
 				ro,
 			).statements,
-		).toHaveLength(2);
+		).toHaveLength(1);
 		expect(checkConsoleSql("COMMIT", "postgres", rw).statements).toHaveLength(
 			1,
 		);
